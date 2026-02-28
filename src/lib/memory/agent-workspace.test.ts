@@ -8,7 +8,7 @@ describe('Agent Workspace Generator', () => {
   let tempDir: string
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'octavious-ws-'))
+    tempDir = await mkdtemp(join(tmpdir(), 'octavius-ws-'))
   })
 
   afterEach(async () => {
@@ -18,7 +18,7 @@ describe('Agent Workspace Generator', () => {
   it('creates orchestrator workspace with all required files', async () => {
     const result = await generateAgentWorkspaces(tempDir)
 
-    const orchestratorPath = join(tempDir, 'workspace-octavious')
+    const orchestratorPath = join(tempDir, 'workspace-octavius')
     const files = await readdir(orchestratorPath)
 
     expect(files).toContain('SOUL.md')
@@ -32,7 +32,7 @@ describe('Agent Workspace Generator', () => {
     await generateAgentWorkspaces(tempDir)
 
     for (const quadrant of ['lifeforce', 'industry', 'fellowship', 'essence']) {
-      const wsPath = join(tempDir, `workspace-octavious-${quadrant}`)
+      const wsPath = join(tempDir, `workspace-octavius-${quadrant}`)
       const files = await readdir(wsPath)
       expect(files).toContain('AGENTS.md')
       expect(files).toContain('USER.md')
@@ -44,7 +44,7 @@ describe('Agent Workspace Generator', () => {
     await generateAgentWorkspaces(tempDir)
 
     for (const specialist of ['research', 'engineering', 'marketing', 'video', 'image', 'writing']) {
-      const wsPath = join(tempDir, `workspace-octavious-${specialist}`)
+      const wsPath = join(tempDir, `workspace-octavius-${specialist}`)
       const files = await readdir(wsPath)
       expect(files).toContain('AGENTS.md')
       expect(files).toContain('TOOLS.md')
@@ -54,7 +54,7 @@ describe('Agent Workspace Generator', () => {
   it('orchestrator SOUL.md contains personality and boundaries', async () => {
     await generateAgentWorkspaces(tempDir)
 
-    const content = await readFile(join(tempDir, 'workspace-octavious', 'SOUL.md'), 'utf-8')
+    const content = await readFile(join(tempDir, 'workspace-octavius', 'SOUL.md'), 'utf-8')
     expect(content).toContain('Personality')
     expect(content).toContain('Boundaries')
     expect(content).toContain('Tone')
@@ -63,7 +63,7 @@ describe('Agent Workspace Generator', () => {
   it('TOOLS.md contains Memory API documentation', async () => {
     await generateAgentWorkspaces(tempDir)
 
-    const content = await readFile(join(tempDir, 'workspace-octavious', 'TOOLS.md'), 'utf-8')
+    const content = await readFile(join(tempDir, 'workspace-octavius', 'TOOLS.md'), 'utf-8')
     expect(content).toContain('Memory API')
     expect(content).toContain('/api/memory')
     expect(content).toContain('Authorization')
@@ -85,7 +85,7 @@ describe('Agent Workspace Generator', () => {
     expect(agents.length).toBe(11) // 1 orchestrator + 4 quadrant + 6 specialist
 
     const ids = agents.map((a) => a.id)
-    expect(ids).toContain('octavious-orchestrator')
+    expect(ids).toContain('octavius-orchestrator')
     expect(ids).toContain('agent-lifeforce')
     expect(ids).toContain('agent-industry')
     expect(ids).toContain('agent-fellowship')
@@ -97,7 +97,7 @@ describe('Agent Workspace Generator', () => {
   it('orchestrator has sub_agents configured', () => {
     const config = generateOpenClawConfig()
     const agents = (config.agents as { list: Array<{ id: string; sub_agents?: string[] }> }).list
-    const orchestrator = agents.find((a) => a.id === 'octavious-orchestrator')
+    const orchestrator = agents.find((a) => a.id === 'octavius-orchestrator')
 
     expect(orchestrator?.sub_agents).toBeDefined()
     expect(orchestrator?.sub_agents?.length).toBe(10)

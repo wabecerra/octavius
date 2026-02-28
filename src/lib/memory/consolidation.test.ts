@@ -194,7 +194,7 @@ describe('ConsolidationJob', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 8: Consolidation Integrity
+// Feature: octavius-memory-architecture, Property 8: Consolidation Integrity
 // **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 10.4**
 // ---------------------------------------------------------------------------
 

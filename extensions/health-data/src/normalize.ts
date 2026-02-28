@@ -7,8 +7,8 @@ import type {
   AppleHealthPayload,
 } from "./types.js";
 
-// Canonical types mirrored from octavious/src/lib/health/types.ts
-// (extension can't import from octavious directly)
+// Canonical types mirrored from octavius/src/lib/health/types.ts
+// (extension can't import from octavius directly)
 
 export type ReadingType = "heart_rate" | "hrv" | "spo2" | "sleep" | "activity";
 export type HealthSource = "csv_import" | "rook_webhook" | "apple_health_webhook";
@@ -22,7 +22,7 @@ export interface CanonicalReading {
 
 /**
  * Computes a source-independent SHA-256 dedup key.
- * Mirrors the logic in octavious/src/lib/health/dedup.ts.
+ * Mirrors the logic in octavius/src/lib/health/dedup.ts.
  */
 function computeDedupKey(
   readingType: ReadingType,

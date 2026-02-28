@@ -163,7 +163,7 @@ describe('validateQuadrantId', () => {
 import * as fc from 'fast-check'
 
 /**
- * Feature: octavious-memory-architecture, Property 2: Numeric Range Validation
+ * Feature: octavius-memory-architecture, Property 2: Numeric Range Validation
  *
  * **Validates: Requirements 1.4, 1.5**
  *

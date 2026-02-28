@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-/** Default database file path relative to the octavious project root. */
+/** Default database file path relative to the octavius project root. */
 const DEFAULT_DB_PATH = resolve(import.meta.dirname ?? __dirname, '../../../../.data/memory.sqlite')
 
 /**

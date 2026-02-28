@@ -11,7 +11,7 @@ interface ThemeContextValue {
   setTheme: (theme: Theme) => void
 }
 
-const STORAGE_KEY = 'octavious-theme'
+const STORAGE_KEY = 'octavius-theme'
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 

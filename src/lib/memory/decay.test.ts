@@ -192,7 +192,7 @@ describe('DecayJob', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 9: Decay Score and Lifecycle
+// Feature: octavius-memory-architecture, Property 9: Decay Score and Lifecycle
 // **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
 // ---------------------------------------------------------------------------
 

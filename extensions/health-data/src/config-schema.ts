@@ -5,7 +5,7 @@ export const HealthDataConfigSchema = z.object({
   rookWebhookPath: z.string().default("/health/rook"),
   appleHealthWebhookPath: z.string().default("/health/apple"),
   webhookSecret: z.string(),
-  octaviousApiUrl: z.string(),
+  octaviusApiUrl: z.string(),
 });
 
 export type HealthDataConfig = z.infer<typeof HealthDataConfigSchema>;

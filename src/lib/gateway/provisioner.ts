@@ -12,10 +12,11 @@ import type Database from 'better-sqlite3'
 import type { GatewayClient } from './client'
 import type { ProvisionResult, HeartbeatActionConfig } from './types'
 import { generateAgentWorkspaces, generateOpenClawConfig } from '../memory/agent-workspace'
+import { seedDefaultContexts } from '../memory/context-annotations'
 
 /** All known agent IDs that should be registered with the gateway */
 const ALL_AGENT_IDS = [
-  'octavious-orchestrator',
+  'octavius-orchestrator',
   'agent-lifeforce',
   'agent-industry',
   'agent-fellowship',
@@ -30,11 +31,11 @@ const ALL_AGENT_IDS = [
 
 /** Workspace directory name for a given agent ID */
 function workspaceDirForAgent(agentId: string): string {
-  if (agentId === 'octavious-orchestrator') return 'workspace-octavious'
-  // agent-lifeforce → workspace-octavious-lifeforce
-  // specialist-research → workspace-octavious-research
+  if (agentId === 'octavius-orchestrator') return 'workspace-octavius'
+  // agent-lifeforce → workspace-octavius-lifeforce
+  // specialist-research → workspace-octavius-research
   const suffix = agentId.replace(/^(agent|specialist)-/, '')
-  return `workspace-octavious-${suffix}`
+  return `workspace-octavius-${suffix}`
 }
 
 export class AgentProvisioner {
@@ -79,6 +80,13 @@ export class AgentProvisioner {
         path: basePath ?? '~/.openclaw',
         error: err instanceof Error ? err.message : String(err),
       })
+    }
+
+    // Step 1b: Seed default context annotations for hybrid search
+    try {
+      seedDefaultContexts(this.db)
+    } catch {
+      // Non-fatal — annotations are a nice-to-have
     }
 
     // Step 2: Write OpenClaw config (Req 4.5)
@@ -198,7 +206,7 @@ export class AgentProvisioner {
   generateHeartbeatMd(actions: HeartbeatActionConfig[]): string {
     const enabledActions = actions.filter((a) => a.enabled)
 
-    let md = '# Octavious Orchestrator Heartbeat\n\n'
+    let md = '# Octavius Orchestrator Heartbeat\n\n'
     md += '## Actions\n\n'
 
     for (const action of enabledActions) {
@@ -228,8 +236,8 @@ export class AgentProvisioner {
    */
   async updateHeartbeatMd(actions: HeartbeatActionConfig[]): Promise<void> {
     const basePath = this.getDefaultBasePath()
-    const heartbeatPath = join(basePath, 'workspace-octavious', 'HEARTBEAT.md')
-    await mkdir(join(basePath, 'workspace-octavious'), { recursive: true })
+    const heartbeatPath = join(basePath, 'workspace-octavius', 'HEARTBEAT.md')
+    await mkdir(join(basePath, 'workspace-octavius'), { recursive: true })
     const content = this.generateHeartbeatMd(actions)
     await writeFile(heartbeatPath, content, 'utf-8')
   }

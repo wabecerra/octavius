@@ -36,21 +36,21 @@ function resolveHealthConfig(cfg: OpenClawConfig): HealthDataConfig | null {
     rookWebhookPath: (ext.rookWebhookPath as string) ?? "/health/rook",
     appleHealthWebhookPath: (ext.appleHealthWebhookPath as string) ?? "/health/apple",
     webhookSecret: ext.webhookSecret as string,
-    octaviousApiUrl: ext.octaviousApiUrl as string,
+    octaviusApiUrl: ext.octaviusApiUrl as string,
   };
 }
 
 /**
- * Forwards normalized readings to the Octavious /api/health/ingest endpoint.
+ * Forwards normalized readings to the Octavius /api/health/ingest endpoint.
  */
-async function forwardToOctavious(
+async function forwardToOctavius(
   readings: CanonicalReading[],
   source: "rook" | "apple_health",
-  octaviousApiUrl: string,
+  octaviusApiUrl: string,
   webhookSecret: string,
   log: HealthHandlerDeps["log"],
 ): Promise<{ ok: boolean; status?: number; data?: unknown }> {
-  const url = `${octaviousApiUrl}/api/health/ingest`;
+  const url = `${octaviusApiUrl}/api/health/ingest`;
   try {
     const resp = await fetch(url, {
       method: "POST",
@@ -63,13 +63,13 @@ async function forwardToOctavious(
     });
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
-      log.error(`health-data: Octavious returned ${resp.status}: ${text}`);
+      log.error(`health-data: Octavius returned ${resp.status}: ${text}`);
       return { ok: false, status: resp.status };
     }
     const data = await resp.json().catch(() => ({}));
     return { ok: true, status: resp.status, data };
   } catch (err) {
-    log.error(`health-data: failed to reach Octavious at ${url}: ${String(err)}`);
+    log.error(`health-data: failed to reach Octavius at ${url}: ${String(err)}`);
     return { ok: false };
   }
 }
@@ -135,11 +135,11 @@ export function createHealthHttpHandler(deps: HealthHandlerDeps) {
         return true;
       }
 
-      // Forward to Octavious
-      const result = await forwardToOctavious(
+      // Forward to Octavius
+      const result = await forwardToOctavius(
         readings,
         source,
-        healthCfg.octaviousApiUrl,
+        healthCfg.octaviusApiUrl,
         healthCfg.webhookSecret,
         deps.log,
       );

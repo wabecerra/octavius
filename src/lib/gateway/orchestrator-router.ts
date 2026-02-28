@@ -1,6 +1,6 @@
 /**
  * OrchestratorRouter — task analysis, sub-agent selection, multi-quadrant
- * aggregation, and failure handling for the Octavious orchestrator.
+ * aggregation, and failure handling for the Octavius orchestrator.
  *
  * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
  */
@@ -147,7 +147,7 @@ export function routeToSubAgent(
 
   // No registered sub-agents — route to orchestrator itself
   return {
-    targetAgentId: 'octavious-orchestrator',
+    targetAgentId: 'octavius-orchestrator',
     reason: 'No registered sub-agents available; handled by orchestrator',
   }
 }

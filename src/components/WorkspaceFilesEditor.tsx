@@ -123,7 +123,7 @@ export function WorkspaceFilesEditor() {
   }
 
   // Group agents: orchestrator on top, then quadrant generalists, then specialists
-  const orchestrator = agents.find((a) => a.id === 'octavious-orchestrator')
+  const orchestrator = agents.find((a) => a.id === 'octavius-orchestrator')
   const generalists = agents.filter((a) => a.id.startsWith('agent-'))
   const specialists = agents.filter((a) => a.id.startsWith('specialist-'))
 
@@ -277,7 +277,7 @@ export function WorkspaceFilesEditor() {
 
       {/* Info note */}
       <p className="text-[10px] text-foreground-disabled leading-relaxed">
-        These files live on disk at ~/.openclaw/workspace-octavious-*/. The Evolution Job updates them nightly with learned patterns. Previous versions are backed up in SQLite for audit.
+        These files live on disk at ~/.openclaw/workspace-octavius-*/. The Evolution Job updates them nightly with learned patterns. Previous versions are backed up in SQLite for audit.
       </p>
     </div>
   )

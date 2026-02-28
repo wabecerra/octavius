@@ -2014,7 +2014,7 @@ export default function Dashboard() {
       // Route through the orchestrator as a conversational task
       const task: AgentTask = {
         id: `chat-${Date.now()}`,
-        agentId: 'octavious-orchestrator',
+        agentId: 'octavius-orchestrator',
         description: content,
         complexityScore: 3,
         tier: 1,
@@ -2027,7 +2027,7 @@ export default function Dashboard() {
         id: `msg-${Date.now()}-resp`,
         role: 'assistant',
         content: result.result,
-        agentId: 'octavious-orchestrator',
+        agentId: 'octavius-orchestrator',
         timestamp: new Date().toISOString(),
       })
     } catch {

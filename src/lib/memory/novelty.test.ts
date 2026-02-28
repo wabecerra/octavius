@@ -219,7 +219,7 @@ describe('NoveltyDetector', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 7: Novelty Detection Threshold
+// Feature: octavius-memory-architecture, Property 7: Novelty Detection Threshold
 // **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 // ---------------------------------------------------------------------------
 
@@ -273,7 +273,7 @@ const provenanceArb: fc.Arbitrary<Provenance> = fc.record({
 const thresholdArb = fc.double({ min: 0.01, max: 1.0, noNaN: true })
 
 /**
- * Feature: octavious-memory-architecture, Property 7: Novelty Detection Threshold
+ * Feature: octavius-memory-architecture, Property 7: Novelty Detection Threshold
  *
  * **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
  *

@@ -11,6 +11,11 @@ import type {
 import type { AgentTask, EscalationEvent } from '../../types'
 import { validateConfidence, validateImportance } from './validation'
 import { computeEmbedding, storeEmbedding } from './embeddings'
+import { smartChunk } from './smart-chunking'
+import { hybridSearch } from './hybrid-search'
+import { expandQuery } from './query-expansion'
+import { rerankResults } from './reranker'
+import { resolveContexts, seedDefaultContexts } from './context-annotations'
 
 /** Row shape returned by better-sqlite3 for memory_items queries. */
 interface MemoryRow {
@@ -333,6 +338,154 @@ export class MemoryService {
   }
 
   // ---------------------------------------------------------------------------
+  // Hybrid Search with Query Expansion, RRF Fusion, and Re-ranking
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Full hybrid search pipeline inspired by QMD:
+   * 1. Optionally expand the query into variants
+   * 2. Run FTS5 + vector search via RRF fusion
+   * 3. Optionally re-rank top candidates with LLM
+   * 4. Attach context annotations to results
+   *
+   * Falls back gracefully at each step if features are disabled or fail.
+   */
+  async searchHybrid(query: SearchQuery): Promise<SearchResult> {
+    const config = this.getConfig()
+    const queryText = query.text ?? query.semantic_query ?? ''
+    if (!queryText) return this.list(query)
+
+    // Step 1: Query expansion (if enabled)
+    let searchQueries = [queryText]
+    if (config.query_expansion_enabled && config.embedding_enabled) {
+      searchQueries = await expandQuery(queryText, config)
+    }
+
+    // Step 2: Hybrid RRF fusion search
+    // Run hybrid search for each expanded query variant
+    const allResults: SearchResult[] = []
+    for (const q of searchQueries) {
+      const expandedQuery = { ...query, text: q, semantic_query: q }
+      const result = await hybridSearch(this.db, expandedQuery, config)
+      allResults.push(result)
+      // Original query gets 2x weight
+      if (q === queryText) allResults.push(result)
+    }
+
+    // Merge all results by memory_id, keeping highest score
+    const scoreMap = new Map<string, number>()
+    const itemMap = new Map<string, MemoryItem>()
+    for (const result of allResults) {
+      for (let i = 0; i < result.items.length; i++) {
+        const item = result.items[i]
+        const score = result.relevance_scores?.[i] ?? 0
+        const existing = scoreMap.get(item.memory_id) ?? 0
+        if (score > existing) {
+          scoreMap.set(item.memory_id, score)
+          itemMap.set(item.memory_id, item)
+        }
+      }
+    }
+
+    let items = Array.from(itemMap.values())
+    let scores = items.map((i) => scoreMap.get(i.memory_id) ?? 0)
+
+    // Sort by score descending
+    const indexed = items.map((item, i) => ({ item, score: scores[i] }))
+    indexed.sort((a, b) => b.score - a.score)
+    items = indexed.map((x) => x.item)
+    scores = indexed.map((x) => x.score)
+
+    // Step 3: LLM re-ranking (if enabled)
+    if (config.reranking_enabled && config.embedding_enabled && items.length > 0) {
+      const candidates = items.map((item, i) => ({ item, fusionScore: scores[i] }))
+      const reranked = await rerankResults(queryText, candidates, config, this.db)
+      items = reranked.map((r) => r.item)
+      scores = reranked.map((r) => r.blendedScore)
+    }
+
+    // Trim to requested limit
+    const limit = query.limit ?? 20
+    items = items.slice(0, limit)
+    scores = scores.slice(0, limit)
+
+    // Step 4: Attach context annotations
+    const contexts: string[] = items.map((item) => {
+      const resolved = resolveContexts(this.db, {
+        agent_id: item.provenance.agent_id,
+        source_type: item.provenance.source_type,
+        tags: item.tags,
+        layer: item.layer,
+        type: item.type,
+      })
+      return resolved.map((c) => c.description).join(' | ') || ''
+    })
+
+    return {
+      items,
+      total: items.length,
+      relevance_scores: scores,
+      contexts,
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Smart Chunking for Long Memories
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Create a memory item with smart chunking for long text.
+   * If the text exceeds the target token count, splits into chunks and creates
+   * a parent item + child chunk items linked via consolidated_into.
+   *
+   * Short texts are stored as a single item (no chunking).
+   */
+  createWithChunking(input: CreateMemoryItemInput): MemoryItem[] {
+    const config = this.getConfig()
+    const targetTokens = config.smart_chunking_target_tokens
+    const estimatedTokens = Math.ceil(input.text.length / 4)
+
+    // Short text — no chunking needed
+    if (estimatedTokens <= targetTokens * 1.2) {
+      return [this.create(input)]
+    }
+
+    // Create parent item with full text
+    const parent = this.create(input)
+
+    // Chunk the text
+    const chunks = smartChunk(input.text, targetTokens)
+
+    // Create child items for each chunk (skip if only 1 chunk)
+    if (chunks.length <= 1) return [parent]
+
+    const children: MemoryItem[] = []
+    for (const chunk of chunks) {
+      const child = this.create({
+        text: chunk.text,
+        type: input.type,
+        layer: input.layer,
+        provenance: input.provenance,
+        confidence: input.confidence,
+        importance: input.importance,
+        tags: [...(input.tags ?? []), `chunk:${chunk.sequence}`, `parent:${parent.memory_id}`],
+      })
+      // Link child to parent
+      this.update(child.memory_id, { consolidated_into: parent.memory_id })
+      children.push(child)
+    }
+
+    return [parent, ...children]
+  }
+
+  /**
+   * Seed default context annotations for the Octavius system.
+   */
+  seedContexts(): void {
+    seedDefaultContexts(this.db)
+  }
+
+  // ---------------------------------------------------------------------------
   // Agent Task Memory Recording (Req 16.1, 16.2, 16.3)
   // ---------------------------------------------------------------------------
 
@@ -411,11 +564,18 @@ export class MemoryService {
     embedding_model: 'nomic-embed-text',
     api_secret_token: '',
     context_retrieval_top_n: 10,
+    reranking_enabled: false,
+    query_expansion_enabled: false,
+    smart_chunking_target_tokens: 900,
   }
 
   /**
    * Read the full MemoryConfig from the config table, falling back to defaults
    * for any missing keys. Generates an api_secret_token on first call if none exists.
+   *
+   * Auto-derives: when embedding_enabled is true and reranking/query_expansion
+   * haven't been explicitly set, they default to true (follows the principle
+   * that if you have Ollama running, you likely have a generative model too).
    */
   getConfig(): MemoryConfig {
     const rows = this.db
@@ -448,6 +608,13 @@ export class MemoryService {
       this.db
         .prepare('INSERT OR REPLACE INTO config (key, value, updated_at) VALUES (?, ?, ?)')
         .run('api_secret_token', config.api_secret_token, new Date().toISOString())
+    }
+
+    // Auto-derive: when embeddings are enabled and reranking/expansion haven't
+    // been explicitly set by the user, enable them automatically.
+    if (config.embedding_enabled) {
+      if (!stored.has('reranking_enabled')) config.reranking_enabled = true
+      if (!stored.has('query_expansion_enabled')) config.query_expansion_enabled = true
     }
 
     return config

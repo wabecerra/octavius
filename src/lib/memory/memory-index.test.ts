@@ -346,7 +346,7 @@ describe('MemoryIndex', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 5: Search Filter Correctness
+// Feature: octavius-memory-architecture, Property 5: Search Filter Correctness
 // **Validates: Requirements 2.4, 2.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 8.3, 10.2, 10.6**
 // ---------------------------------------------------------------------------
 

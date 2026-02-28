@@ -233,7 +233,7 @@ describe('HeartbeatMonitor', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 15: Heartbeat Process Lifecycle
+// Feature: octavius-memory-architecture, Property 15: Heartbeat Process Lifecycle
 // **Validates: Requirements 17.1, 17.3, 17.4, 17.5, 17.6**
 // ---------------------------------------------------------------------------
 
@@ -255,7 +255,7 @@ const intervalMsArb = fc.integer({ min: 100, max: 60_000 })
 
 describe('Property 15: Heartbeat Process Lifecycle', () => {
   /**
-   * Feature: octavious-memory-architecture, Property 15: Heartbeat Process Lifecycle
+   * Feature: octavius-memory-architecture, Property 15: Heartbeat Process Lifecycle
    *
    * **Validates: Requirements 17.1, 17.3, 17.4, 17.5, 17.6**
    *

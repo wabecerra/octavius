@@ -63,19 +63,19 @@ function rowToMemoryItem(row: MemoryRow): MemoryItem {
   }
 }
 
-/** Agent definitions for the Octavious system. */
+/** Agent definitions for the Octavius system. */
 const AGENTS = [
-  { id: 'octavious-orchestrator', workspace: 'workspace-octavious', files: ['AGENTS.md', 'USER.md'] },
-  { id: 'agent-lifeforce', workspace: 'workspace-octavious-lifeforce', files: ['AGENTS.md', 'USER.md'] },
-  { id: 'agent-industry', workspace: 'workspace-octavious-industry', files: ['AGENTS.md', 'USER.md'] },
-  { id: 'agent-fellowship', workspace: 'workspace-octavious-fellowship', files: ['AGENTS.md', 'USER.md'] },
-  { id: 'agent-essence', workspace: 'workspace-octavious-essence', files: ['AGENTS.md', 'USER.md'] },
-  { id: 'specialist-research', workspace: 'workspace-octavious-research', files: ['AGENTS.md'] },
-  { id: 'specialist-engineering', workspace: 'workspace-octavious-engineer', files: ['AGENTS.md'] },
-  { id: 'specialist-marketing', workspace: 'workspace-octavious-marketing', files: ['AGENTS.md'] },
-  { id: 'specialist-video', workspace: 'workspace-octavious-video', files: ['AGENTS.md'] },
-  { id: 'specialist-image', workspace: 'workspace-octavious-image', files: ['AGENTS.md'] },
-  { id: 'specialist-writing', workspace: 'workspace-octavious-writing', files: ['AGENTS.md'] },
+  { id: 'octavius-orchestrator', workspace: 'workspace-octavius', files: ['AGENTS.md', 'USER.md'] },
+  { id: 'agent-lifeforce', workspace: 'workspace-octavius-lifeforce', files: ['AGENTS.md', 'USER.md'] },
+  { id: 'agent-industry', workspace: 'workspace-octavius-industry', files: ['AGENTS.md', 'USER.md'] },
+  { id: 'agent-fellowship', workspace: 'workspace-octavius-fellowship', files: ['AGENTS.md', 'USER.md'] },
+  { id: 'agent-essence', workspace: 'workspace-octavius-essence', files: ['AGENTS.md', 'USER.md'] },
+  { id: 'specialist-research', workspace: 'workspace-octavius-research', files: ['AGENTS.md'] },
+  { id: 'specialist-engineering', workspace: 'workspace-octavius-engineer', files: ['AGENTS.md'] },
+  { id: 'specialist-marketing', workspace: 'workspace-octavius-marketing', files: ['AGENTS.md'] },
+  { id: 'specialist-video', workspace: 'workspace-octavius-video', files: ['AGENTS.md'] },
+  { id: 'specialist-image', workspace: 'workspace-octavius-image', files: ['AGENTS.md'] },
+  { id: 'specialist-writing', workspace: 'workspace-octavius-writing', files: ['AGENTS.md'] },
 ]
 
 /**

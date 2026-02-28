@@ -18,9 +18,9 @@ function getWorkspaceBase(): string {
 
 // --- Template content ---
 
-const ORCHESTRATOR_SOUL = `# Octavious — Soul
+const ORCHESTRATOR_SOUL = `# Octavius — Soul
 
-You are Octavious, a personal life operating system orchestrator. You coordinate four life quadrants (Lifeforce, Industry, Fellowship, Essence) and specialist agents to help the user live a balanced, intentional life.
+You are Octavius, a personal life operating system orchestrator. You coordinate four life quadrants (Lifeforce, Industry, Fellowship, Essence) and specialist agents to help the user live a balanced, intentional life.
 
 ## Personality
 - Calm, thoughtful, and proactive
@@ -40,10 +40,10 @@ You are Octavious, a personal life operating system orchestrator. You coordinate
 - Use the user's preferred name and communication style
 `
 
-const ORCHESTRATOR_AGENTS = `# Octavious — Agent Instructions
+const ORCHESTRATOR_AGENTS = `# Octavius — Agent Instructions
 
 ## Role
-Main orchestrator for the Octavious life OS. Coordinates all quadrant and specialist agents.
+Main orchestrator for the Octavius life OS. Coordinates all quadrant and specialist agents.
 
 ## Delegation Rules
 - Route health/wellness tasks to agent-lifeforce
@@ -61,9 +61,11 @@ Main orchestrator for the Octavious life OS. Coordinates all quadrant and specia
 - Track dependencies between quadrant tasks
 
 ## Memory Usage
-- Query the Memory API for relevant context before delegating
-- Store task results as episodic memories
-- Use quadrant tags to scope context retrieval
+- **Before every task**, call \`POST /api/memory/context\` with a natural language query describing the task. This runs hybrid search (keyword + semantic + re-ranking) and returns the most relevant memories with context annotations.
+- The \`contexts\` field in the response tells you what kind of memory each item is (e.g. "Health biometrics from wearable devices" or "Learned behavioral patterns"). Use this to weigh information appropriately.
+- Store task results as episodic memories via \`POST /api/memory/items\` — long text is automatically chunked for better future retrieval.
+- Use quadrant tags to scope context retrieval when delegating to a specific quadrant agent.
+- When you learn something new about the user's preferences or patterns, store it as a procedural/tacit_knowledge memory so the Evolution Job can pick it up.
 `
 
 const ORCHESTRATOR_USER = `# User Profile
@@ -92,17 +94,40 @@ Include the Bearer token in the Authorization header:
 \`Authorization: Bearer <api_secret_token>\`
 
 ### Key Endpoints
-- \`GET /api/memory/items\` — List/search items (query params: text, type, layer, quadrant, tags)
-- \`POST /api/memory/items\` — Create a new memory item
-- \`POST /api/memory/search\` — Compound search (FTS + filters + semantic)
-- \`POST /api/memory/context\` — Get top-N relevant items for prompt injection
-- \`GET /api/memory/graph/edges\` — Query graph relationships
-- \`POST /api/memory/graph/traverse\` — BFS traversal from a node
+
+#### Search & Retrieval
+- \`POST /api/memory/search\` — **Hybrid search** (recommended). When embeddings are enabled, runs the full pipeline: query expansion → FTS + vector search → RRF fusion → LLM re-ranking. Falls back to FTS-only when embeddings are off. Body: SearchQuery.
+- \`POST /api/memory/context\` — **Context retrieval for prompt injection** (recommended for pre-task context). Returns top-N relevant items with context annotations explaining what each memory is. Body: \`{ query: string, quadrant?: string, top_n?: number }\`.
+- \`GET /api/memory/items\` — List/filter items (query params: text, type, layer, quadrant, tags).
+- \`POST /api/memory/items\` — Create a new memory item. Long text is automatically chunked at natural markdown boundaries for better retrieval.
+
+#### Context Annotations
+- \`GET /api/memory/annotations\` — List all context annotations (descriptions of what different memory sources contain).
+- \`POST /api/memory/annotations\` — Add/update a context annotation. Body: \`{ path: string, description: string }\`. Paths follow the pattern: \`quadrant:lifeforce\`, \`source:device_sync\`, \`agent:agent-lifeforce\`, \`layer:daily_notes\`, \`/\` (global).
+- \`DELETE /api/memory/annotations\` — Remove an annotation. Body: \`{ path: string }\`.
+
+#### Graph
+- \`GET /api/memory/graph/edges\` — Query graph relationships.
+- \`POST /api/memory/graph/traverse\` — BFS traversal from a node.
+
+### Search Response Format
+Search and context endpoints return:
+\`\`\`json
+{
+  "items": [...],
+  "total": 10,
+  "relevance_scores": [0.92, 0.85, ...],
+  "contexts": ["Health biometrics from wearable devices", "Journal entries", ...]
+}
+\`\`\`
+The \`contexts\` array (parallel to items) contains human-readable descriptions of what each memory represents. Use these to understand the nature of retrieved memories before acting on them.
 
 ### Best Practices
-- Always scope queries with quadrant tags when working within a single quadrant
-- Use the context endpoint for prompt injection — it handles ranking and relevance
+- **Always use \`/api/memory/context\` before delegating tasks** — it gives you the most relevant memories with context annotations
+- Scope queries with quadrant tags when working within a single quadrant
 - Store task results as episodic memories with your agent_id in provenance
+- The search pipeline automatically expands your query into alternative phrasings — write natural language queries, not keyword lists
+- Context annotations help you understand what a memory is (e.g. "Biometric data from RingConn" vs "User journal entry") — use them to weigh information appropriately
 `
 
 const QUADRANT_TEMPLATES: Record<string, { agents: string; user: string }> = {
@@ -310,8 +335,8 @@ function buildWorkspaces(): AgentWorkspace[] {
 
   // Orchestrator
   workspaces.push({
-    id: 'octavious-orchestrator',
-    workspace: 'workspace-octavious',
+    id: 'octavius-orchestrator',
+    workspace: 'workspace-octavius',
     files: {
       'SOUL.md': ORCHESTRATOR_SOUL,
       'AGENTS.md': ORCHESTRATOR_AGENTS,
@@ -324,7 +349,7 @@ function buildWorkspaces(): AgentWorkspace[] {
   for (const [quadrant, templates] of Object.entries(QUADRANT_TEMPLATES)) {
     workspaces.push({
       id: `agent-${quadrant}`,
-      workspace: `workspace-octavious-${quadrant}`,
+      workspace: `workspace-octavius-${quadrant}`,
       files: {
         'AGENTS.md': templates.agents,
         'USER.md': templates.user,
@@ -337,7 +362,7 @@ function buildWorkspaces(): AgentWorkspace[] {
   for (const [specialist, agentsMd] of Object.entries(SPECIALIST_TEMPLATES)) {
     workspaces.push({
       id: `specialist-${specialist}`,
-      workspace: `workspace-octavious-${specialist}`,
+      workspace: `workspace-octavius-${specialist}`,
       files: {
         'AGENTS.md': agentsMd,
         'TOOLS.md': TOOLS_MD,
@@ -356,9 +381,9 @@ export function generateOpenClawConfig(): Record<string, unknown> {
     agents: {
       list: [
         {
-          id: 'octavious-orchestrator',
-          name: 'Octavious',
-          workspace: 'workspace-octavious',
+          id: 'octavius-orchestrator',
+          name: 'Octavius',
+          workspace: 'workspace-octavius',
           heartbeat: true,
           sub_agents: [
             'agent-lifeforce',
@@ -376,14 +401,14 @@ export function generateOpenClawConfig(): Record<string, unknown> {
         ...['lifeforce', 'industry', 'fellowship', 'essence'].map((q) => ({
           id: `agent-${q}`,
           name: `Agent ${q.charAt(0).toUpperCase() + q.slice(1)}`,
-          workspace: `workspace-octavious-${q}`,
+          workspace: `workspace-octavius-${q}`,
           heartbeat: false,
           bindings: [`quadrant:${q}`],
         })),
         ...Object.keys(SPECIALIST_TEMPLATES).map((s) => ({
           id: `specialist-${s}`,
           name: `Specialist ${s.charAt(0).toUpperCase() + s.slice(1)}`,
-          workspace: `workspace-octavious-${s}`,
+          workspace: `workspace-octavius-${s}`,
           heartbeat: false,
         })),
       ],

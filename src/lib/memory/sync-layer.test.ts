@@ -370,7 +370,7 @@ describe('SyncLayer', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 11: Quadrant Tag Assignment
+// Feature: octavius-memory-architecture, Property 11: Quadrant Tag Assignment
 // **Validates: Requirements 10.1, 15.1, 15.2, 15.3, 15.4, 15.5, 15.6**
 // ---------------------------------------------------------------------------
 
@@ -580,7 +580,7 @@ describe('Property 11: Quadrant Tag Assignment', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 12: Sync Layer Mutation Propagation
+// Feature: octavius-memory-architecture, Property 12: Sync Layer Mutation Propagation
 // **Validates: Requirements 14.1, 14.4**
 // ---------------------------------------------------------------------------
 
@@ -737,7 +737,7 @@ describe('Property 12: Sync Layer Mutation Propagation', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 13: Last-Write-Wins Conflict Resolution
+// Feature: octavius-memory-architecture, Property 13: Last-Write-Wins Conflict Resolution
 // **Validates: Requirements 14.6**
 // ---------------------------------------------------------------------------
 

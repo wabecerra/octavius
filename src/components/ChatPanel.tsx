@@ -12,7 +12,7 @@ export interface ChatPanelProps {
 
 const roleLabels: Record<ChatMessage['role'], string> = {
   user: 'You',
-  assistant: 'Octavious',
+  assistant: 'Octavius',
   system: 'System',
 }
 
@@ -68,7 +68,7 @@ export function ChatPanel({ messages, onSendMessage, isLoading, gatewayStatus }:
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
           <p className="text-sm text-[var(--text-tertiary)] text-center py-8">
-            Send a message to start a conversation with Octavious
+            Send a message to start a conversation with Octavius
           </p>
         )}
         {messages.map((msg) => (

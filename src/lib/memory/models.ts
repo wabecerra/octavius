@@ -90,7 +90,8 @@ export interface SearchQuery {
 export interface SearchResult {
   items: MemoryItem[]
   total: number
-  relevance_scores?: number[] // parallel to items, from FTS5 rank
+  relevance_scores?: number[] // parallel to items, from FTS5 rank or hybrid fusion
+  contexts?: string[] // parallel to items, resolved context annotations
 }
 
 // Heartbeat types
@@ -145,6 +146,9 @@ export interface MemoryConfig {
   embedding_model: string // default 'nomic-embed-text'
   api_secret_token: string // generated on first init
   context_retrieval_top_n: number // default 10
+  reranking_enabled: boolean // auto-enabled when embedding_enabled is true
+  query_expansion_enabled: boolean // auto-enabled when embedding_enabled is true
+  smart_chunking_target_tokens: number // default 900 — target tokens per chunk
 }
 
 // Valid value sets for validation

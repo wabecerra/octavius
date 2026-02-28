@@ -1,7 +1,7 @@
 /**
  * API route for reading and writing agent workspace Markdown files.
  *
- * GET  ?agentId=octavious-orchestrator  → returns all .md files for that agent
+ * GET  ?agentId=octavius-orchestrator  → returns all .md files for that agent
  * GET  (no agentId)                     → returns all agents and their files
  * PUT  { agentId, fileName, content }   → writes content to the file
  */
@@ -12,9 +12,9 @@ import { join } from 'node:path'
 
 /** Map agent IDs to workspace directory names */
 function workspaceDirForAgent(agentId: string): string {
-  if (agentId === 'octavious-orchestrator') return 'workspace-octavious'
+  if (agentId === 'octavius-orchestrator') return 'workspace-octavius'
   const suffix = agentId.replace(/^(agent|specialist)-/, '')
-  return `workspace-octavious-${suffix}`
+  return `workspace-octavius-${suffix}`
 }
 
 function getBasePath(): string {
@@ -22,7 +22,7 @@ function getBasePath(): string {
 }
 
 const KNOWN_AGENTS = [
-  { id: 'octavious-orchestrator', label: 'Octavious (Orchestrator)' },
+  { id: 'octavius-orchestrator', label: 'Octavius (Orchestrator)' },
   { id: 'agent-lifeforce', label: 'Lifeforce' },
   { id: 'agent-industry', label: 'Industry' },
   { id: 'agent-fellowship', label: 'Fellowship' },

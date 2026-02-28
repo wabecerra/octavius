@@ -21,7 +21,7 @@ import type { TaskDispatcher } from './dispatcher'
 function makeTask(overrides: Partial<AgentTask> = {}): AgentTask {
   return {
     id: 'task-1',
-    agentId: 'octavious-orchestrator',
+    agentId: 'octavius-orchestrator',
     description: 'Do something',
     complexityScore: 5,
     tier: 2,
@@ -121,7 +121,7 @@ describe('routeToSubAgent', () => {
   it('returns orchestrator when no sub-agents are registered', () => {
     const task = makeTask({ description: 'Do anything' })
     const decision = routeToSubAgent(task, [])
-    expect(decision.targetAgentId).toBe('octavious-orchestrator')
+    expect(decision.targetAgentId).toBe('octavius-orchestrator')
     expect(decision.reason).toContain('No registered sub-agents')
   })
 })

@@ -37,7 +37,7 @@ function deriveKey(passphrase: string, salt: Buffer): Buffer {
  * Encrypt a plaintext token string.
  * Returns a base64 string: salt(16) + iv(12) + authTag(16) + ciphertext.
  */
-export function encryptToken(plaintext: string, passphrase: string = 'octavious-default-key'): string {
+export function encryptToken(plaintext: string, passphrase: string = 'octavius-default-key'): string {
   const salt = randomBytes(16)
   const key = deriveKey(passphrase, salt)
   const iv = randomBytes(IV_LENGTH)
@@ -50,7 +50,7 @@ export function encryptToken(plaintext: string, passphrase: string = 'octavious-
 /**
  * Decrypt a token previously encrypted with encryptToken.
  */
-export function decryptToken(encoded: string, passphrase: string = 'octavious-default-key'): string {
+export function decryptToken(encoded: string, passphrase: string = 'octavius-default-key'): string {
   const packed = Buffer.from(encoded, 'base64')
   const salt = packed.subarray(0, 16)
   const iv = packed.subarray(16, 16 + IV_LENGTH)

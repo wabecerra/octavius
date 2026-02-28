@@ -6,7 +6,7 @@ export function getThemeScript(): string {
   return `
     (function() {
       try {
-        var stored = localStorage.getItem('octavious-theme');
+        var stored = localStorage.getItem('octavius-theme');
         var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         var theme = stored === 'light' ? 'light'
                   : stored === 'dark' ? 'dark'

@@ -11,7 +11,12 @@ interface ContextRequest {
 
 /**
  * POST /api/memory/context — Context retrieval for agent prompt injection.
- * Returns the top-N most relevant memory items for a natural language query.
+ *
+ * Returns the top-N most relevant memory items for a natural language query,
+ * using the full hybrid search pipeline when available:
+ *   - Query expansion → FTS + vector → RRF fusion → LLM re-ranking
+ *   - Context annotations included so agents understand what each memory is
+ *
  * Body: { query: string, quadrant?: QuadrantId, top_n?: number }
  */
 export async function POST(request: Request) {
@@ -30,17 +35,27 @@ export async function POST(request: Request) {
 
     const searchQuery: SearchQuery = {
       text: body.query,
+      semantic_query: body.query,
       limit: topN,
     }
     if (body.quadrant) {
       searchQuery.quadrant = body.quadrant
     }
 
+    // Use hybrid search when embeddings are enabled
+    if (config.embedding_enabled) {
+      const result = await service.searchHybrid(searchQuery)
+      return NextResponse.json({
+        items: result.items,
+        total: result.total,
+        relevance_scores: result.relevance_scores,
+        contexts: result.contexts,
+      })
+    }
+
+    // Fallback: FTS + semantic via MemoryIndex
     const db = getDb()
     const index = new MemoryIndex(db)
-
-    // Try semantic search first if embeddings are enabled
-    searchQuery.semantic_query = body.query
     const result = await index.searchWithSemantics(searchQuery, config)
 
     return NextResponse.json({

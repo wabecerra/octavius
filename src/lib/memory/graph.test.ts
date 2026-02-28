@@ -446,7 +446,7 @@ describe('MemoryGraph', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 16: Graph Edge Integrity
+// Feature: octavius-memory-architecture, Property 16: Graph Edge Integrity
 // **Validates: Requirements 19.1, 19.2, 19.3**
 // ---------------------------------------------------------------------------
 
@@ -671,7 +671,7 @@ describe('Property 16: Graph Edge Integrity', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 17: Graph Traversal Depth Bound
+// Feature: octavius-memory-architecture, Property 17: Graph Traversal Depth Bound
 // **Validates: Requirements 19.7**
 // ---------------------------------------------------------------------------
 
@@ -759,7 +759,7 @@ describe('Property 17: Graph Traversal Depth Bound', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 18: Graph Export Structure
+// Feature: octavius-memory-architecture, Property 18: Graph Export Structure
 // **Validates: Requirements 19.8, 24.1, 24.2, 24.3, 24.4**
 // ---------------------------------------------------------------------------
 

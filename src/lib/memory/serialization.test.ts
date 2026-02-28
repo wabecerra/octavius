@@ -299,7 +299,7 @@ describe('prettyPrintMemoryItem', () => {
 import fc from 'fast-check'
 
 /**
- * Feature: octavious-memory-architecture, Property 3: JSON Serialization Round-Trip
+ * Feature: octavius-memory-architecture, Property 3: JSON Serialization Round-Trip
  *
  * **Validates: Requirements 1.6**
  *
@@ -363,7 +363,7 @@ describe('Property 3: JSON Serialization Round-Trip', () => {
 })
 
 /**
- * Feature: octavious-memory-architecture, Property 4: Pretty-Printer Field Completeness
+ * Feature: octavius-memory-architecture, Property 4: Pretty-Printer Field Completeness
  *
  * **Validates: Requirements 1.7**
  *

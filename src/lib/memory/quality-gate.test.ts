@@ -265,7 +265,7 @@ import type { MemoryType, MemoryLayer, SourceType, Provenance } from './models'
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 10: Quality Gate Scoring
+// Feature: octavius-memory-architecture, Property 10: Quality Gate Scoring
 // **Validates: Requirements 9.1, 9.2, 9.3, 9.4**
 // ---------------------------------------------------------------------------
 
@@ -316,7 +316,7 @@ const candidateInputArb: fc.Arbitrary<CreateMemoryItemInput> = fc.record({
 })
 
 /**
- * Feature: octavious-memory-architecture, Property 10: Quality Gate Scoring
+ * Feature: octavius-memory-architecture, Property 10: Quality Gate Scoring
  *
  * **Validates: Requirements 9.1, 9.2, 9.3, 9.4**
  *

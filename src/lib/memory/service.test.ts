@@ -349,7 +349,7 @@ describe('MemoryService', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 1: Memory Item CRUD Round-Trip
+// Feature: octavius-memory-architecture, Property 1: Memory Item CRUD Round-Trip
 // **Validates: Requirements 1.1, 1.2, 3.3, 3.4, 3.5**
 // ---------------------------------------------------------------------------
 
@@ -498,7 +498,7 @@ describe('Property: Memory Item CRUD Round-Trip', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 6: Last-Accessed Timestamp Update
+// Feature: octavius-memory-architecture, Property 6: Last-Accessed Timestamp Update
 // **Validates: Requirements 1.3, 4.8**
 // ---------------------------------------------------------------------------
 
@@ -733,7 +733,7 @@ describe('MemoryService — Agent Task Memory Recording', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 14: Agent Task Memory Recording
+// Feature: octavius-memory-architecture, Property 14: Agent Task Memory Recording
 // **Validates: Requirements 16.1, 16.2, 16.3**
 // ---------------------------------------------------------------------------
 
@@ -960,7 +960,7 @@ describe('MemoryService — Configuration Management', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 19: Configuration Round-Trip
+// Feature: octavius-memory-architecture, Property 19: Configuration Round-Trip
 // **Validates: Requirements 22.2, 22.3, 22.4**
 // ---------------------------------------------------------------------------
 
@@ -1193,7 +1193,7 @@ describe('MemoryService — Workflow Definitions', () => {
 
 // ---------------------------------------------------------------------------
 // Property-Based Tests — fast-check
-// Feature: octavious-memory-architecture, Property 20: Workflow Definition Storage Round-Trip
+// Feature: octavius-memory-architecture, Property 20: Workflow Definition Storage Round-Trip
 // **Validates: Requirements 20.1**
 // ---------------------------------------------------------------------------
 

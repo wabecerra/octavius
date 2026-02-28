@@ -23,7 +23,7 @@ function mockFetch(status: number): FetchFn {
 
 /** All expected agent IDs */
 const ALL_AGENT_IDS = [
-  'octavious-orchestrator',
+  'octavius-orchestrator',
   'agent-lifeforce',
   'agent-industry',
   'agent-fellowship',
@@ -217,7 +217,7 @@ describe('AgentProvisioner', () => {
       db.prepare(
         `INSERT INTO agent_registrations (agent_id, workspace_path, registration_status)
          VALUES (?, ?, ?)`,
-      ).run('octavious-orchestrator', '/path/workspace-octavious', 'registered')
+      ).run('octavius-orchestrator', '/path/workspace-octavius', 'registered')
 
       await prov.verifyRegistrations()
 
@@ -241,13 +241,13 @@ describe('AgentProvisioner', () => {
       db.prepare(
         `INSERT INTO agent_registrations (agent_id, workspace_path, registration_status, last_verified_at)
          VALUES (?, ?, ?, ?)`,
-      ).run('octavious-orchestrator', '/path', 'registered', '2024-01-01T00:00:00.000Z')
+      ).run('octavius-orchestrator', '/path', 'registered', '2024-01-01T00:00:00.000Z')
 
       await prov.verifyRegistrations()
 
       const row = db
         .prepare('SELECT last_verified_at FROM agent_registrations WHERE agent_id = ?')
-        .get('octavious-orchestrator') as { last_verified_at: string }
+        .get('octavius-orchestrator') as { last_verified_at: string }
       expect(row.last_verified_at).not.toBe('2024-01-01T00:00:00.000Z')
     })
 
@@ -367,7 +367,7 @@ describe('AgentProvisioner', () => {
     it('returns valid markdown for empty action list', () => {
       const md = provisioner.generateHeartbeatMd([])
 
-      expect(md).toContain('# Octavious Orchestrator Heartbeat')
+      expect(md).toContain('# Octavius Orchestrator Heartbeat')
       expect(md).toContain('## Instructions')
     })
   })
@@ -392,7 +392,7 @@ describe('AgentProvisioner', () => {
 
       await provisioner.updateHeartbeatMd(actions)
 
-      const heartbeatPath = join(tmpDir, 'workspace-octavious', 'HEARTBEAT.md')
+      const heartbeatPath = join(tmpDir, 'workspace-octavius', 'HEARTBEAT.md')
       expect(existsSync(heartbeatPath)).toBe(true)
 
       const content = await readFile(heartbeatPath, 'utf-8')
