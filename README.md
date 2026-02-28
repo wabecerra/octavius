@@ -1,10 +1,10 @@
-# Octavious — Personal Life Operating System
+# Octavius — Personal Life Operating System
 
 A self-hosted dashboard that orchestrates four life quadrants through AI agents. Built with Next.js, SQLite, and [OpenClaw](https://github.com/openclaw/openclaw).
 
-## What is Octavious?
+## What is Octavius?
 
-Octavious splits your life into four quadrants, each managed by a dedicated AI agent:
+Octavius splits your life into four quadrants, each managed by a dedicated AI agent:
 
 | Quadrant | Agent | What it does |
 |----------|-------|-------------|
@@ -13,7 +13,7 @@ Octavious splits your life into four quadrants, each managed by a dedicated AI a
 | Fellowship | agent-fellowship | Relationships, social connections, contact tracking |
 | Essence | agent-essence | Journaling, gratitude, reflection, meaning |
 
-An orchestrator agent (`octavious-orchestrator`) routes your messages to the right quadrant agent or specialist (research, engineering, marketing, video, image, writing).
+An orchestrator agent (`octavius-orchestrator`) routes your messages to the right quadrant agent or specialist (research, engineering, marketing, video, image, writing).
 
 ## Quick Start
 
@@ -25,8 +25,8 @@ An orchestrator agent (`octavious-orchestrator`) routes your messages to the rig
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/youruser/octavious.git
-cd octavious
+git clone https://github.com/youruser/octavius.git
+cd octavius
 pnpm install
 ```
 
@@ -60,7 +60,7 @@ npm i -g openclaw
 openclaw gateway run --port 18789
 ```
 
-Then in the Octavious dashboard:
+Then in the Octavius dashboard:
 1. Go to Settings → Gateway Connection
 2. Enter `localhost` and port `18789`
 3. Click "Provision Agents" — this writes agent workspace files to `~/.openclaw/`
@@ -111,7 +111,7 @@ Then in the Octavious dashboard:
 ## Architecture
 
 ```
-octavious/
+octavius/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx                    # Dashboard UI
@@ -140,7 +140,7 @@ octavious/
 | Dashboard state (tasks, connections, journal) | Browser localStorage | Per-browser, synced to Memory Service |
 | Health biometrics | SQLite `memory_items` | Server-side, `source_type = 'device_sync'` |
 | Agent memories | SQLite `memory_items` | Server-side, various source types |
-| Agent workspace files | `~/.openclaw/workspace-octavious-*/` | Filesystem |
+| Agent workspace files | `~/.openclaw/workspace-octavius-*/` | Filesystem |
 | Agent file version history | SQLite `agent_context_versions` | Server-side audit trail |
 
 ## Health Data Integration
@@ -175,14 +175,14 @@ Add to your OpenClaw config:
     "rookWebhookPath": "/health/rook",
     "appleHealthWebhookPath": "/health/apple",
     "webhookSecret": "your-secret-token",
-    "octaviousApiUrl": "http://localhost:3000"
+    "octaviusApiUrl": "http://localhost:3000"
   }
 }
 ```
 
 Install the extension:
 ```bash
-# From the octavious repo
+# From the octavius repo
 openclaw plugin install ./extensions/health-data
 ```
 
@@ -198,7 +198,7 @@ Each agent has Markdown files that define its behavior:
 | TOOLS.md | Memory API docs | Auto-generated |
 | HEARTBEAT.md | Proactive check definitions | Auto-generated |
 
-Files live at `~/.openclaw/workspace-octavious-*/`. Edit them from the dashboard (Agents tab) or directly on disk.
+Files live at `~/.openclaw/workspace-octavius-*/`. Edit them from the dashboard (Agents tab) or directly on disk.
 
 The Evolution Job runs nightly at 4 AM and appends learned behavioral patterns and preferences to AGENTS.md and USER.md. Previous versions are backed up in SQLite.
 
@@ -226,3 +226,4 @@ pnpm lint         # Lint
 ## License
 
 MIT
+# octavius
