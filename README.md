@@ -52,7 +52,17 @@ npm i -g openclaw
 openclaw gateway run --port 18789
 ```
 
-Then in the Octavius dashboard:
+Then install the Octavius plugin so your agent gets dashboard tools automatically:
+
+```bash
+# From the octavius repo
+openclaw plugins install ./extensions/openclaw-octavius
+openclaw gateway restart
+```
+
+Your agent now has tools like `octavius_task_create`, `octavius_checkin`, `octavius_journal`, etc. See [extensions/openclaw-octavius/README.md](extensions/openclaw-octavius/README.md) for the full tool list.
+
+Optionally, connect the dashboard UI to the gateway:
 1. Go to Settings → Gateway Connection
 2. Enter `localhost` and port `18789`
 3. Click "Provision Agents" — this writes agent workspace files to `~/.openclaw/`

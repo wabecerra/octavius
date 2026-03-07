@@ -1,0 +1,25 @@
+{
+  "id": "octavius",
+  "name": "Octavius Life Dashboard",
+  "description": "Connects OpenClaw agents to the Octavius life management dashboard. Adds tools for tasks, check-ins, journal, goals, connections, and memory search.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "Octavius dashboard URL",
+        "default": "http://localhost:3000"
+      },
+      "apiSecret": {
+        "type": "string",
+        "description": "API secret token (leave empty for local open mode)"
+      }
+    }
+  },
+  "uiHints": {
+    "url": { "label": "Dashboard URL", "placeholder": "http://localhost:3000" },
+    "apiSecret": { "label": "API Secret", "sensitive": true, "placeholder": "Leave empty for local mode" }
+  }
+}

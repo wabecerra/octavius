@@ -1,0 +1,13 @@
+{
+  "name": "@octavius/openclaw-plugin",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for Octavius life dashboard integration",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./index.ts"],
+    "install": {
+      "localPath": "extensions/openclaw-octavius",
+      "defaultChoice": "local"
+    }
+  }
+}
