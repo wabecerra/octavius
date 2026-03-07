@@ -21,7 +21,6 @@ import { computeBalanceScore } from '@/lib/balance-score'
 import { shouldShowWeeklyReviewPrompt } from '@/lib/weekly-review'
 import { toChartData } from '@/lib/chart-utils'
 import { validateCheckInValue } from '@/lib/validation'
-import { executeTask } from '@/lib/agent-adapter'
 import { routeTask } from '@/lib/model-router'
 import { BreathingTool } from '@/components/BreathingTool'
 import { MemoryConfigSection } from '@/components/MemoryConfigSection'
@@ -1262,10 +1261,15 @@ function SendTaskModal({
     setComplexity(5)
     setSending(false)
 
-    // Execute in background
+    // Execute via server-side proxy
     try {
-      const result = await executeTask(task, routerConfig, false)
-      console.log('Task completed:', result)
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: task.description, agentId: task.agentId }),
+      })
+      const data = await res.json()
+      console.log('Task completed:', data)
     } catch (err) {
       console.error('Task failed:', err)
     }
@@ -1880,35 +1884,18 @@ export default function Dashboard() {
     setChatLoading(true)
     
     try {
-      // Simulate agent response (same as before)
-      const task: AgentTask = {
-        id: `chat-${Date.now()}`,
-        agentId: 'octavius-orchestrator',
-        description: content,
-        complexityScore: 3,
-        tier: 1,
-        modelUsed: 'llama3.2',
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      }
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: content }),
+      })
+      const data = await res.json()
       
-      const routerConfig = {
-        localModelName: 'llama3.2',
-        tier1CloudModel: 'gpt-3.5-turbo',
-        tier2Model: 'gpt-4',
-        tier3Model: 'gpt-4o',
-        researchProvider: 'perplexity',
-        tierCostRates: { 1: 0.001, 2: 0.01, 3: 0.05 },
-        dailyCostBudget: 2.0,
-        localEndpoint: 'http://localhost:11434',
-      }
-      
-      const result = await executeTask(task, routerConfig, false)
       addChatMessage({
         id: `msg-${Date.now()}-resp`,
         role: 'assistant',
-        content: result.result,
-        agentId: 'octavius-orchestrator',
+        content: data.response || data.error || 'No response',
+        agentId: data.source === 'gateway' ? 'octavius-orchestrator' : undefined,
         timestamp: new Date().toISOString(),
       })
     } catch {
