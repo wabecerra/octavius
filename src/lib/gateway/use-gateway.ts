@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { GatewayClient } from './client'
-import { useOctaviusStore } from '@/store'
 import type { GatewayStatus } from './types'
 
 /** Singleton GatewayClient shared across the dashboard lifetime. */
@@ -12,29 +11,30 @@ export function getGatewayClient(): GatewayClient | null {
   return clientInstance
 }
 
+export interface GatewayState {
+  status: GatewayStatus
+  connectedAt: string | null
+  lastHealthyAt: string | null
+}
+
 /**
- * Hook that initializes the GatewayClient on mount, subscribes to its events,
- * and syncs state into the Zustand GatewaySlice.
- *
- * Call once at the dashboard root level.
+ * Hook that initializes the GatewayClient on mount.
+ * Returns gateway state directly (no Zustand).
  */
-export function useGatewayInit() {
-  const address = useOctaviusStore((s) => s.gatewayAddress)
-  const port = useOctaviusStore((s) => s.gatewayPort)
-  const setGatewayStatus = useOctaviusStore((s) => s.setGatewayStatus)
-  const setConnectedAt = useOctaviusStore((s) => s.setConnectedAt)
-  const setLastHealthyAt = useOctaviusStore((s) => s.setLastHealthyAt)
+export function useGatewayInit(address: string = 'localhost', port: number = 18789) {
+  const [state, setState] = useState<GatewayState>({
+    status: 'unknown',
+    connectedAt: null,
+    lastHealthyAt: null,
+  })
   const notifiedRef = useRef<GatewayStatus | null>(null)
 
   useEffect(() => {
     const client = new GatewayClient({ address, port })
     clientInstance = client
 
-    // Subscribe to status changes → update Zustand store
     const onStatusChanged = (status: GatewayStatus) => {
-      setGatewayStatus(status)
-
-      // Non-blocking notification on transitions
+      setState(s => ({ ...s, status }))
       if (notifiedRef.current !== null && notifiedRef.current !== status) {
         if (status === 'disconnected') {
           console.warn('[Gateway] Disconnected — tasks will use fallback adapter')
@@ -46,22 +46,20 @@ export function useGatewayInit() {
     }
 
     const onConnected = (timestamp: string) => {
-      setConnectedAt(timestamp)
-      setLastHealthyAt(timestamp)
+      setState(s => ({ ...s, connectedAt: timestamp, lastHealthyAt: timestamp }))
     }
 
     const onDisconnected = () => {
-      setConnectedAt(null)
+      setState(s => ({ ...s, connectedAt: null }))
     }
 
     const onReconnected = (timestamp: string) => {
-      setConnectedAt(timestamp)
-      setLastHealthyAt(timestamp)
+      setState(s => ({ ...s, connectedAt: timestamp, lastHealthyAt: timestamp }))
     }
 
     const onHealthCheck = (success: boolean, timestamp: string) => {
       if (success) {
-        setLastHealthyAt(timestamp)
+        setState(s => ({ ...s, lastHealthyAt: timestamp }))
       }
     }
 
@@ -71,29 +69,25 @@ export function useGatewayInit() {
     client.on('gateway_reconnected', onReconnected)
     client.on('health_check', onHealthCheck)
 
-    // Auto-connect on load
-    client.connect().catch(() => {
-      // connect() handles its own error state
-    })
+    client.connect().catch(() => {})
 
     return () => {
       client.removeAllListeners()
       client.disconnect()
       clientInstance = null
     }
-  }, [address, port, setGatewayStatus, setConnectedAt, setLastHealthyAt])
+  }, [address, port])
+
+  return state
 }
 
 /**
- * Hook that provides a reconnect callback for the GatewayStatusPanel.
+ * Hook that provides a reconnect callback.
  */
 export function useGatewayReconnect() {
-  const setGatewayStatus = useOctaviusStore((s) => s.setGatewayStatus)
-
   return useCallback(async () => {
     const client = getGatewayClient()
     if (!client) return
-    setGatewayStatus('unknown')
     await client.connect()
-  }, [setGatewayStatus])
+  }, [])
 }

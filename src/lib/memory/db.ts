@@ -293,4 +293,27 @@ CREATE TABLE IF NOT EXISTS dashboard_gratitude (
   date TEXT NOT NULL,
   items TEXT NOT NULL DEFAULT '[]'
 );
+
+CREATE TABLE IF NOT EXISTS dashboard_profile (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_focus_goals (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  title TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_focus_date ON dashboard_focus_goals(date);
+
+CREATE TABLE IF NOT EXISTS dashboard_schedule (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  time TEXT NOT NULL,
+  title TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedule_date ON dashboard_schedule(date);
 `
