@@ -230,4 +230,67 @@ CREATE TABLE IF NOT EXISTS gateway_events (
 
 CREATE INDEX IF NOT EXISTS idx_gateway_events_type ON gateway_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_gateway_events_ts ON gateway_events(timestamp);
+
+-- ============================================================
+-- Dashboard State Tables (SQLite-backed, API-accessible)
+-- These replace localStorage for tasks, check-ins, connections,
+-- journal entries, goals, and gratitude — enabling agent access.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS dashboard_tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low')),
+  status TEXT NOT NULL DEFAULT 'backlog' CHECK(status IN ('backlog','in-progress','done')),
+  due_date TEXT,
+  completed INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON dashboard_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON dashboard_tasks(priority);
+
+CREATE TABLE IF NOT EXISTS dashboard_checkins (
+  id TEXT PRIMARY KEY,
+  timestamp TEXT NOT NULL,
+  mood INTEGER NOT NULL CHECK(mood >= 1 AND mood <= 5),
+  energy INTEGER NOT NULL CHECK(energy >= 1 AND energy <= 5),
+  stress INTEGER NOT NULL CHECK(stress >= 1 AND stress <= 5)
+);
+
+CREATE INDEX IF NOT EXISTS idx_checkins_ts ON dashboard_checkins(timestamp);
+
+CREATE TABLE IF NOT EXISTS dashboard_connections (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  relationship_type TEXT NOT NULL,
+  last_contact_date TEXT NOT NULL,
+  reminder_frequency_days INTEGER NOT NULL DEFAULT 14
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_journal (
+  id TEXT PRIMARY KEY,
+  text TEXT NOT NULL,
+  timestamp TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_journal_ts ON dashboard_journal(timestamp);
+
+CREATE TABLE IF NOT EXISTS dashboard_goals (
+  id TEXT PRIMARY KEY,
+  quadrant TEXT NOT NULL CHECK(quadrant IN ('health','career','relationships','soul')),
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  target_date TEXT,
+  progress_pct INTEGER NOT NULL DEFAULT 0 CHECK(progress_pct >= 0 AND progress_pct <= 100),
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_gratitude (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  items TEXT NOT NULL DEFAULT '[]'
+);
 `
