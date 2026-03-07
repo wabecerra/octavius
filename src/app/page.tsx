@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import * as Tabs from '@radix-ui/react-tabs'
 import * as Dialog from '@radix-ui/react-dialog'
 import {
   RadarChart,
@@ -23,7 +22,6 @@ import { shouldShowWeeklyReviewPrompt } from '@/lib/weekly-review'
 import { toChartData } from '@/lib/chart-utils'
 import { validateCheckInValue } from '@/lib/validation'
 import { executeTask } from '@/lib/agent-adapter'
-import { estimateDailyCost } from '@/lib/cost-tracker'
 import { routeTask } from '@/lib/model-router'
 import { BreathingTool } from '@/components/BreathingTool'
 import { MemoryConfigSection } from '@/components/MemoryConfigSection'
@@ -45,16 +43,33 @@ import {
 } from '@/components/health'
 import { useGatewayInit, useGatewayReconnect, getGatewayClient } from '@/lib/gateway/use-gateway'
 import type { ChatMessage } from '@/lib/gateway/types'
-import type { Connection, Agent, AgentTask, AgentTaskStatus, ModelTier, EscalationEvent } from '@/types'
+import type { Connection, Agent, AgentTask, AgentTaskStatus, ModelTier } from '@/types'
 
-const TAB_ITEMS = [
-  { value: 'dashboard', label: 'Dashboard', group: 'main' },
-  { value: 'health', label: 'Lifeforce', group: 'life' },
-  { value: 'career', label: 'Industry', group: 'life' },
-  { value: 'relationships', label: 'Fellowship', group: 'life' },
-  { value: 'soul', label: 'Essence', group: 'life' },
-  { value: 'agents', label: 'Agents', group: 'system' },
-  { value: 'settings', label: 'Settings', group: 'system' },
+// Navigation structure
+type ViewKey = 'dashboard' | 'lifeforce' | 'industry' | 'fellowship' | 'essence' | 'agents' | 'memory' | 'settings'
+
+interface NavItem {
+  key: ViewKey
+  label: string
+  icon: string
+  group: 'overview' | 'quadrants' | 'system'
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: '⊞', group: 'overview' },
+  { key: 'lifeforce', label: 'Lifeforce', icon: '💚', group: 'quadrants' },
+  { key: 'industry', label: 'Industry', icon: '💼', group: 'quadrants' },
+  { key: 'fellowship', label: 'Fellowship', icon: '🤝', group: 'quadrants' },
+  { key: 'essence', label: 'Essence', icon: '🧘', group: 'quadrants' },
+  { key: 'agents', label: 'Agents', icon: '🤖', group: 'system' },
+  { key: 'memory', label: 'Memory', icon: '🧠', group: 'system' },
+  { key: 'settings', label: 'Settings', icon: '⚙', group: 'system' },
+]
+
+const NAV_GROUPS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'quadrants', label: 'Life Quadrants' },
+  { key: 'system', label: 'AI System' },
 ] as const
 
 function getGreeting(hour: number): string {
@@ -81,7 +96,6 @@ function formatTime(date: Date): string {
 }
 
 // Compound Loop phases
-
 function getCompoundPhase(dayOfWeek: number): string {
   if (dayOfWeek >= 1 && dayOfWeek <= 2) return 'Plan'
   if (dayOfWeek >= 3 && dayOfWeek <= 4) return 'Work'
@@ -136,7 +150,7 @@ function WellnessCheckInForm() {
   ]
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-5 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-5 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Daily Check-In</h3>
       <p className="text-sm text-[var(--text-secondary)]">How are you feeling today?</p>
 
@@ -204,7 +218,7 @@ function HealthMetricsForm() {
   ]
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-5 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-5 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Health Metrics</h3>
       <div className="space-y-3">
         {fields.map((f) => (
@@ -289,7 +303,7 @@ function TaskModal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-xl">
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
             {editingTask ? 'Edit Task' : 'New Task'}
           </Dialog.Title>
@@ -366,7 +380,7 @@ function DeleteConfirmModal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-xl">
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">Delete Task</Dialog.Title>
           <p className="text-sm text-[var(--text-secondary)]">
             Remove &ldquo;{taskTitle}&rdquo;? This can&apos;t be undone.
@@ -466,7 +480,7 @@ function KanbanBoard() {
                 key={col.key}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, col.key)}
-                className={`bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 min-h-[200px] border-t-2 ${col.color} transition-colors duration-150`}
+                className={`bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 min-h-[200px] border-t-2 ${col.color} transition-colors duration-150 shadow-sm`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-medium text-[var(--text-secondary)]">{col.label}</h4>
@@ -558,7 +572,7 @@ function FocusGoalsSection() {
   }
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Focus Goals</h3>
       <p className="text-xs text-[var(--text-tertiary)]">Up to 3 priorities for today</p>
 
@@ -629,7 +643,7 @@ function DailySchedule() {
   }
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Today&apos;s Schedule</h3>
 
       {items.length === 0 ? (
@@ -749,7 +763,7 @@ function ConnectionModal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-xl">
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
             {editingConnection ? 'Edit Connection' : 'Add Connection'}
           </Dialog.Title>
@@ -832,7 +846,7 @@ function ActivityLogForm({ connections }: { connections: Connection[] }) {
   }
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Log Activity</h3>
       <p className="text-xs text-[var(--text-tertiary)]">Record a recent interaction</p>
       <select
@@ -911,7 +925,7 @@ function RelationshipsTab() {
           </div>
 
           {connections.length === 0 ? (
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 text-center transition-colors duration-150">
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 text-center transition-colors duration-150 shadow-sm">
               <p className="text-[var(--text-tertiary)] text-sm">No connections yet. Add someone you care about.</p>
             </div>
           ) : (
@@ -922,7 +936,7 @@ function RelationshipsTab() {
                 return (
                   <div
                     key={conn.id}
-                    className={`bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 space-y-2 transition-colors duration-150 cursor-pointer hover:bg-[var(--bg-hover)] ${
+                    className={`bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 space-y-2 transition-colors duration-150 cursor-pointer hover:bg-[var(--bg-hover)] shadow-sm ${
                       isOverdue ? 'border border-[var(--accent)]' : ''
                     }`}
                     onClick={() => openEdit(conn)}
@@ -1003,7 +1017,7 @@ function JournalSection() {
     .slice(0, 5)
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Journal</h3>
       <p className="text-xs text-[var(--text-tertiary)]">Write freely — saves when you click away</p>
       <textarea
@@ -1058,7 +1072,7 @@ function GratitudePrompt() {
   }
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Gratitude</h3>
       <p className="text-xs text-[var(--text-tertiary)]">What are you grateful for today?</p>
       <div className="space-y-2">
@@ -1099,7 +1113,7 @@ function MoodTrackerChart() {
   }))
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Mood Tracker</h3>
       <p className="text-xs text-[var(--text-tertiary)]">Your mood over time from check-ins</p>
 
@@ -1135,9 +1149,9 @@ function MoodTrackerChart() {
               <Line
                 type="monotone"
                 dataKey="mood"
-                stroke="#7C3AED"
+                stroke="#ff5c5c"
                 strokeWidth={2}
-                dot={{ fill: '#7C3AED', r: 3 }}
+                dot={{ fill: '#ff5c5c', r: 3 }}
                 activeDot={{ r: 5 }}
               />
             </LineChart>
@@ -1171,7 +1185,7 @@ const STATUS_COLORS: Record<Agent['status'], string> = {
 
 function AgentCardItem({ agent, onSendTask }: { agent: Agent; onSendTask: (agent: Agent) => void }) {
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 space-y-3 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 space-y-3 transition-colors duration-150 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">{AGENT_ICONS[agent.role] ?? '🤖'}</span>
@@ -1261,7 +1275,7 @@ function SendTaskModal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-xl">
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
             Send Task to {targetAgent?.name ?? 'Agent'}
           </Dialog.Title>
@@ -1350,7 +1364,7 @@ function AgentTaskList({ agentTasks, agents }: { agentTasks: AgentTask[], agents
   }
 
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Task History</h3>
       {sorted.length === 0 ? (
         <p className="text-sm text-[var(--text-tertiary)] text-center py-4">No tasks dispatched yet</p>
@@ -1471,23 +1485,20 @@ function SettingsTab() {
   const { profile, updateProfile } = useProfile()
 
   // UI preferences as ephemeral state (not in API)
-  const [accentColor, setAccentColor] = useState('#7C3AED')
+  const [accentColor, setAccentColor] = useState('#ff5c5c')
   const [weeklyReviewDay, setWeeklyReviewDay] = useState(0)
 
-  // Ephemeral state for system settings
-  const [routerConfig, setRouterConfig] = useState({
-    localEndpoint: 'http://localhost:11434',
-    localModelName: 'llama3.2',
-    tier1CloudModel: 'gpt-3.5-turbo',
-    tier2Model: 'gpt-4',
-    tier3Model: 'gpt-4o',
-    researchProvider: 'perplexity',
-    tierCostRates: { 1: 0.001, 2: 0.01, 3: 0.05 },
-    dailyCostBudget: 2.0,
-  })
-
-  const [escalationLog] = useState<EscalationEvent[]>([])
-  const [localModelStatus] = useState<'connected' | 'disconnected' | 'unknown'>('unknown')
+  // Ephemeral state for system settings (commented out for now)
+  // const [routerConfig, setRouterConfig] = useState({
+  //   localEndpoint: 'http://localhost:11434',
+  //   localModelName: 'llama3.2',
+  //   tier1CloudModel: 'gpt-3.5-turbo',
+  //   tier2Model: 'gpt-4',
+  //   tier3Model: 'gpt-4o',
+  //   researchProvider: 'perplexity',
+  //   tierCostRates: { 1: 0.001, 2: 0.01, 3: 0.05 },
+  //   dailyCostBudget: 2.0,
+  // })
 
   // Gateway state from the gateway hook
   const gateway = useGatewayInit()
@@ -1498,12 +1509,10 @@ function SettingsTab() {
   const [gatewayPort, setGatewayPortState] = useState(18789)
   const [scheduledJobs] = useState([])
   const [heartbeatActions] = useState([])
-  const [dailyTokenUsage] = useState<Record<string, number>>({})
   const [registeredAgents] = useState([])
   const [activeSessions] = useState([])
   const [recentSessions] = useState([])
-
-  const dailyCost = estimateDailyCost([], routerConfig.tierCostRates)
+  const [dailyTokenUsage] = useState<Record<string, number>>({})
 
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -1513,9 +1522,9 @@ function SettingsTab() {
   const [gwToken, setGwToken] = useState('')
   const [tokenStatus, setTokenStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle')
 
-  const updateRouterConfig = (updates: Partial<typeof routerConfig>) => {
-    setRouterConfig(prev => ({ ...prev, ...updates }))
-  }
+  // const updateRouterConfig = (updates: Partial<typeof routerConfig>) => {
+  //   setRouterConfig(prev => ({ ...prev, ...updates }))
+  // }
 
   const setGatewayAddress = (address: string, port: number) => {
     setGatewayAddressState(address)
@@ -1530,7 +1539,7 @@ function SettingsTab() {
   return (
     <div className="space-y-6">
       {/* Profile Form */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
         <h3 className="text-lg font-semibold text-[var(--text-primary)]">Profile</h3>
         <div className="space-y-3">
           <div>
@@ -1592,149 +1601,8 @@ function SettingsTab() {
         </div>
       </div>
 
-      {/* Model Router Config */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">Model Router</h3>
-          <span className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
-            <span className={`w-2 h-2 rounded-full ${
-              localModelStatus === 'connected' ? 'bg-[var(--color-success)]' :
-              localModelStatus === 'disconnected' ? 'bg-[var(--color-error)]' :
-              'bg-[var(--text-tertiary)]'
-            }`} />
-            {localModelStatus === 'connected' ? 'Local model connected' :
-             localModelStatus === 'disconnected' ? 'Local model disconnected' :
-             'Local model status unknown'}
-          </span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-[var(--text-secondary)] mb-1 block">Local Endpoint</label>
-            <input
-              type="text"
-              value={routerConfig.localEndpoint}
-              onChange={(e) => updateRouterConfig({ localEndpoint: e.target.value })}
-              placeholder="http://localhost:11434"
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] font-mono transition-colors duration-150"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-secondary)] mb-1 block">Local Model Name</label>
-            <input
-              type="text"
-              value={routerConfig.localModelName}
-              onChange={(e) => updateRouterConfig({ localModelName: e.target.value })}
-              placeholder="llama3.2"
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] font-mono transition-colors duration-150"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-secondary)] mb-1 block">Tier 1 Cloud Model</label>
-            <input
-              type="text"
-              value={routerConfig.tier1CloudModel}
-              onChange={(e) => updateRouterConfig({ tier1CloudModel: e.target.value })}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] font-mono transition-colors duration-150"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-secondary)] mb-1 block">Tier 2 Model</label>
-            <input
-              type="text"
-              value={routerConfig.tier2Model}
-              onChange={(e) => updateRouterConfig({ tier2Model: e.target.value })}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] font-mono transition-colors duration-150"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-secondary)] mb-1 block">Tier 3 Model</label>
-            <input
-              type="text"
-              value={routerConfig.tier3Model}
-              onChange={(e) => updateRouterConfig({ tier3Model: e.target.value })}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] font-mono transition-colors duration-150"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-secondary)] mb-1 block">Research Provider</label>
-            <input
-              type="text"
-              value={routerConfig.researchProvider}
-              onChange={(e) => updateRouterConfig({ researchProvider: e.target.value })}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] font-mono transition-colors duration-150"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="text-xs text-[var(--text-secondary)] mb-1 block">Daily Cost Budget (USD)</label>
-          <input
-            type="number"
-            min={0}
-            step={0.5}
-            value={routerConfig.dailyCostBudget}
-            onChange={(e) => updateRouterConfig({ dailyCostBudget: Number(e.target.value) || 0 })}
-            className="w-full sm:w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] transition-colors duration-150"
-          />
-        </div>
-      </div>
-
-      {/* Daily Cost Summary */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-3 transition-colors duration-150">
-        <h3 className="text-lg font-semibold text-[var(--text-primary)]">Cost Summary</h3>
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-[var(--text-primary)]">${dailyCost.toFixed(4)}</span>
-          <span className="text-sm text-[var(--text-tertiary)]">/ ${routerConfig.dailyCostBudget.toFixed(2)} budget</span>
-        </div>
-        <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2">
-          <div
-            className="h-2 rounded-full bg-[var(--accent)] transition-all"
-            style={{ width: `${Math.min((dailyCost / routerConfig.dailyCostBudget) * 100, 100)}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Escalation Log */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
-        <h3 className="text-lg font-semibold text-[var(--text-primary)]">Escalation Log</h3>
-        {escalationLog.length === 0 ? (
-          <p className="text-sm text-[var(--text-tertiary)] text-center py-4">No escalation events</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-[var(--text-tertiary)] border-b border-[var(--border-primary)]">
-                  <th className="pb-2 pr-4">Time</th>
-                  <th className="pb-2 pr-4">Task ID</th>
-                  <th className="pb-2 pr-4">From</th>
-                  <th className="pb-2 pr-4">To</th>
-                  <th className="pb-2">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...escalationLog].reverse().map((event) => (
-                  <tr key={event.id} className="border-b border-[var(--border-secondary)]">
-                    <td className="py-2 pr-4 text-xs text-[var(--text-secondary)] whitespace-nowrap">
-                      {new Date(event.timestamp).toLocaleString()}
-                    </td>
-                    <td className="py-2 pr-4 text-xs text-[var(--text-secondary)] font-mono truncate max-w-[120px]">
-                      {event.taskId.slice(0, 8)}
-                    </td>
-                    <td className="py-2 pr-4 text-xs text-[var(--text-secondary)]">Tier {event.fromTier}</td>
-                    <td className="py-2 pr-4 text-xs text-[var(--accent)]">Tier {event.toTier}</td>
-                    <td className="py-2 text-xs text-[var(--text-secondary)] truncate max-w-[200px]">{event.failureReason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Memory Configuration */}
-      <MemoryConfigSection />
-
       {/* Gateway Configuration */}
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
         <h3 className="text-lg font-semibold text-[var(--text-primary)]">Gateway Connection</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
@@ -1977,9 +1845,10 @@ function BiometricDataSection() {
 // ─── Main Dashboard Component ───
 
 export default function Dashboard() {
+  const [activeView, setActiveView] = useState<ViewKey>('dashboard')
+  const [navCollapsed, setNavCollapsed] = useState(false)
   const [now, setNow] = useState<Date | null>(null)
   const [mounted, setMounted] = useState(false)
-  const [storageError] = useState(null)
 
   // API hooks
   const { profile } = useProfile()
@@ -1989,10 +1858,10 @@ export default function Dashboard() {
   const { connections } = useConnections()
   const { entries: journalEntries } = useJournal()
 
-  // Gateway integration: init client
+  // Gateway integration
   const gateway = useGatewayInit()
 
-  // Chat state - ephemeral
+  // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatLoading, setChatLoading] = useState(false)
 
@@ -2011,7 +1880,7 @@ export default function Dashboard() {
     setChatLoading(true)
     
     try {
-      // Simulate agent response
+      // Simulate agent response (same as before)
       const task: AgentTask = {
         id: `chat-${Date.now()}`,
         agentId: 'octavius-orchestrator',
@@ -2023,7 +1892,6 @@ export default function Dashboard() {
         createdAt: new Date().toISOString(),
       }
       
-      // Mock router config
       const routerConfig = {
         localModelName: 'llama3.2',
         tier1CloudModel: 'gpt-3.5-turbo',
@@ -2055,9 +1923,7 @@ export default function Dashboard() {
     }
   }, [])
 
-  const clearStorageError = () => {}
-
-  // Hydration-safe: only start clock on client
+  // Clock
   useEffect(() => {
     setNow(new Date())
     setMounted(true)
@@ -2065,14 +1931,14 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [])
 
-  // Use a safe fallback date for SSR — real date kicks in after mount
   const safeNow = now ?? new Date(0)
   const hour = safeNow.getHours()
   const greeting = mounted ? getGreeting(hour) : ''
   const dateStr = mounted ? formatDate(safeNow) : ''
   const timeStr = mounted ? formatTime(safeNow) : ''
+  const compoundPhase = getCompoundPhase(safeNow.getDay())
 
-  // Quadrant balance score
+  // Balance score calculation
   const weekStart = new Date(safeNow)
   weekStart.setDate(safeNow.getDate() - safeNow.getDay())
   const weekStartStr = weekStart.toISOString().slice(0, 10)
@@ -2080,7 +1946,7 @@ export default function Dashboard() {
   const balanceCounts = {
     health: checkins.filter((c) => c.timestamp >= weekStartStr).length,
     career: tasks.filter((t) => t.createdAt >= weekStartStr).length,
-    relationships: 0, // Activity log would go here
+    relationships: 0,
     soul: journalEntries.filter((j) => j.timestamp >= weekStartStr).length,
   }
   const balanceScore = computeBalanceScore(balanceCounts)
@@ -2092,13 +1958,10 @@ export default function Dashboard() {
     { quadrant: 'Essence', score: balanceScore.soul },
   ]
 
-  // Weekly review prompt (using Sunday as default)
+  // Weekly review prompt
   const showWeeklyReview = shouldShowWeeklyReviewPrompt(safeNow, { weeklyReviewDay: 0 })
 
-  // Compound loop phase
-  const compoundPhase = getCompoundPhase(safeNow.getDay())
-
-  // Quadrant card metrics
+  // Metrics for quadrant cards
   const latest = checkins.length > 0 ? checkins[0] : null
   const overdueConnections = connections.filter(c => {
     const daysSince = (Date.now() - new Date(c.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)
@@ -2108,163 +1971,121 @@ export default function Dashboard() {
   const todayGoals = goals.length
   const weekJournals = journalEntries.filter((j) => j.timestamp >= weekStartStr).length
 
-  return (
-    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
-      {/* Welcome Bar */}
-      <header className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-              {greeting}{profile.name ? `, ${profile.name}` : ''}
-            </h1>
-            <p className="text-sm text-[var(--text-secondary)]">{dateStr}</p>
-          </div>
-          <div className="flex items-center gap-3 text-right">
-            <ThemeToggle />
-            <div>
-              <p className="text-lg font-mono text-[var(--text-primary)] opacity-80">{timeStr}</p>
-              <p className="text-xs text-[var(--accent)]">{compoundPhase} phase</p>
-            </div>
-          </div>
-        </div>
-      </header>
+  const getPageTitle = (view: ViewKey): string => {
+    const titles: Record<ViewKey, string> = {
+      dashboard: 'Dashboard',
+      lifeforce: 'Lifeforce',
+      industry: 'Industry',
+      fellowship: 'Fellowship',
+      essence: 'Essence',
+      agents: 'Agents',
+      memory: 'Memory',
+      settings: 'Settings',
+    }
+    return titles[view]
+  }
 
-      {/* Storage Error Warning Banner */}
-      {storageError && (
-        <div className="mb-6 flex items-center justify-between bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-warning)_30%,transparent)] rounded-lg px-4 py-3">
-          <p className="text-sm text-[var(--color-warning)]">
-            Unable to save data to local storage. Your changes may not persist between sessions.
-          </p>
-          <button
-            type="button"
-            onClick={clearStorageError}
-            className="text-[var(--color-warning)] opacity-70 hover:opacity-100 text-sm ml-4 shrink-0"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      <Tabs.Root defaultValue="dashboard" className="space-y-6">
-        {/* Tab Navigation */}
-        <Tabs.List className="flex items-center gap-1 overflow-x-auto pb-2 border-b border-[var(--border-primary)]" aria-label="Dashboard navigation">
-          {TAB_ITEMS.map((tab, i) => {
-            const prev = i > 0 ? TAB_ITEMS[i - 1] : null
-            const showSeparator = prev && prev.group !== tab.group
-            return (
-              <span key={tab.value} className="flex items-center">
-                {showSeparator && (
-                  <span className="mx-1.5 w-px h-5 bg-[var(--border-primary)]" aria-hidden="true" />
-                )}
-                <Tabs.Trigger
-                  value={tab.value}
-                  className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-t-lg transition-colors duration-150 whitespace-nowrap
-                    data-[state=active]:text-[var(--text-primary)] data-[state=active]:bg-[var(--bg-secondary)] data-[state=active]:border-b-2 data-[state=active]:border-[var(--accent)]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
-                >
-                  {tab.label}
-                </Tabs.Trigger>
-              </span>
-            )
-          })}
-        </Tabs.List>
-
-        {/* Dashboard Overview Tab */}
-        <Tabs.Content value="dashboard" className="space-y-6 focus-visible:outline-none">
-          {/* Welcome banner for first-time users */}
-          {!profile.name && (
-            <div className="bg-gradient-to-r from-[var(--accent-muted)] to-[color-mix(in_srgb,var(--quadrant-health)_10%,transparent)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150">
-              <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Welcome to Octavius 🧠</h2>
-              <p className="text-sm text-[var(--text-secondary)] mb-4">
-                Your personal life operating system. Octavius helps you optimize four life quadrants — health, career, relationships, and soul — through AI agents and a smart memory system.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="flex items-start gap-2">
-                  <span className="text-[var(--color-success)]">1.</span>
-                  <span className="text-[var(--text-secondary)]">Head to <strong>Settings</strong> and fill in your profile</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-[var(--color-success)]">2.</span>
-                  <span className="text-[var(--text-secondary)]">Check in on <strong>Lifeforce</strong> — how are you feeling?</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-[var(--color-success)]">3.</span>
-                  <span className="text-[var(--text-secondary)]">Create a task in <strong>Industry</strong> — what are you working on?</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-[var(--color-success)]">4.</span>
-                  <span className="text-[var(--text-secondary)]">Connect an OpenClaw gateway for AI agents (optional)</span>
+  const renderContent = () => {
+    switch (activeView) {
+      case 'dashboard':
+        return (
+          <div className="space-y-6">
+            {/* Welcome banner for first-time users */}
+            {!profile.name && (
+              <div className="bg-gradient-to-r from-[var(--accent-muted)] to-[color-mix(in_srgb,var(--quadrant-lifeforce)_10%,transparent)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150 shadow-sm">
+                <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Welcome to Octavius 🧠</h2>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Your personal life operating system. Octavius helps you optimize four life quadrants — health, career, relationships, and soul — through AI agents and a smart memory system.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-start gap-2">
+                    <span className="text-[var(--color-success)]">1.</span>
+                    <span className="text-[var(--text-secondary)]">Head to <strong>Settings</strong> and fill in your profile</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[var(--color-success)]">2.</span>
+                    <span className="text-[var(--text-secondary)]">Check in on <strong>Lifeforce</strong> — how are you feeling?</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[var(--color-success)]">3.</span>
+                    <span className="text-[var(--text-secondary)]">Create a task in <strong>Industry</strong> — what are you working on?</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[var(--color-success)]">4.</span>
+                    <span className="text-[var(--text-secondary)]">Connect an OpenClaw gateway for AI agents (optional)</span>
+                  </div>
                 </div>
               </div>
+            )}
+            
+            {/* Quadrant Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <QuadrantCard
+                quadrant="health"
+                name="Lifeforce"
+                icon="💚"
+                color="#22c55e"
+                metrics={[{ label: 'Latest mood', value: latest ? `${latest.mood}/5` : '—' }]}
+                agentStatus="idle"
+              />
+              <QuadrantCard
+                quadrant="career"
+                name="Industry"
+                icon="💼"
+                color="#eab308"
+                metrics={[
+                  { label: 'Open tasks', value: incompleteTasks },
+                  { label: 'Focus goals', value: todayGoals },
+                ]}
+                agentStatus="idle"
+              />
+              <QuadrantCard
+                quadrant="relationships"
+                name="Fellowship"
+                icon="🤝"
+                color="#3b82f6"
+                metrics={[
+                  { label: 'Connections', value: connections.length },
+                  { label: 'Overdue', value: overdueConnections.length },
+                ]}
+                agentStatus="idle"
+              />
+              <QuadrantCard
+                quadrant="soul"
+                name="Essence"
+                icon="🧘"
+                color="#a855f7"
+                metrics={[{ label: 'Journal entries (week)', value: weekJournals }]}
+                agentStatus="idle"
+              />
             </div>
-          )}
-          {/* Quadrant Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuadrantCard
-              quadrant="health"
-              name="Lifeforce"
-              icon="💚"
-              color="#22c55e"
-              metrics={[{ label: 'Latest mood', value: latest ? `${latest.mood}/5` : '—' }]}
-              agentStatus="idle"
-            />
-            <QuadrantCard
-              quadrant="career"
-              name="Industry"
-              icon="💼"
-              color="#eab308"
-              metrics={[
-                { label: 'Open tasks', value: incompleteTasks },
-                { label: 'Focus goals', value: todayGoals },
-              ]}
-              agentStatus="idle"
-            />
-            <QuadrantCard
-              quadrant="relationships"
-              name="Fellowship"
-              icon="🤝"
-              color="#3b82f6"
-              metrics={[
-                { label: 'Connections', value: connections.length },
-                { label: 'Overdue', value: overdueConnections.length },
-              ]}
-              agentStatus="idle"
-            />
-            <QuadrantCard
-              quadrant="soul"
-              name="Essence"
-              icon="🧘"
-              color="#a855f7"
-              metrics={[{ label: 'Journal entries (week)', value: weekJournals }]}
-              agentStatus="idle"
-            />
+
+            {/* Balance Score Radar */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150 shadow-sm">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Quadrant Balance</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                    <PolarAngleAxis dataKey="quadrant" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                    <Radar dataKey="score" stroke="#ff5c5c" fill="#ff5c5c" fillOpacity={0.2} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Weekly Review Prompt */}
+            {showWeeklyReview && (
+              <div className="bg-[var(--bg-secondary)] border-2 border-[var(--accent)] rounded-xl p-6 transition-colors duration-150 shadow-sm">
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Weekly Review</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Time to reflect on your week. What went well? What could improve?</p>
+              </div>
+            )}
           </div>
+        )
 
-          {/* Balance Score Radar */}
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Quadrant Balance</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={radarData}>
-                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                  <PolarAngleAxis dataKey="quadrant" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                  <Radar dataKey="score" stroke="#7C3AED" fill="#7C3AED" fillOpacity={0.2} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Weekly Review Prompt */}
-          {showWeeklyReview && (
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 border-[var(--accent)] transition-colors duration-150">
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Weekly Review</h3>
-              <p className="text-sm text-[var(--text-secondary)]">Time to reflect on your week. What went well? What could improve?</p>
-            </div>
-          )}
-        </Tabs.Content>
-
-        {/* Lifeforce Tab */}
-        <Tabs.Content value="health" className="space-y-6 focus-visible:outline-none">
+      case 'lifeforce':
+        return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <BiometricDataSection />
@@ -2275,24 +2096,24 @@ export default function Dashboard() {
               <BreathingTool />
             </div>
           </div>
-        </Tabs.Content>
+        )
 
-        {/* Industry Tab */}
-        <Tabs.Content value="career" className="space-y-6 focus-visible:outline-none">
-          <KanbanBoard />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <FocusGoalsSection />
-            <DailySchedule />
+      case 'industry':
+        return (
+          <div className="space-y-6">
+            <KanbanBoard />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <FocusGoalsSection />
+              <DailySchedule />
+            </div>
           </div>
-        </Tabs.Content>
+        )
 
-        {/* Fellowship Tab */}
-        <Tabs.Content value="relationships" className="space-y-6 focus-visible:outline-none">
-          <RelationshipsTab />
-        </Tabs.Content>
+      case 'fellowship':
+        return <RelationshipsTab />
 
-        {/* Essence Tab */}
-        <Tabs.Content value="soul" className="space-y-6 focus-visible:outline-none">
+      case 'essence':
+        return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <JournalSection />
             <div className="space-y-6">
@@ -2300,21 +2121,111 @@ export default function Dashboard() {
               <MoodTrackerChart />
             </div>
           </div>
-        </Tabs.Content>
+        )
 
-        {/* Agents Tab */}
-        <Tabs.Content value="agents" className="space-y-6 focus-visible:outline-none">
-          <AgentsTab />
-        </Tabs.Content>
+      case 'agents':
+        return <AgentsTab />
 
-        {/* Settings Tab */}
-        <Tabs.Content value="settings" className="space-y-6 focus-visible:outline-none">
-          <SettingsTab />
-        </Tabs.Content>
-      </Tabs.Root>
+      case 'memory':
+        return (
+          <div className="space-y-6">
+            <MemoryConfigSection />
+          </div>
+        )
 
-      {/* Chat Panel — persistent across all tabs */}
-      <div className="mt-6">
+      case 'settings':
+        return <SettingsTab />
+
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div className={`shell ${navCollapsed ? 'shell--nav-collapsed' : ''}`}>
+      {/* Topbar */}
+      <header className="topbar">
+        <div className="topbar-left">
+          <button
+            type="button"
+            onClick={() => setNavCollapsed(!navCollapsed)}
+            className="nav-collapse-toggle"
+          >
+            <div className="nav-collapse-toggle__icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </div>
+          </button>
+          <div className="brand">
+            <h1 className="brand-title">
+              Octavius
+              <span className="brand-sub">life os</span>
+            </h1>
+          </div>
+        </div>
+        
+        <div className="topbar-right">
+          <div className="status-indicator">
+            <div className={`status-dot ${gateway.status === 'connected' ? 'status-dot--connected' : 'status-dot--disconnected'}`} />
+            <span>{gateway.status === 'connected' ? 'Gateway Connected' : 'Gateway Offline'}</span>
+          </div>
+          <div className="status-indicator">
+            <span className="font-mono text-xs">{timeStr}</span>
+          </div>
+          <div className="status-indicator">
+            <span className="text-xs text-[var(--accent)]">{compoundPhase} phase</span>
+          </div>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {/* Navigation Sidebar */}
+      <nav className={`nav ${navCollapsed ? 'nav--collapsed' : ''}`}>
+        {NAV_GROUPS.map((group) => {
+          const groupItems = NAV_ITEMS.filter((item) => item.group === group.key)
+          
+          return (
+            <div key={group.key} className="nav-group">
+              <div className="nav-label nav-label--static">
+                <span className="nav-label__text">{group.label}</span>
+              </div>
+              {groupItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActiveView(item.key)}
+                  className={`nav-item ${activeView === item.key ? 'nav-item--active' : ''}`}
+                >
+                  <div className="nav-item__icon">
+                    <span>{item.icon}</span>
+                  </div>
+                  <span className="nav-item__text">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* Content Area */}
+      <main className="content">
+        <div className="content-header">
+          <div>
+            <h1 className="page-title">{getPageTitle(activeView)}</h1>
+            {activeView === 'dashboard' && (
+              <p className="page-sub">
+                {greeting}{profile.name ? `, ${profile.name}` : ''} — {dateStr}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {renderContent()}
+      </main>
+
+      {/* Chat Panel — persistent across all views */}
+      <div className="fixed bottom-4 right-4 z-50">
         <ChatPanel
           messages={chatMessages}
           onSendMessage={handleSendMessage}
