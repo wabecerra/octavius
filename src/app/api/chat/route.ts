@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
+import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
 
-const GATEWAY_HOST = process.env.OPENCLAW_GATEWAY_HOST || 'localhost'
-const GATEWAY_PORT = process.env.OPENCLAW_GATEWAY_PORT || '18789'
+const execAsync = promisify(exec)
+const OPENCLAW_PATH = '/local/workplace/wabo/ocbot/openclaw'
 
 /**
- * POST /api/chat — Proxies chat to the OpenClaw gateway.
- *
- * For now, sends to the gateway's chat endpoint if available,
- * or returns a helpful fallback message.
- *
- * Body: { message: string, agentId?: string }
+ * POST /api/chat — Send a message through the OpenClaw agent via CLI.
+ * Uses the openclaw agent command which handles all the complexity.
  */
 export async function POST(request: Request) {
   const body = await request.json()
@@ -19,64 +17,66 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
   }
 
-  // Try the OpenClaw gateway first
   try {
-    const gatewayUrl = `http://${GATEWAY_HOST}:${GATEWAY_PORT}`
-
-    // Check if gateway is reachable
-    const healthRes = await fetch(`${gatewayUrl}/health`, {
-      signal: AbortSignal.timeout(3000),
+    // Use openclaw CLI agent command
+    const command = `cd "${OPENCLAW_PATH}" && node openclaw.mjs agent --session-id main --message ${JSON.stringify(message)} --json --timeout 30`
+    console.log('[Chat API] Running OpenClaw agent...')
+    
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 40000, // 40s total timeout
+      encoding: 'utf8',
     })
-
-    if (healthRes.ok) {
-      // Try to send through the gateway's chat/completions endpoint
-      // OpenClaw gateways typically accept messages via sessions
-      const chatRes = await fetch(`${gatewayUrl}/api/v1/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-        signal: AbortSignal.timeout(30000),
-      })
-
-      if (chatRes.ok) {
-        const data = await chatRes.json()
-        return NextResponse.json({
-          response: data.response || data.message || data.content || JSON.stringify(data),
-          source: 'gateway',
-        })
+    
+    if (stderr) {
+      console.log('[Chat API] Stderr:', stderr.slice(0, 200))
+    }
+    
+    // Parse the JSON response from the CLI
+    const result = JSON.parse(stdout.trim())
+    
+    if (result.status !== 'ok') {
+      throw new Error(`Agent failed: ${result.summary || 'unknown error'}`)
+    }
+    
+    // Extract the response text from the payloads
+    const responseText = result.result?.payloads?.[0]?.text || '(no response)'
+    
+    console.log('[Chat API] Agent response:', responseText.slice(0, 200))
+    
+    return NextResponse.json({
+      response: responseText,
+      source: 'gateway',
+      meta: {
+        model: result.result?.meta?.agentMeta?.model || 'unknown',
+        provider: result.result?.meta?.agentMeta?.provider || 'unknown',
+        durationMs: result.result?.meta?.durationMs || 0,
+        usage: result.result?.meta?.agentMeta?.usage || null,
+      },
+    })
+    
+  } catch (err: unknown) {
+    const error = err as Error & { stdout?: string; stderr?: string }
+    console.error('[Chat API] Error:', error.message)
+    
+    // Try to parse partial JSON response if available
+    if (error.stdout) {
+      try {
+        const partialResult = JSON.parse(error.stdout)
+        if (partialResult.result?.payloads?.[0]?.text) {
+          return NextResponse.json({
+            response: partialResult.result.payloads[0].text,
+            source: 'gateway-partial',
+            warning: 'Request completed but timed out waiting for full response',
+          })
+        }
+      } catch {
+        // Ignore parse errors
       }
     }
-  } catch {
-    // Gateway unavailable — fall through to fallback
+    
+    return NextResponse.json({
+      response: `Sorry, I couldn't process your message right now. Error: ${error.message}`,
+      source: 'error',
+    }, { status: 500 })
   }
-
-  // Try local Ollama
-  try {
-    const ollamaRes = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3.2',
-        prompt: message,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(60000),
-    })
-
-    if (ollamaRes.ok) {
-      const data = await ollamaRes.json()
-      return NextResponse.json({
-        response: data.response,
-        source: 'ollama',
-      })
-    }
-  } catch {
-    // Ollama not available either
-  }
-
-  // Fallback: acknowledge the message and suggest using the OpenClaw plugin
-  return NextResponse.json({
-    response: `I received your message: "${message.slice(0, 100)}${message.length > 100 ? '...' : ''}"\n\nThe chat is currently in offline mode — no LLM backend is connected. To enable AI responses:\n\n1. **Install Ollama** locally (ollama.com) and run a model\n2. **Or** connect through the OpenClaw gateway with the Octavius plugin\n\nIn the meantime, you can use the dashboard to create tasks, log check-ins, and manage your life quadrants.`,
-    source: 'fallback',
-  })
 }
