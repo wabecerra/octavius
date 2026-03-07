@@ -451,6 +451,7 @@ export const useOctaviusStore = create<OctaviusStore>()(
       storage: createJSONStorage(() => createSafeStorage()),
       partialize: (state) => {
         // Exclude transient gateway state from persistence; keep address/port and chat messages
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { gatewayStatus, connectedAt, lastHealthyAt, registeredAgents, activeSessions, recentSessions, scheduledJobs, heartbeatActions, dailyTokenUsage, ...persisted } = state
         return persisted
       },
@@ -465,7 +466,7 @@ export const useOctaviusStore = create<OctaviusStore>()(
           useOctaviusStore.setState({ storageError: true })
           return { ...defaultState, storageError: true } as OctaviusStore
         }
-        return migrated as OctaviusStore
+        return migrated as unknown as OctaviusStore
       },
       onRehydrateStorage: () => {
         return (state, error) => {

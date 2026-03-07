@@ -15,11 +15,6 @@ const STORAGE_KEY = 'octavius-theme'
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window === 'undefined') return 'dark'
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
 export function resolveTheme(preference: Theme, systemPrefersDark: boolean): ResolvedTheme {
   if (preference === 'light') return 'light'
   if (preference === 'dark') return 'dark'

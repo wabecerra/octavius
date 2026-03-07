@@ -188,7 +188,7 @@ export async function hybridSearch(
 
   // Check cache first
   const cacheKey = `hybrid:${queryText}:${JSON.stringify(filters)}`
-  const cached = getCachedResult(db, cacheKey)
+  const cached = getCachedResult<SearchResult>(db, cacheKey)
   if (cached) return cached
 
   // Run FTS and vector search in parallel

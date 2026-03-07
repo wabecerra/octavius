@@ -347,6 +347,7 @@ export class TaskDispatcher {
   }
 
   /** Get current daily spend (simplified — reads from gateway_events or returns 0) */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private getDailySpend(_config: ModelRouterConfig): number {
     // In a full implementation this would aggregate token usage from today's sessions.
     // For now, return 0 to allow dispatch (budget gate still enforced via canDispatch).

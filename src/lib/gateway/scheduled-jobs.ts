@@ -8,7 +8,7 @@
  */
 import type Database from 'better-sqlite3'
 import { nanoid } from 'nanoid'
-import type { ScheduledAgentJob, GatewayEvent } from './types'
+import type { ScheduledAgentJob } from './types'
 import type { GatewayClient } from './client'
 import type { TaskDispatcher } from './dispatcher'
 
@@ -266,10 +266,8 @@ export class GatewayJobScheduler {
         false,
       )
 
-      const completedAt = new Date().toISOString()
       this.insertJobRun(job.name, startedAt, true)
     } catch (err) {
-      const completedAt = new Date().toISOString()
       const errorMsg = err instanceof Error ? err.message : String(err)
       this.insertJobRun(job.name, startedAt, false, errorMsg)
     }

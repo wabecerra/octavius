@@ -100,7 +100,7 @@ export async function rerankResults(
 ): Promise<RerankResult[]> {
   if (!config.embedding_enabled || candidates.length === 0) {
     // No reranking — return with fusionScore as blendedScore
-    return candidates.map((c, i) => ({
+    return candidates.map((c) => ({
       item: c.item,
       rerankScore: 0.5,
       fusionScore: c.fusionScore,

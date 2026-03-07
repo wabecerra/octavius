@@ -5,7 +5,7 @@
  * Requirements: 1.1–1.5, 2.1–2.6, 3.2–3.4
  */
 import { EventEmitter } from 'events'
-import type { GatewayStatus, GatewayClientConfig, GatewayEvents } from './types'
+import type { GatewayStatus, GatewayClientConfig } from './types'
 
 const DEFAULT_CONFIG: GatewayClientConfig = {
   address: 'localhost',

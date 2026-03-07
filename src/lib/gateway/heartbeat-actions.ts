@@ -356,6 +356,7 @@ function buildQueryString(params: Record<string, unknown>): string {
  */
 function evaluateCondition(
   data: Record<string, unknown>,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _action: HeartbeatActionConfig,
 ): boolean {
   // Check for items array with content

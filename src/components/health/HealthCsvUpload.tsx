@@ -45,7 +45,7 @@ export function HealthCsvUpload({ onImportSuccess }: { onImportSuccess?: () => v
         xhr.addEventListener('load', () => {
           try {
             const body = JSON.parse(xhr.responseText)
-            xhr.status >= 200 && xhr.status < 300 ? resolve(body) : reject(body)
+            if (xhr.status >= 200 && xhr.status < 300) { resolve(body) } else { reject(body) }
           } catch { reject({ error: 'Invalid response' }) }
         })
         xhr.addEventListener('error', () => reject({ error: 'Network error' }))
@@ -58,7 +58,7 @@ export function HealthCsvUpload({ onImportSuccess }: { onImportSuccess?: () => v
       const e = err as { error?: string; skipped?: Array<{ row: number; reason: string }> }
       setState({ status: 'error', message: e.error ?? 'Upload failed', skipped: e.skipped })
     }
-  }, [])
+  }, [onImportSuccess])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()

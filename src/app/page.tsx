@@ -25,6 +25,7 @@ import { validateCheckInValue } from '@/lib/validation'
 import { executeTask, AgentExecutionError } from '@/lib/agent-adapter'
 import { estimateDailyCost } from '@/lib/cost-tracker'
 import { routeTask } from '@/lib/model-router'
+import { BreathingTool } from '@/components/BreathingTool'
 import { MemoryConfigSection } from '@/components/MemoryConfigSection'
 import { ChatPanel } from '@/components/ChatPanel'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -2221,7 +2222,16 @@ export default function Dashboard() {
 
         {/* Lifeforce Tab */}
         <Tabs.Content value="health" className="space-y-6 focus-visible:outline-none">
-          <BiometricDataSection />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <BiometricDataSection />
+            </div>
+            <div className="space-y-6">
+              <WellnessCheckInForm />
+              <HealthMetricsForm />
+              <BreathingTool />
+            </div>
+          </div>
         </Tabs.Content>
 
         {/* Industry Tab */}

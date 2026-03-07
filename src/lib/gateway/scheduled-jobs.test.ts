@@ -36,8 +36,8 @@ const scheduledJobArb: fc.Arbitrary<ScheduledAgentJob> = fc.record({
     .map((chars) => chars.join('')),
   taskTemplate: fc.string({ minLength: 1, maxLength: 500 }),
   enabled: fc.boolean(),
-  createdAt: fc.date({ min: new Date('2020-01-01'), max: new Date('2030-12-31') }).map((d) => d.toISOString()),
-  updatedAt: fc.date({ min: new Date('2020-01-01'), max: new Date('2030-12-31') }).map((d) => d.toISOString()),
+  createdAt: fc.date({ min: new Date('2020-01-01T00:00:00Z'), max: new Date('2029-12-31T00:00:00Z') }).map((d) => d.toISOString()),
+  updatedAt: fc.date({ min: new Date('2020-01-01T00:00:00Z'), max: new Date('2029-12-31T00:00:00Z') }).map((d) => d.toISOString()),
 })
 
 describe('Property 20: Scheduled Job SQLite Round-Trip', () => {

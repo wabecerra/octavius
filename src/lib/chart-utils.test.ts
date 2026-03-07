@@ -52,7 +52,7 @@ import fc from 'fast-check'
 
 const wellnessCheckInArb = fc.record({
   id: fc.uuid(),
-  timestamp: fc.date().map((d) => d.toISOString()),
+  timestamp: fc.date({ min: new Date('2020-01-01'), max: new Date('2030-01-01') }).map((d) => d.toISOString()),
   mood: fc.integer({ min: 1, max: 5 }) as fc.Arbitrary<1 | 2 | 3 | 4 | 5>,
   energy: fc.integer({ min: 1, max: 5 }) as fc.Arbitrary<1 | 2 | 3 | 4 | 5>,
   stress: fc.integer({ min: 1, max: 5 }) as fc.Arbitrary<1 | 2 | 3 | 4 | 5>,

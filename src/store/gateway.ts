@@ -105,7 +105,7 @@ export const defaultGatewayState: Pick<
  * The slice creator follows Zustand's StateCreator pattern so it can
  * be composed with the existing store via `...createGatewaySlice(set, get, api)`.
  */
-export const createGatewaySlice: StateCreator<GatewaySlice, [], [], GatewaySlice> = (set, get) => ({
+export const createGatewaySlice: StateCreator<GatewaySlice, [], [], GatewaySlice> = (set, _get) => ({
   ...defaultGatewayState,
 
   setGatewayStatus: (status: GatewayStatus) => set({ gatewayStatus: status }),
