@@ -126,7 +126,7 @@ export class GatewayClient extends EventEmitter {
   /** Validate a token against the gateway without persisting it. */
   async validateToken(token: string): Promise<boolean> {
     try {
-      const url = `http://${this.config.address}:${this.config.port}/health`
+      const url = this.healthUrl()
       const res = await this.fetchFn(url, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -138,10 +138,22 @@ export class GatewayClient extends EventEmitter {
 
   // ── Private helpers ─────────────────────────────────────────
 
+  /**
+   * Build the health check URL.
+   * In the browser, use the same-origin proxy (/api/gateway/health) to avoid CORS.
+   * On the server (tests, SSR), call the gateway directly.
+   */
+  private healthUrl(): string {
+    if (typeof window !== 'undefined') {
+      return '/api/gateway/health'
+    }
+    return `http://${this.config.address}:${this.config.port}/health`
+  }
+
   /** Ping the gateway health endpoint. */
   private async performHealthCheck(): Promise<boolean> {
     try {
-      const url = `http://${this.config.address}:${this.config.port}/health`
+      const url = this.healthUrl()
       const headers: Record<string, string> = {}
       if (this.token) {
         headers['Authorization'] = `Bearer ${this.token}`
