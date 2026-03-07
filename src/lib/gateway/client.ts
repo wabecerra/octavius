@@ -126,7 +126,7 @@ export class GatewayClient extends EventEmitter {
   /** Validate a token against the gateway without persisting it. */
   async validateToken(token: string): Promise<boolean> {
     try {
-      const url = `http://${this.config.address}:${this.config.port}/api/health`
+      const url = `http://${this.config.address}:${this.config.port}/health`
       const res = await this.fetchFn(url, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -141,7 +141,7 @@ export class GatewayClient extends EventEmitter {
   /** Ping the gateway health endpoint. */
   private async performHealthCheck(): Promise<boolean> {
     try {
-      const url = `http://${this.config.address}:${this.config.port}/api/health`
+      const url = `http://${this.config.address}:${this.config.port}/health`
       const headers: Record<string, string> = {}
       if (this.token) {
         headers['Authorization'] = `Bearer ${this.token}`
