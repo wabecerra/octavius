@@ -24,6 +24,10 @@ import { validateCheckInValue } from '@/lib/validation'
 import { routeTask } from '@/lib/model-router'
 import { BreathingTool } from '@/components/BreathingTool'
 import { MemoryConfigSection } from '@/components/MemoryConfigSection'
+import { MemoryStats } from '@/components/MemoryStats'
+import { MemoryExplorer } from '@/components/MemoryExplorer'
+import { MemoryItemCreator } from '@/components/MemoryItemCreator'
+import { MemoryGraphView } from '@/components/MemoryGraphView'
 import { ChatPanel } from '@/components/ChatPanel'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { GatewayStatusPanel } from '@/components/GatewayStatusPanel'
@@ -1854,6 +1858,10 @@ export default function Dashboard() {
   const [now, setNow] = useState<Date | null>(null)
   const [mounted, setMounted] = useState(false)
 
+  // Memory view state
+  const [graphStartId, setGraphStartId] = useState<string | null>(null)
+  const [memoryRefreshKey, setMemoryRefreshKey] = useState(0)
+
   // API hooks
   const { profile } = useProfile()
   const { checkins } = useCheckins()
@@ -2116,7 +2124,22 @@ export default function Dashboard() {
       case 'memory':
         return (
           <div className="space-y-6">
-            <MemoryConfigSection />
+            <MemoryStats />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <MemoryExplorer
+                  onViewGraph={(memoryId) => setGraphStartId(memoryId)}
+                  refreshKey={memoryRefreshKey}
+                />
+              </div>
+              <div className="space-y-6">
+                <MemoryItemCreator
+                  onCreated={() => setMemoryRefreshKey((k) => k + 1)}
+                />
+                <MemoryConfigSection />
+              </div>
+            </div>
+            <MemoryGraphView startId={graphStartId} />
           </div>
         )
 
