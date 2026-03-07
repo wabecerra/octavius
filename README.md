@@ -20,38 +20,30 @@ An orchestrator agent (`octavius-orchestrator`) routes your messages to the righ
 ### Prerequisites
 
 - Node.js 22+
-- pnpm (or npm)
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/youruser/octavius.git
+git clone https://github.com/wabecerra/octavius.git
 cd octavius
-pnpm install
+npm run setup
 ```
 
-### 2. Configure environment
+The setup script will:
+- Create `.env.local` with sensible defaults
+- Set up the SQLite data directory
+- Detect if an OpenClaw gateway is running
+- Install dependencies if needed
+
+### 2. Start the dashboard
 
 ```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local` and set your API secret:
-
-```bash
-# Generate a secret token
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-### 3. Start the dashboard
-
-```bash
-pnpm dev
+npm run dev
 ```
 
 Open http://localhost:3000.
 
-### 4. (Optional) Connect OpenClaw gateway
+### 3. (Optional) Connect OpenClaw gateway
 
 If you want AI agents, install and run [OpenClaw](https://github.com/openclaw/openclaw):
 
@@ -205,11 +197,12 @@ The Evolution Job runs nightly at 4 AM and appends learned behavioral patterns a
 ## Development
 
 ```bash
-pnpm dev          # Start dev server (http://localhost:3000)
-pnpm build        # Production build
-pnpm start        # Start production server
-pnpm test         # Run tests
-pnpm lint         # Lint
+npm run setup         # First-time setup
+npm run dev           # Start dev server (http://localhost:3000)
+npm run build         # Production build
+npm start             # Start production server
+npm test              # Run tests
+npm run lint          # Lint
 ```
 
 ## Tech Stack

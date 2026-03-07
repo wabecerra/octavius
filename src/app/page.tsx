@@ -2155,6 +2155,33 @@ export default function Dashboard() {
 
         {/* Dashboard Overview Tab */}
         <Tabs.Content value="dashboard" className="space-y-6 focus-visible:outline-none">
+          {/* Welcome banner for first-time users */}
+          {!profile.name && (
+            <div className="bg-gradient-to-r from-[var(--accent-muted)] to-[color-mix(in_srgb,var(--quadrant-health)_10%,transparent)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150">
+              <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Welcome to Octavius 🧠</h2>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">
+                Your personal life operating system. Octavius helps you optimize four life quadrants — health, career, relationships, and soul — through AI agents and a smart memory system.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <span className="text-[var(--color-success)]">1.</span>
+                  <span className="text-[var(--text-secondary)]">Head to <strong>Settings</strong> and fill in your profile</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-[var(--color-success)]">2.</span>
+                  <span className="text-[var(--text-secondary)]">Check in on <strong>Lifeforce</strong> — how are you feeling?</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-[var(--color-success)]">3.</span>
+                  <span className="text-[var(--text-secondary)]">Create a task in <strong>Industry</strong> — what are you working on?</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-[var(--color-success)]">4.</span>
+                  <span className="text-[var(--text-secondary)]">Connect an OpenClaw gateway for AI agents (optional)</span>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Quadrant Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <QuadrantCard

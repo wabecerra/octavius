@@ -234,6 +234,44 @@ export function MemoryConfigSection() {
           </div>
         )}
       </div>
+
+      {/* Advanced Search */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium text-[var(--text-secondary)]">Search &amp; Chunking</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className={labelClass}>Smart Chunking Target Tokens</label>
+            <input
+              type="number"
+              min={100} max={4000} step={100}
+              value={config.smart_chunking_target_tokens}
+              onChange={(e) => saveConfig({ smart_chunking_target_tokens: Number(e.target.value) })}
+              className={inputClass}
+            />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer self-end pb-2">
+            <input
+              type="checkbox"
+              checked={config.reranking_enabled}
+              onChange={(e) => saveConfig({ reranking_enabled: e.target.checked })}
+              className="w-4 h-4 rounded border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--accent)] focus:ring-[var(--border-focus)]"
+            />
+            <span className="text-sm text-[var(--text-secondary)]">Re-ranking</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer self-end pb-2">
+            <input
+              type="checkbox"
+              checked={config.query_expansion_enabled}
+              onChange={(e) => saveConfig({ query_expansion_enabled: e.target.checked })}
+              className="w-4 h-4 rounded border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--accent)] focus:ring-[var(--border-focus)]"
+            />
+            <span className="text-sm text-[var(--text-secondary)]">Query Expansion</span>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-disabled)]">
+          Re-ranking and query expansion are auto-enabled when embeddings are active.
+        </p>
+      </div>
     </div>
   )
 }
