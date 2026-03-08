@@ -1,6 +1,7 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { CHART_THEME } from '@/lib/chart-theme'
 
 interface SleepDataPoint {
   startTime: string
@@ -32,17 +33,23 @@ export function SleepChart({ data }: SleepChartProps) {
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-            <XAxis dataKey="label" tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} unit=" min" />
-            <Tooltip
-              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 8, color: 'var(--text-primary)' }}
+            <CartesianGrid {...CHART_THEME.grid} />
+            <XAxis
+              dataKey="label"
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
             />
+            <YAxis
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
+              unit=" min"
+            />
+            <Tooltip {...CHART_THEME.tooltip} />
             <Legend />
-            <Bar dataKey="deep" stackId="sleep" fill="var(--quadrant-soul)" name="Deep" />
-            <Bar dataKey="light" stackId="sleep" fill="var(--color-info)" name="Light" />
-            <Bar dataKey="rem" stackId="sleep" fill="var(--accent)" name="REM" />
-            <Bar dataKey="awake" stackId="sleep" fill="var(--color-warning)" name="Awake" />
+            <Bar dataKey="deep" stackId="sleep" fill={CHART_THEME.colors.quadrant.soul} name="Deep" />
+            <Bar dataKey="light" stackId="sleep" fill={CHART_THEME.colors.categorical[0]} name="Light" />
+            <Bar dataKey="rem" stackId="sleep" fill={CHART_THEME.colors.accent} name="REM" />
+            <Bar dataKey="awake" stackId="sleep" fill={CHART_THEME.colors.categorical[1]} name="Awake" />
           </BarChart>
         </ResponsiveContainer>
       </div>

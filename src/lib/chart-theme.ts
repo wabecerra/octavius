@@ -1,24 +1,24 @@
 /**
  * Unified chart theming for Recharts.
- * Uses CSS custom properties for theme-aware colors.
+ * Design System 2026 — uses semantic CSS custom properties.
  * Categorical palette is Okabe-Ito (color-blind safe).
  */
 
 export const CHART_THEME = {
   grid: {
-    stroke: 'rgba(255,255,255,0.08)',
+    stroke: 'rgba(255,255,255,0.15)',
     strokeDasharray: '3 3',
   },
   axis: {
-    stroke: 'var(--text-tertiary)',
-    tick: { fill: 'var(--text-tertiary)', fontSize: 11 },
+    stroke: '#b0b6c3',
+    tick: { fill: '#b0b6c3', fontSize: 11 },
   },
   tooltip: {
     contentStyle: {
-      backgroundColor: 'var(--bg-elevated)',
-      border: '1px solid var(--border-primary)',
+      backgroundColor: '#252932',
+      border: '1px solid #444',
       borderRadius: '8px',
-      color: 'var(--text-primary)',
+      color: '#eee',
       fontSize: '12px',
       boxShadow: 'var(--shadow-md)',
     } as React.CSSProperties,
@@ -36,10 +36,10 @@ export const CHART_THEME = {
     ],
     /** Semantic quadrant colors (CSS variables) */
     quadrant: {
-      health: 'var(--quadrant-lifeforce)',
-      career: 'var(--quadrant-industry)',
-      relationships: 'var(--quadrant-fellowship)',
-      soul: 'var(--quadrant-essence)',
+      health: 'var(--quadrant-health)',
+      career: 'var(--quadrant-career)',
+      relationships: 'var(--quadrant-relationships)',
+      soul: 'var(--quadrant-soul)',
     },
     accent: 'var(--accent)',
   },

@@ -1,6 +1,7 @@
 'use client'
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { CHART_THEME } from '@/lib/chart-theme'
 
 interface HeartRateDataPoint {
   timestamp: string
@@ -37,16 +38,23 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-            <XAxis dataKey="timestamp" tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} domain={['auto', 'auto']} unit=" bpm" />
-            <Tooltip
-              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 8, color: 'var(--text-primary)' }}
+            <CartesianGrid {...CHART_THEME.grid} />
+            <XAxis
+              dataKey="timestamp"
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
             />
+            <YAxis
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
+              domain={['auto', 'auto']}
+              unit=" bpm"
+            />
+            <Tooltip {...CHART_THEME.tooltip} />
             <Legend />
-            <Line type="monotone" dataKey="resting" stroke="var(--quadrant-health)" strokeWidth={2} dot={false} name="Resting" />
-            <Line type="monotone" dataKey="active" stroke="var(--color-error)" strokeWidth={2} dot={false} name="Active" />
-            <Line type="monotone" dataKey="average" stroke="var(--accent)" strokeWidth={2} dot={false} name="Average" />
+            <Line type="monotone" dataKey="resting" stroke={CHART_THEME.colors.quadrant.health} strokeWidth={2} dot={false} name="Resting" />
+            <Line type="monotone" dataKey="active" stroke={CHART_THEME.colors.categorical[5]} strokeWidth={2} dot={false} name="Active" />
+            <Line type="monotone" dataKey="average" stroke={CHART_THEME.colors.accent} strokeWidth={2} dot={false} name="Average" />
           </LineChart>
         </ResponsiveContainer>
       </div>

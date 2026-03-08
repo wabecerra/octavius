@@ -1,6 +1,7 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { CHART_THEME } from '@/lib/chart-theme'
 
 interface ActivityDataPoint {
   date: string
@@ -54,13 +55,18 @@ export function ActivityChart({ data }: ActivityChartProps) {
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-            <XAxis dataKey="label" tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
-            <Tooltip
-              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 8, color: 'var(--text-primary)' }}
+            <CartesianGrid {...CHART_THEME.grid} />
+            <XAxis
+              dataKey="label"
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
             />
-            <Bar dataKey="steps" fill="var(--quadrant-health)" name="Steps" />
+            <YAxis
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
+            />
+            <Tooltip {...CHART_THEME.tooltip} />
+            <Bar dataKey="steps" fill={CHART_THEME.colors.quadrant.health} name="Steps" />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { CHART_THEME } from '@/lib/chart-theme'
 
 interface SpO2DataPoint {
   timestamp: string
@@ -29,13 +30,20 @@ export function SpO2Chart({ data }: SpO2ChartProps) {
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-            <XAxis dataKey="label" tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} domain={[90, 100]} unit="%" />
-            <Tooltip
-              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 8, color: 'var(--text-primary)' }}
+            <CartesianGrid {...CHART_THEME.grid} />
+            <XAxis
+              dataKey="label"
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
             />
-            <Line type="monotone" dataKey="percentage" stroke="var(--color-info)" strokeWidth={2} dot={false} name="SpO2" />
+            <YAxis
+              tick={CHART_THEME.axis.tick}
+              axisLine={{ stroke: CHART_THEME.axis.stroke }}
+              domain={[90, 100]}
+              unit="%"
+            />
+            <Tooltip {...CHART_THEME.tooltip} />
+            <Line type="monotone" dataKey="percentage" stroke={CHART_THEME.colors.categorical[4]} strokeWidth={2} dot={false} name="SpO2" />
           </LineChart>
         </ResponsiveContainer>
       </div>
