@@ -1,5 +1,7 @@
 'use client'
 
+import { LineChart, Line, ResponsiveContainer } from 'recharts'
+import { Skeleton } from '@/components/Skeleton'
 import type { QuadrantId } from '@/types'
 
 interface MetricItem {
@@ -14,6 +16,10 @@ export interface QuadrantCardProps {
   color: string
   metrics: MetricItem[]
   agentStatus: 'idle' | 'running' | 'error'
+  /** Optional trend data for sparkline (array of raw numbers) */
+  sparklineData?: number[]
+  /** Show loading skeleton */
+  loading?: boolean
   onClick?: () => void
 }
 
@@ -29,9 +35,42 @@ export function QuadrantCard({
   color,
   metrics,
   agentStatus,
+  sparklineData,
+  loading,
   onClick,
 }: QuadrantCardProps) {
+  // ─── Loading state ───
+  if (loading) {
+    return (
+      <div
+        className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl w-full"
+        style={{ borderTopColor: color, borderTopWidth: '2px' }}
+        aria-hidden="true"
+      >
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-5 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <Skeleton className="h-4 w-12 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-8" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-full rounded" />
+        </div>
+      </div>
+    )
+  }
+
   const status = statusConfig[agentStatus]
+
+  // Prepare sparkline data as objects for Recharts
+  const sparkData = sparklineData?.map((v, i) => ({ idx: i, val: v }))
 
   return (
     <button
@@ -65,10 +104,30 @@ export function QuadrantCard({
               className="flex items-center justify-between text-sm"
             >
               <span className="text-[var(--text-secondary)]">{metric.label}</span>
-              <span className="text-[var(--text-primary)] font-medium">{metric.value}</span>
+              <span className="text-[var(--text-primary)] font-medium font-mono text-xs">
+                {metric.value}
+              </span>
             </div>
           ))}
         </div>
+
+        {/* Sparkline */}
+        {sparkData && sparkData.length > 1 && (
+          <div className="mt-3 h-10" aria-hidden="true">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={sparkData}>
+                <Line
+                  type="monotone"
+                  dataKey="val"
+                  stroke={color}
+                  strokeWidth={1.5}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </button>
   )

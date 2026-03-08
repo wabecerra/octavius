@@ -16,6 +16,9 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { QuadrantCard } from '@/components/QuadrantCard'
+import { useToast } from '@/components/Toast'
+import { CommandPalette, type CommandPaletteItem } from '@/components/CommandPalette'
+import { CHART_THEME } from '@/lib/chart-theme'
 import { useTasks, useCheckins, useJournal, useConnections, useProfile, useGratitude, useFocusGoals, useSchedule, Task } from '@/hooks'
 import { computeBalanceScore } from '@/lib/balance-score'
 import { shouldShowWeeklyReviewPrompt } from '@/lib/weekly-review'
@@ -77,6 +80,20 @@ const NAV_GROUPS = [
   { key: 'system', label: 'AI System' },
 ] as const
 
+// Command palette items (derived from NAV_ITEMS + quick actions)
+const COMMAND_PALETTE_ITEMS: CommandPaletteItem[] = [
+  ...NAV_ITEMS.map((n) => ({
+    id: n.key,
+    label: n.label,
+    icon: n.icon,
+    group: 'Navigate',
+    keywords: n.group,
+  })),
+  { id: 'action:new-task', label: 'New Task', icon: '➕', group: 'Quick Actions', keywords: 'create add task kanban' },
+  { id: 'action:new-journal', label: 'New Journal Entry', icon: '📝', group: 'Quick Actions', keywords: 'write journal entry' },
+  { id: 'action:new-checkin', label: 'New Check-In', icon: '💚', group: 'Quick Actions', keywords: 'wellness mood energy stress' },
+]
+
 function getGreeting(hour: number): string {
   if (hour < 12) return 'Good morning'
   if (hour < 18) return 'Good afternoon'
@@ -121,11 +138,11 @@ const PRIORITY_COLORS: Record<Task['priority'], string> = {
 
 function WellnessCheckInForm() {
   const { createCheckin } = useCheckins()
+  const { toast } = useToast()
   const [mood, setMood] = useState(3)
   const [energy, setEnergy] = useState(3)
   const [stress, setStress] = useState(3)
   const [errors, setErrors] = useState<string[]>([])
-  const [submitted, setSubmitted] = useState(false)
 
   const handleSubmit = async () => {
     const errs: string[] = []
@@ -141,8 +158,7 @@ function WellnessCheckInForm() {
     try {
       await createCheckin({ mood, energy, stress })
       setErrors([])
-      setSubmitted(true)
-      setTimeout(() => setSubmitted(false), 2000)
+      toast({ title: 'Check-in saved', variant: 'success' })
     } catch {
       setErrors(['Failed to save check-in'])
     }
@@ -197,7 +213,7 @@ function WellnessCheckInForm() {
         onClick={handleSubmit}
         className="w-full py-2.5 rounded-lg bg-[var(--accent-muted)] text-[var(--accent)] hover:bg-[var(--bg-hover)] transition-colors duration-150 text-sm font-medium"
       >
-        {submitted ? '✓ Saved' : 'Save Check-In'}
+        Save Check-In
       </button>
     </div>
   )
@@ -836,18 +852,15 @@ function ConnectionModal({
 // ─── Relationships Tab: Activity Log Form ───
 
 function ActivityLogForm({ connections }: { connections: Connection[] }) {
-  // Using ephemeral state for activity logging
+  const { toast } = useToast()
   const [connectionId, setConnectionId] = useState('')
   const [description, setDescription] = useState('')
-  const [saved, setSaved] = useState(false)
 
   const handleLog = () => {
     if (!connectionId || !description.trim()) return
-    // This would integrate with an activity logging API in a full implementation
     console.log('Activity logged:', { connectionId, description })
     setDescription('')
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    toast({ title: 'Activity logged', variant: 'success' })
   }
 
   return (
@@ -876,7 +889,7 @@ function ActivityLogForm({ connections }: { connections: Connection[] }) {
         onClick={handleLog}
         className="w-full py-2 rounded-lg bg-[var(--accent-muted)] text-[var(--accent)] hover:bg-[var(--bg-hover)] transition-colors duration-150 text-sm font-medium"
       >
-        {saved ? '✓ Logged' : 'Log Activity'}
+        Log Activity
       </button>
     </div>
   )
@@ -1002,17 +1015,18 @@ function RelationshipsTab() {
 
 function JournalSection() {
   const { entries, addEntry } = useJournal()
+  const { toast } = useToast()
   const [text, setText] = useState('')
-  const [saved, setSaved] = useState(false)
 
   const handleBlur = async () => {
     if (!text.trim()) return
     try {
       await addEntry(text.trim())
-      setSaved(true)
-      setTimeout(() => { setSaved(false); setText('') }, 1500)
+      toast({ title: 'Journal entry saved', variant: 'success' })
+      setText('')
     } catch (err) {
       console.error('Failed to save journal entry:', err)
+      toast({ title: 'Failed to save entry', variant: 'error' })
     }
   }
 
@@ -1033,7 +1047,6 @@ function JournalSection() {
         rows={4}
         className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] resize-none transition-colors duration-150"
       />
-      {saved && <p className="text-xs text-[var(--color-success)]">✓ Entry saved</p>}
 
       {recentEntries.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-[var(--border-primary)]">
@@ -1056,8 +1069,8 @@ function JournalSection() {
 
 function GratitudePrompt() {
   const { addGratitude } = useGratitude()
+  const { toast } = useToast()
   const [items, setItems] = useState(['', '', ''])
-  const [saved, setSaved] = useState(false)
 
   const updateItem = (index: number, value: string) => {
     setItems((prev) => prev.map((item, i) => (i === index ? value : item)))
@@ -1069,10 +1082,10 @@ function GratitudePrompt() {
     try {
       await addGratitude(filled.map((item) => item.trim()))
       setItems(['', '', ''])
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      toast({ title: 'Gratitude saved', variant: 'success' })
     } catch (err) {
       console.error('Failed to save gratitude:', err)
+      toast({ title: 'Failed to save gratitude', variant: 'error' })
     }
   }
 
@@ -1099,7 +1112,7 @@ function GratitudePrompt() {
         onClick={handleSubmit}
         className="w-full py-2 rounded-lg bg-[var(--accent-muted)] text-[var(--accent)] hover:bg-[var(--bg-hover)] transition-colors duration-150 text-sm font-medium"
       >
-        {saved ? '✓ Saved' : 'Save Gratitude'}
+        Save Gratitude
       </button>
     </div>
   )
@@ -1127,41 +1140,47 @@ function MoodTrackerChart() {
           No check-in data yet. Complete a wellness check-in to see your mood trend.
         </p>
       ) : (
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={formattedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: '#6B7280', fontSize: 11 }}
-                axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-              />
-              <YAxis
-                domain={[1, 5]}
-                ticks={[1, 2, 3, 4, 5]}
-                tick={{ fill: '#6B7280', fontSize: 11 }}
-                axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1a1a2e',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '12px',
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="mood"
-                stroke="#ff5c5c"
-                strokeWidth={2}
-                dot={{ fill: '#ff5c5c', r: 3 }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="h-48" role="img" aria-label="Line chart showing mood scores over time">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={formattedData}>
+                <CartesianGrid {...CHART_THEME.grid} />
+                <XAxis
+                  dataKey="label"
+                  tick={CHART_THEME.axis.tick}
+                  axisLine={{ stroke: CHART_THEME.axis.stroke }}
+                />
+                <YAxis
+                  domain={[1, 5]}
+                  ticks={[1, 2, 3, 4, 5]}
+                  tick={CHART_THEME.axis.tick}
+                  axisLine={{ stroke: CHART_THEME.axis.stroke }}
+                />
+                <Tooltip {...CHART_THEME.tooltip} />
+                <Line
+                  type="monotone"
+                  dataKey="mood"
+                  stroke={CHART_THEME.colors.accent}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_THEME.colors.accent, r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Screen-reader accessible data table */}
+          <table className="sr-only">
+            <caption>Mood scores over time</caption>
+            <thead>
+              <tr><th>Date</th><th>Mood</th></tr>
+            </thead>
+            <tbody>
+              {formattedData.map((d, i) => (
+                <tr key={i}><td>{d.label}</td><td>{d.mood}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   )
@@ -2018,55 +2037,64 @@ export default function Dashboard() {
             
             {/* Quadrant Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <QuadrantCard
-                quadrant="health"
-                name="Lifeforce"
-                icon="💚"
-                color="#22c55e"
-                metrics={[{ label: 'Latest mood', value: latest ? `${latest.mood}/5` : '—' }]}
-                agentStatus="idle"
-              />
-              <QuadrantCard
-                quadrant="career"
-                name="Industry"
-                icon="💼"
-                color="#eab308"
-                metrics={[
-                  { label: 'Open tasks', value: incompleteTasks },
-                  { label: 'Focus goals', value: todayGoals },
-                ]}
-                agentStatus="idle"
-              />
-              <QuadrantCard
-                quadrant="relationships"
-                name="Fellowship"
-                icon="🤝"
-                color="#3b82f6"
-                metrics={[
-                  { label: 'Connections', value: connections.length },
-                  { label: 'Overdue', value: overdueConnections.length },
-                ]}
-                agentStatus="idle"
-              />
-              <QuadrantCard
-                quadrant="soul"
-                name="Essence"
-                icon="🧘"
-                color="#a855f7"
-                metrics={[{ label: 'Journal entries (week)', value: weekJournals }]}
-                agentStatus="idle"
-              />
+              <div className="widget-contain">
+                <QuadrantCard
+                  quadrant="health"
+                  name="Lifeforce"
+                  icon="💚"
+                  color="#22c55e"
+                  metrics={[{ label: 'Latest mood', value: latest ? `${latest.mood}/5` : '—' }]}
+                  agentStatus="idle"
+                  sparklineData={checkins.slice(0, 14).map((c) => c.mood).reverse()}
+                />
+              </div>
+              <div className="widget-contain">
+                <QuadrantCard
+                  quadrant="career"
+                  name="Industry"
+                  icon="💼"
+                  color="#eab308"
+                  metrics={[
+                    { label: 'Open tasks', value: incompleteTasks },
+                    { label: 'Focus goals', value: todayGoals },
+                  ]}
+                  agentStatus="idle"
+                />
+              </div>
+              <div className="widget-contain">
+                <QuadrantCard
+                  quadrant="relationships"
+                  name="Fellowship"
+                  icon="🤝"
+                  color="#3b82f6"
+                  metrics={[
+                    { label: 'Connections', value: connections.length },
+                    { label: 'Overdue', value: overdueConnections.length },
+                  ]}
+                  agentStatus="idle"
+                />
+              </div>
+              <div className="widget-contain">
+                <QuadrantCard
+                  quadrant="soul"
+                  name="Essence"
+                  icon="🧘"
+                  color="#a855f7"
+                  metrics={[{ label: 'Journal entries (week)', value: weekJournals }]}
+                  agentStatus="idle"
+                />
+              </div>
             </div>
 
             {/* Balance Score Radar */}
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150 shadow-sm">
+            <div className="widget-contain bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150 shadow-sm">
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Quadrant Balance</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData}>
-                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                    <PolarAngleAxis dataKey="quadrant" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                    <Radar dataKey="score" stroke="#ff5c5c" fill="#ff5c5c" fillOpacity={0.2} />
+                    <PolarGrid stroke={CHART_THEME.grid.stroke} />
+                    <PolarAngleAxis dataKey="quadrant" tick={CHART_THEME.axis.tick} />
+                    <Radar dataKey="score" stroke={CHART_THEME.colors.accent} fill={CHART_THEME.colors.accent} fillOpacity={0.2} />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
@@ -2239,6 +2267,23 @@ export default function Dashboard() {
         
         {renderContent()}
       </main>
+
+      {/* Command Palette (Cmd+K) */}
+      <CommandPalette
+        items={COMMAND_PALETTE_ITEMS}
+        onSelect={(id) => {
+          // Navigation items
+          const navItem = NAV_ITEMS.find((n) => n.key === id)
+          if (navItem) {
+            setActiveView(navItem.key)
+            return
+          }
+          // Quick actions
+          if (id === 'action:new-task') setActiveView('industry')
+          if (id === 'action:new-journal') setActiveView('essence')
+          if (id === 'action:new-checkin') setActiveView('lifeforce')
+        }}
+      />
 
       {/* Chat Panel — persistent across all views */}
       <div className="fixed bottom-4 right-4 z-50">

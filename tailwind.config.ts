@@ -52,6 +52,17 @@ const config: Config = {
           relationships: 'var(--quadrant-relationships)',
           soul:          'var(--quadrant-soul)',
         },
+
+        // Data Visualization — Okabe-Ito (color-blind safe)
+        viz: {
+          1: 'var(--viz-1)',
+          2: 'var(--viz-2)',
+          3: 'var(--viz-3)',
+          4: 'var(--viz-4)',
+          5: 'var(--viz-5)',
+          6: 'var(--viz-6)',
+          7: 'var(--viz-7)',
+        },
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],

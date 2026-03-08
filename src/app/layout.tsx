@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { ToastProvider } from '@/components/Toast'
 import { getThemeScript } from '@/lib/theme-script'
 import './globals.css'
 
@@ -31,7 +32,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${mono.variable} font-sans antialiased`}>
         <ThemeProvider>
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

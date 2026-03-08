@@ -63,6 +63,15 @@
   /* Typography */
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
 
+  /* Data Visualization Palette — Okabe-Ito (color-blind safe) */
+  --viz-1: #56B4E9;  /* Sky Blue */
+  --viz-2: #E69F00;  /* Orange */
+  --viz-3: #009E73;  /* Bluish Green */
+  --viz-4: #F0E442;  /* Yellow */
+  --viz-5: #0072B2;  /* Blue */
+  --viz-6: #D55E00;  /* Vermillion */
+  --viz-7: #CC79A7;  /* Reddish Purple */
+
   /* Radii */
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -500,6 +509,17 @@ body {
   }
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Stagger animation delays */
 .stagger-1 { animation-delay: 0ms; }
 .stagger-2 { animation-delay: 50ms; }
@@ -531,4 +551,36 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-hover);
+}
+
+/* ─── prefers-reduced-motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── CSS Containment for dashboard widgets ─── */
+.widget-contain {
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* ─── Accessible visually-hidden (screen-reader only) ─── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
