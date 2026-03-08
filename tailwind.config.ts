@@ -45,12 +45,23 @@ const config: Config = {
         error:   'var(--color-error)',
         info:    'var(--color-info)',
 
-        // Quadrant
+        // Quadrant — new names (design system 2026)
         quadrant: {
           health:        'var(--quadrant-health)',
           career:        'var(--quadrant-career)',
           relationships: 'var(--quadrant-relationships)',
           soul:          'var(--quadrant-soul)',
+          // Legacy aliases for backward compat
+          lifeforce:     'var(--quadrant-lifeforce)',
+          industry:      'var(--quadrant-industry)',
+          fellowship:    'var(--quadrant-fellowship)',
+          essence:       'var(--quadrant-essence)',
+        },
+
+        // Surface colors
+        surface: {
+          1: 'var(--surface-1)',
+          2: 'var(--surface-2)',
         },
 
         // Data Visualization — Okabe-Ito (color-blind safe)
@@ -68,8 +79,29 @@ const config: Config = {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
+      fontSize: {
+        xs:   ['12px', { lineHeight: '16px' }],
+        sm:   ['14px', { lineHeight: '20px' }],
+        base: ['16px', { lineHeight: '24px' }],
+        lg:   ['18px', { lineHeight: '28px' }],
+        xl:   ['20px', { lineHeight: '28px' }],
+        '2xl': ['24px', { lineHeight: '32px' }],
+        '3xl': ['30px', { lineHeight: '36px' }],
+        '4xl': ['36px', { lineHeight: '40px' }],
+      },
       transitionDuration: {
         '150': '150ms',
+        'page':  'var(--duration-page)',
+        'panel': 'var(--duration-panel)',
+        'toast': 'var(--duration-toast)',
+        'hover': 'var(--duration-hover)',
+      },
+      transitionTimingFunction: {
+        'page':    'var(--ease-page)',
+        'respond': 'var(--ease-respond)',
+      },
+      animation: {
+        'skeleton-pulse': 'pulse 1500ms ease-in-out infinite',
       },
     },
   },

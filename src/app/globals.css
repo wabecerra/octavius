@@ -13,16 +13,16 @@
   --bg-active: #262a35;
   --bg-elevated: #1a1d25;
 
-  /* Text - Slightly warmer */
-  --text-primary: #e4e4e7;
-  --text-secondary: #71717a;
-  --text-tertiary: #52525b;
+  /* Text - Design system 2026 */
+  --text-primary: #eef0f4;
+  --text-secondary: #b0b6c3;
+  --text-tertiary: #8a91a0;
   --text-disabled: #3f3f46;
   --text-strong: #fafafa;
 
-  /* Border - Subtle but defined */
-  --border-primary: #27272a;
-  --border-secondary: #1c1c1f;
+  /* Border - Design system 2026 */
+  --border-primary: #252932;
+  --border-secondary: #1a1d24;
   --border-hover: #52525b;
   --border-focus: #ff5c5c;
 
@@ -42,11 +42,20 @@
   --color-error: #ef4444;
   --color-info: #3b82f6;
 
-  /* Quadrant colors - integrated with OpenClaw palette */
-  --quadrant-lifeforce: #22c55e;
-  --quadrant-industry: #3b82f6;
-  --quadrant-fellowship: #f59e0b;
-  --quadrant-essence: #a855f7;
+  /* Quadrant colors — Design system 2026 */
+  --quadrant-health: #34d399;
+  --quadrant-career: #60a5fa;
+  --quadrant-relationships: #f87171;
+  --quadrant-soul: #c084fc;
+  /* Legacy aliases */
+  --quadrant-lifeforce: var(--quadrant-health);
+  --quadrant-industry: var(--quadrant-career);
+  --quadrant-fellowship: var(--quadrant-relationships);
+  --quadrant-essence: var(--quadrant-soul);
+
+  /* Surface colors */
+  --surface-1: #1a1d24;
+  --surface-2: #252932;
 
   /* Shadows - Richer with subtle color */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -84,6 +93,14 @@
   --duration-slow: 350ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Animation timing — Design system 2026 */
+  --duration-page: 750ms;
+  --duration-panel: 300ms;
+  --duration-toast: 250ms;
+  --duration-hover: 150ms;
+  --ease-page: cubic-bezier(0.42, 0, 0.58, 1.0);
+  --ease-respond: cubic-bezier(0, 0, 0.58, 1.0);
 }
 
 /* Light theme */
@@ -119,10 +136,18 @@
   --color-error: #dc2626;
   --color-info: #2563eb;
 
-  --quadrant-lifeforce: #16a34a;
-  --quadrant-industry: #2563eb;
-  --quadrant-fellowship: #d97706;
-  --quadrant-essence: #7c3aed;
+  /* Quadrant colors — light theme (darker shades for contrast) */
+  --quadrant-health: #059669;
+  --quadrant-career: #2563eb;
+  --quadrant-relationships: #dc2626;
+  --quadrant-soul: #7c3aed;
+  --quadrant-lifeforce: var(--quadrant-health);
+  --quadrant-industry: var(--quadrant-career);
+  --quadrant-fellowship: var(--quadrant-relationships);
+  --quadrant-essence: var(--quadrant-soul);
+
+  --surface-1: #ffffff;
+  --surface-2: #f5f5f5;
 
   /* Light shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
