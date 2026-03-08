@@ -24,8 +24,15 @@ export function HrvChart({ data }: HrvChartProps) {
 
   if (chartData.length === 0) return null
 
+  const tableId = 'hrv-data-table'
+
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150">
+    <div
+      className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150"
+      role="img"
+      aria-label={`Heart rate variability chart showing ${chartData.length} data points`}
+      aria-describedby={tableId}
+    >
       <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Heart Rate Variability</h4>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -46,6 +53,24 @@ export function HrvChart({ data }: HrvChartProps) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      <table id={tableId} className="sr-only">
+        <caption>Heart Rate Variability Data</caption>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>HRV (ms)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chartData.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              <td>{row.ms}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

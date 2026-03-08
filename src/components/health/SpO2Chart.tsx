@@ -24,8 +24,15 @@ export function SpO2Chart({ data }: SpO2ChartProps) {
 
   if (chartData.length === 0) return null
 
+  const tableId = 'spo2-data-table'
+
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150">
+    <div
+      className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150"
+      role="img"
+      aria-label={`Blood oxygen saturation chart showing ${chartData.length} data points`}
+      aria-describedby={tableId}
+    >
       <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Blood Oxygen (SpO2)</h4>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -47,6 +54,24 @@ export function SpO2Chart({ data }: SpO2ChartProps) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      <table id={tableId} className="sr-only">
+        <caption>Blood Oxygen (SpO2) Data</caption>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>SpO2 (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chartData.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              <td>{row.percentage}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

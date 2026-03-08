@@ -32,8 +32,15 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
 
   if (chartData.length === 0) return null
 
+  const tableId = 'heart-rate-data-table'
+
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150">
+    <div
+      className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150"
+      role="img"
+      aria-label={`Heart rate chart showing ${chartData.length} data points with resting, active, and average heart rate trends`}
+      aria-describedby={tableId}
+    >
       <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Heart Rate</h4>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -58,6 +65,29 @@ export function HeartRateChart({ data }: HeartRateChartProps) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Screen reader accessible data table */}
+      <table id={tableId} className="sr-only">
+        <caption>Heart Rate Data</caption>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Resting (bpm)</th>
+            <th>Active (bpm)</th>
+            <th>Average (bpm)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chartData.map((row) => (
+            <tr key={row.timestamp}>
+              <td>{row.timestamp}</td>
+              <td>{row.resting ?? '—'}</td>
+              <td>{row.active ?? '—'}</td>
+              <td>{row.average ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

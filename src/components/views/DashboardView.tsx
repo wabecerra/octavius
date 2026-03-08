@@ -151,7 +151,12 @@ export function DashboardView({
       </div>
 
       {/* Balance Score Radar */}
-      <div className="widget-contain bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150 shadow-sm">
+      <div
+        className="widget-contain bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150 shadow-sm"
+        role="img"
+        aria-label={`Quadrant balance radar chart: ${radarData.map((d) => `${d.quadrant} ${d.score}%`).join(', ')}`}
+        aria-describedby="radar-data-table"
+      >
         <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Quadrant Balance</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -162,6 +167,24 @@ export function DashboardView({
             </RadarChart>
           </ResponsiveContainer>
         </div>
+
+        <table id="radar-data-table" className="sr-only">
+          <caption>Quadrant Balance Scores</caption>
+          <thead>
+            <tr>
+              <th>Quadrant</th>
+              <th>Score (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {radarData.map((d) => (
+              <tr key={d.quadrant}>
+                <td>{d.quadrant}</td>
+                <td>{d.score}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Weekly Review Prompt */}

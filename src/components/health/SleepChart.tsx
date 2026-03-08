@@ -27,8 +27,15 @@ export function SleepChart({ data }: SleepChartProps) {
 
   if (chartData.length === 0) return null
 
+  const tableId = 'sleep-data-table'
+
   return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150">
+    <div
+      className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 transition-colors duration-150"
+      role="img"
+      aria-label={`Sleep stages chart showing ${chartData.length} nights with deep, light, REM, and awake stages`}
+      aria-describedby={tableId}
+    >
       <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Sleep Stages</h4>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -53,6 +60,30 @@ export function SleepChart({ data }: SleepChartProps) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      <table id={tableId} className="sr-only">
+        <caption>Sleep Stages Data</caption>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Deep (min)</th>
+            <th>Light (min)</th>
+            <th>REM (min)</th>
+            <th>Awake (min)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chartData.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              <td>{row.deep}</td>
+              <td>{row.light}</td>
+              <td>{row.rem}</td>
+              <td>{row.awake}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
