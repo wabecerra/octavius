@@ -28,6 +28,7 @@ import { MemoryStats } from '@/components/MemoryStats'
 import { MemoryExplorer } from '@/components/MemoryExplorer'
 import { MemoryItemCreator } from '@/components/MemoryItemCreator'
 import { MemoryGraphView } from '@/components/MemoryGraphView'
+import { CostDashboard } from '@/components/CostDashboard'
 import { ChatPanel } from '@/components/ChatPanel'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { GatewayStatusPanel } from '@/components/GatewayStatusPanel'
@@ -49,7 +50,7 @@ import type { ChatMessage } from '@/lib/gateway/types'
 import type { Connection, Agent, AgentTask, AgentTaskStatus, ModelTier } from '@/types'
 
 // Navigation structure
-type ViewKey = 'dashboard' | 'lifeforce' | 'industry' | 'fellowship' | 'essence' | 'agents' | 'memory' | 'settings'
+type ViewKey = 'dashboard' | 'lifeforce' | 'industry' | 'fellowship' | 'essence' | 'agents' | 'memory' | 'costs' | 'settings'
 
 interface NavItem {
   key: ViewKey
@@ -66,6 +67,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'essence', label: 'Essence', icon: '🧘', group: 'quadrants' },
   { key: 'agents', label: 'Agents', icon: '🤖', group: 'system' },
   { key: 'memory', label: 'Memory', icon: '🧠', group: 'system' },
+  { key: 'costs', label: 'LLM Costs', icon: '💸', group: 'system' },
   { key: 'settings', label: 'Settings', icon: '⚙', group: 'system' },
 ]
 
@@ -1975,6 +1977,7 @@ export default function Dashboard() {
       essence: 'Essence',
       agents: 'Agents',
       memory: 'Memory',
+      costs: 'LLM Costs',
       settings: 'Settings',
     }
     return titles[view]
@@ -2142,6 +2145,9 @@ export default function Dashboard() {
             <MemoryGraphView startId={graphStartId} />
           </div>
         )
+
+      case 'costs':
+        return <CostDashboard />
 
       case 'settings':
         return <SettingsTab />
