@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { QuadrantCard } from '@/components/QuadrantCard'
+import { KpiCard } from '@/components/ui/KpiCard'
 import { CHART_THEME } from '@/lib/chart-theme'
 import type { WellnessCheckIn, Connection } from '@/types'
 
@@ -65,6 +66,38 @@ export function DashboardView({
           </div>
         </div>
       )}
+
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard
+          title="Mood"
+          value={latest ? `${latest.mood}/5` : '—'}
+          icon="💚"
+          status={checkins.length === 0 ? 'empty' : 'idle'}
+          emptyMessage="No check-ins yet"
+          sparklineData={checkins.slice(0, 14).map((c) => c.mood).reverse()}
+          accentColor="var(--quadrant-health)"
+        />
+        <KpiCard
+          title="Open Tasks"
+          value={incompleteTasks}
+          icon="💼"
+          accentColor="var(--quadrant-career)"
+        />
+        <KpiCard
+          title="Connections"
+          value={connections.length}
+          icon="🤝"
+          trend={overdueConnections.length > 0 ? { direction: 'down', label: `${overdueConnections.length} overdue` } : undefined}
+          accentColor="var(--quadrant-relationships)"
+        />
+        <KpiCard
+          title="Journal (week)"
+          value={weekJournals}
+          icon="🧘"
+          accentColor="var(--quadrant-soul)"
+        />
+      </div>
 
       {/* Quadrant Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
