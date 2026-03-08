@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useTasks, useFocusGoals, useSchedule, Task } from '@/hooks'
+import { KanbanBoard } from '@/components/ui/KanbanBoard'
 
 // ─── Shared Constants ───
 
@@ -177,55 +178,25 @@ function DeleteConfirmModal({
   )
 }
 
-// ─── Kanban Board ───
+// ─── Task Board Section (uses dnd-kit KanbanBoard) ───
 
-function KanbanBoard() {
+function TaskBoardSection() {
   const { tasks, updateTask, deleteTask } = useTasks()
 
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
 
-  const getColumn = (task: Task): KanbanColumn => {
-    return task.status as KanbanColumn
-  }
-
-  const moveToColumn = async (taskId: string, column: KanbanColumn) => {
+  const handleMoveTask = async (taskId: string, newStatus: string) => {
     try {
       await updateTask(taskId, {
-        status: column,
-        completed: column === 'done',
+        status: newStatus as KanbanColumn,
+        completed: newStatus === 'done',
       })
     } catch (err) {
       console.error('Failed to move task:', err)
     }
   }
-
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
-
-  const handleDragStart = (e: React.DragEvent, taskId: string) => {
-    setDraggedTaskId(taskId)
-    e.dataTransfer.effectAllowed = 'move'
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
-
-  const handleDrop = (e: React.DragEvent, column: KanbanColumn) => {
-    e.preventDefault()
-    if (draggedTaskId) {
-      moveToColumn(draggedTaskId, column)
-      setDraggedTaskId(null)
-    }
-  }
-
-  const columns: { key: KanbanColumn; label: string; color: string }[] = [
-    { key: 'backlog', label: 'Backlog', color: 'border-[var(--text-tertiary)]' },
-    { key: 'in-progress', label: 'In Progress', color: 'border-[var(--color-warning)]' },
-    { key: 'done', label: 'Done', color: 'border-[var(--color-success)]' },
-  ]
 
   const openCreate = () => { setEditingTask(undefined); setTaskModalOpen(true) }
   const openEdit = (task: Task) => { setEditingTask(task); setTaskModalOpen(true) }
@@ -244,65 +215,12 @@ function KanbanBoard() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {columns.map((col) => {
-            const colTasks = tasks.filter((t) => getColumn(t) === col.key)
-            return (
-              <div
-                key={col.key}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, col.key)}
-                className={`bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 min-h-[200px] border-t-2 ${col.color} transition-colors duration-150 shadow-sm`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-medium text-[var(--text-secondary)]">{col.label}</h4>
-                  <span className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full">
-                    {colTasks.length}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {colTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task.id)}
-                      className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-[var(--bg-hover)] transition-colors duration-150 group"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className={`text-sm text-[var(--text-primary)] ${task.completed ? 'line-through opacity-60' : ''}`}>
-                          {task.title}
-                        </p>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${PRIORITY_COLORS[task.priority]}`}>
-                          {task.priority}
-                        </span>
-                      </div>
-                      {task.dueDate && (
-                        <p className="text-xs text-[var(--text-tertiary)] mt-1">{task.dueDate}</p>
-                      )}
-                      <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(task)}
-                          className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors duration-150"
-                        >
-                          Edit
-                        </button>
-                        <span className="text-[var(--text-disabled)]">·</span>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(task)}
-                          className="text-xs text-[var(--color-error)] opacity-70 hover:opacity-100 transition-colors duration-150"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <KanbanBoard
+          tasks={tasks}
+          onMoveTask={handleMoveTask}
+          onEdit={openEdit}
+          onDelete={(task) => setDeleteTarget(task)}
+        />
       </div>
 
       <TaskModal open={taskModalOpen} onOpenChange={setTaskModalOpen} editingTask={editingTask} />
@@ -483,7 +401,7 @@ function DailySchedule() {
 export function IndustryView() {
   return (
     <div className="space-y-6">
-      <KanbanBoard />
+      <TaskBoardSection />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FocusGoalsSection />
         <DailySchedule />
