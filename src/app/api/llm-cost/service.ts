@@ -1,15 +1,25 @@
 // src/app/api/llm-cost/service.ts
-// Shared service instance for LLM cost API routes
+// Shared service instances for LLM cost API routes
+// Uses globalThis to survive Next.js HMR reloads in dev mode
 
 import { getDatabase } from '@/lib/memory/db'
-import { LLMLoggingService } from '@/lib/llm-cost'
+import { LLMLoggingService, AlertService } from '@/lib/llm-cost'
 
-let _service: LLMLoggingService | null = null
+const g = globalThis as unknown as {
+  __llmService?: LLMLoggingService
+  __alertService?: AlertService
+}
 
 export function getService(): LLMLoggingService {
-  if (!_service) {
-    const db = getDatabase()
-    _service = new LLMLoggingService(db)
+  if (!g.__llmService) {
+    g.__llmService = new LLMLoggingService(getDatabase())
   }
-  return _service
+  return g.__llmService
+}
+
+export function getAlertService(): AlertService {
+  if (!g.__alertService) {
+    g.__alertService = new AlertService(getDatabase())
+  }
+  return g.__alertService
 }

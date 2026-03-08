@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getDatabase } from '@/lib/memory/db'
-import { AlertService } from '@/lib/llm-cost'
+import { getAlertService } from '../../service'
 
 /** POST /api/llm-cost/alerts/evaluate — Evaluate all enabled alert rules. */
 export async function POST() {
   try {
-    const svc = new AlertService(getDatabase())
+    const svc = getAlertService()
     const events = svc.evaluate()
 
     return NextResponse.json({

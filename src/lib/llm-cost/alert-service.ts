@@ -3,10 +3,14 @@
 
 import type Database from 'better-sqlite3'
 import { nanoid } from 'nanoid'
+import { LLM_COST_SCHEMA } from './schema'
 import type { AlertRule, AlertEvent, AlertSeverity } from './types'
 
 export class AlertService {
-  constructor(private db: Database.Database) {}
+  constructor(private db: Database.Database) {
+    // Ensure schema exists
+    db.exec(LLM_COST_SCHEMA)
+  }
 
   /** Create an alert rule. */
   createRule(input: {

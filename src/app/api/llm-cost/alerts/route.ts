@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDatabase } from '@/lib/memory/db'
-import { AlertService } from '@/lib/llm-cost'
-
-function getAlertService() {
-  return new AlertService(getDatabase())
-}
+import { getAlertService } from '../service'
 
 /** GET /api/llm-cost/alerts — List alert rules + recent events. */
 export async function GET(request: Request) {

@@ -1,5 +1,6 @@
 import type { AgentTask, ModelRouterConfig, EscalationEvent, RoutingDecision } from '@/types'
 import { routeTask, getEscalatedTier } from './model-router'
+import { trackedFetch } from './llm-cost/tracker'
 
 /** Minimal response shape from model endpoints */
 export interface ModelResponse {
@@ -81,15 +82,26 @@ export async function executeTask(
   task: AgentTask,
   config: ModelRouterConfig,
   localReachable: boolean,
-  fetchFn: FetchFn = globalThis.fetch,
+  fetchFn?: FetchFn,
 ): Promise<ExecuteTaskResult> {
   const routing = routeTask(task.complexityScore, config, localReachable)
   const { url, body } = buildRequest(routing, task.description)
 
+  // Use tracked fetch for automatic cost logging unless a custom fetchFn is provided (tests)
+  const doFetch: FetchFn = fetchFn ?? ((u, init) =>
+    trackedFetch(u, init, {
+      model: routing.model,
+      isLocal: routing.isLocal,
+      taskId: task.id,
+      agentId: task.agentId,
+      tier: routing.tier,
+    })
+  )
+
   let lastError: Error | undefined
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const res = await fetchFn(url, {
+      const res = await doFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,

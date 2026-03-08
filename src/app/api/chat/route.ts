@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
+import { logGatewayChat } from '@/lib/llm-cost/tracker'
 
 const execAsync = promisify(exec)
 const OPENCLAW_PATH = '/local/workplace/wabo/ocbot/openclaw'
 
 /**
  * POST /api/chat — Send a message through the OpenClaw agent via CLI.
- * Uses the openclaw agent command which handles all the complexity.
+ * Automatically logs the LLM call to the cost tracker.
  */
 export async function POST(request: Request) {
   const body = await request.json()
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
   if (!message || typeof message !== 'string') {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
   }
+
+  const startTime = Date.now()
 
   try {
     // Use openclaw CLI agent command
@@ -40,23 +43,47 @@ export async function POST(request: Request) {
     
     // Extract the response text from the payloads
     const responseText = result.result?.payloads?.[0]?.text || '(no response)'
+    const meta = result.result?.meta?.agentMeta ?? {}
+    const durationMs = result.result?.meta?.durationMs ?? (Date.now() - startTime)
     
     console.log('[Chat API] Agent response:', responseText.slice(0, 200))
+
+    // ── Log to cost tracker ──
+    logGatewayChat({
+      model: meta.model ?? 'unknown',
+      provider: meta.provider ?? undefined,
+      durationMs,
+      usage: meta.usage ?? null,
+      sessionId: 'octavius-chat',
+      agentId: 'octavius-gateway',
+      status: 'success',
+    })
     
     return NextResponse.json({
       response: responseText,
       source: 'gateway',
       meta: {
-        model: result.result?.meta?.agentMeta?.model || 'unknown',
-        provider: result.result?.meta?.agentMeta?.provider || 'unknown',
-        durationMs: result.result?.meta?.durationMs || 0,
-        usage: result.result?.meta?.agentMeta?.usage || null,
+        model: meta.model || 'unknown',
+        provider: meta.provider || 'unknown',
+        durationMs,
+        usage: meta.usage || null,
       },
     })
     
   } catch (err: unknown) {
     const error = err as Error & { stdout?: string; stderr?: string }
+    const durationMs = Date.now() - startTime
     console.error('[Chat API] Error:', error.message)
+
+    // ── Log error to cost tracker ──
+    logGatewayChat({
+      model: 'unknown',
+      durationMs,
+      sessionId: 'octavius-chat',
+      agentId: 'octavius-gateway',
+      status: error.message.includes('timeout') ? 'timeout' : 'error',
+      error: error.message,
+    })
     
     // Try to parse partial JSON response if available
     if (error.stdout) {

@@ -2,8 +2,8 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-/** Default database file path relative to the octavius project root. */
-const DEFAULT_DB_PATH = resolve(import.meta.dirname ?? __dirname, '../../../../.data/memory.sqlite')
+/** Default database file path — uses process.cwd() for stable resolution across Next.js routes. */
+const DEFAULT_DB_PATH = resolve(process.cwd(), '.data/memory.sqlite')
 
 /**
  * Opens (or creates) a SQLite database at the given path, enables WAL mode
