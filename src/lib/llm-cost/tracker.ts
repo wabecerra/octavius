@@ -24,10 +24,17 @@ export function logGatewayChat(opts: {
   provider?: string
   durationMs?: number
   usage?: {
+    // OpenAI-style
     input_tokens?: number
     output_tokens?: number
     cache_read_input_tokens?: number
     cache_creation_input_tokens?: number
+    // OpenClaw gateway style
+    input?: number
+    output?: number
+    cacheWrite?: number
+    cacheRead?: number
+    total?: number
   } | null
   sessionId?: string
   agentId?: string
@@ -45,9 +52,9 @@ export function logGatewayChat(opts: {
       agent_id: opts.agentId ?? 'octavius-gateway',
       request_type: 'chat',
       streaming: false,
-      tokens_input: opts.usage?.input_tokens ?? 0,
-      tokens_output: opts.usage?.output_tokens ?? 0,
-      tokens_cached_input: opts.usage?.cache_read_input_tokens ?? 0,
+      tokens_input: opts.usage?.input_tokens ?? opts.usage?.input ?? 0,
+      tokens_output: opts.usage?.output_tokens ?? opts.usage?.output ?? 0,
+      tokens_cached_input: opts.usage?.cache_read_input_tokens ?? opts.usage?.cacheRead ?? 0,
       latency_total_ms: opts.durationMs ?? 0,
       status: opts.status ?? 'success',
       error_message: opts.error,
