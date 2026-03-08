@@ -1,6 +1,7 @@
 'use client'
 
 import { type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Topbar } from './Topbar'
 import { Sidebar } from './Sidebar'
 import { PAGE_TITLES, type ViewKey } from './types'
@@ -17,6 +18,13 @@ interface ShellProps {
   profileName: string
   dateStr: string
   children: ReactNode
+}
+
+const viewTransition = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+  transition: { ease: 'easeInOut' as const, duration: 0.75 },
 }
 
 export function Shell({
@@ -60,7 +68,17 @@ export function Shell({
           </div>
         </div>
 
-        {children}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeView}
+            initial={viewTransition.initial}
+            animate={viewTransition.animate}
+            exit={viewTransition.exit}
+            transition={viewTransition.transition}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   )

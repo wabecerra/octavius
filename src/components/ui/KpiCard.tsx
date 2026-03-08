@@ -1,6 +1,7 @@
 'use client'
 
 import { type ReactNode } from 'react'
+import { motion } from 'framer-motion'
 
 // ─── Types ───
 
@@ -135,7 +136,11 @@ export function KpiCard({
     : ''
 
   return (
-    <div className="widget-contain bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 transition-colors duration-150 shadow-sm">
+    <motion.div
+      className="widget-contain bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 transition-colors duration-150 shadow-sm"
+      whileHover={{ scale: 1.03, transition: { duration: 0.15 } }}
+      aria-label={`${title}: ${value}`}
+    >
       {/* Header row */}
       <div className="flex items-center justify-between mb-1">
         <p className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide">
@@ -158,6 +163,6 @@ export function KpiCard({
           {trendIcon} {trend.label}
         </p>
       )}
-    </div>
+    </motion.div>
   )
 }
