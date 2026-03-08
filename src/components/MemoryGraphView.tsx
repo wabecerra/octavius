@@ -1,7 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import type { GraphExport, GraphNode, QuadrantId } from '@/lib/memory/models'
+
+// react-force-graph-2d uses canvas + requestAnimationFrame, needs dynamic import with SSR disabled
+const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false })
 
 interface MemoryGraphViewProps {
   startId?: string | null
@@ -16,41 +20,18 @@ const QUADRANT_COLORS: Record<string, string> = {
 
 const NODE_DEFAULT_COLOR = '#71717a'
 
-// Force simulation constants
-const REPULSION = 4000
-const SPRING_LENGTH = 120
-const SPRING_STRENGTH = 0.005
-const DAMPING = 0.85
-const CENTER_PULL = 0.01
-
-interface SimNode extends GraphNode {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  radius: number
-  color: string
+function getNodeColor(quadrant: string | null): string {
+  return quadrant ? QUADRANT_COLORS[quadrant] ?? NODE_DEFAULT_COLOR : NODE_DEFAULT_COLOR
 }
 
-interface SimEdge {
-  source: string
-  target: string
-  label: string
-  weight: number
+interface GraphData {
+  nodes: Array<{ id: string; label: string; quadrant: string | null; importance: number; type: string; color: string; val: number }>
+  links: Array<{ source: string; target: string; label: string; weight: number }>
 }
 
 export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const animRef = useRef<number>(0)
-  const nodesRef = useRef<SimNode[]>([])
-  const edgesRef = useRef<SimEdge[]>([])
-  const dragRef = useRef<{ node: SimNode | null; offsetX: number; offsetY: number }>({
-    node: null,
-    offsetX: 0,
-    offsetY: 0,
-  })
-  const hoverRef = useRef<SimNode | null>(null)
+  const fgRef = useRef<{ d3ReheatSimulation?: () => void }>(null)
 
   const [graph, setGraph] = useState<GraphExport | null>(null)
   const [loading, setLoading] = useState(false)
@@ -59,6 +40,20 @@ export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
   const [filterQuadrant, setFilterQuadrant] = useState<QuadrantId | ''>('')
   const [minImportance, setMinImportance] = useState(0)
   const [currentStartId, setCurrentStartId] = useState<string | null>(null)
+  const [containerWidth, setContainerWidth] = useState(800)
+
+  // Resize observer for container width
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   // Fetch graph data
   const fetchGraph = useCallback(
@@ -102,187 +97,86 @@ export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
     if (startId) fetchGraph(startId)
   }, [startId, fetchGraph])
 
-  // Initialize simulation nodes when graph data changes
-  useEffect(() => {
-    if (!graph || !canvasRef.current) return
+  // Transform graph data for react-force-graph
+  const graphData: GraphData = useMemo(() => {
+    if (!graph) return { nodes: [], links: [] }
+    return {
+      nodes: graph.nodes.map((n) => ({
+        id: n.id,
+        label: n.label,
+        quadrant: n.quadrant,
+        importance: n.importance,
+        type: n.type,
+        color: getNodeColor(n.quadrant),
+        val: 2 + n.importance * 8,
+      })),
+      links: graph.edges.map((e) => ({
+        source: e.source,
+        target: e.target,
+        label: e.label,
+        weight: e.weight,
+      })),
+    }
+  }, [graph])
 
-    const canvas = canvasRef.current
-    const w = canvas.width
-    const h = canvas.height
-    const cx = w / 2
-    const cy = h / 2
+  // Custom node rendering
+  const paintNode = useCallback((node: Record<string, unknown>, ctx: CanvasRenderingContext2D) => {
+    const x = node.x as number
+    const y = node.y as number
+    const color = node.color as string
+    const importance = node.importance as number
+    const radius = 4 + importance * 10
+    const isStart = node.id === currentStartId
+    const isHovered = hoveredNode?.id === node.id
 
-    // Create sim nodes with random positions
-    const simNodes: SimNode[] = graph.nodes.map((n, i) => {
-      const angle = (2 * Math.PI * i) / graph.nodes.length
-      const r = 80 + Math.random() * 60
-      return {
-        ...n,
-        x: cx + Math.cos(angle) * r,
-        y: cy + Math.sin(angle) * r,
-        vx: 0,
-        vy: 0,
-        radius: 6 + n.importance * 14,
-        color: n.quadrant ? QUADRANT_COLORS[n.quadrant] ?? NODE_DEFAULT_COLOR : NODE_DEFAULT_COLOR,
-      }
+    // Glow
+    if (isHovered || isStart) {
+      ctx.beginPath()
+      ctx.arc(x, y, radius + 4, 0, 2 * Math.PI)
+      ctx.fillStyle = `${color}40`
+      ctx.fill()
+    }
+
+    // Node
+    ctx.beginPath()
+    ctx.arc(x, y, radius, 0, 2 * Math.PI)
+    ctx.fillStyle = isHovered ? color : `${color}cc`
+    ctx.fill()
+
+    // Start node border
+    if (isStart) {
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+
+    // Label
+    const label = (node.label as string) || ''
+    const truncated = label.length > 25 ? label.slice(0, 25) + '…' : label
+    ctx.font = `${isHovered ? 'bold ' : ''}10px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = isHovered ? '#fafafa' : '#e4e4e7'
+    ctx.fillText(truncated, x, y + radius + 12)
+  }, [currentStartId, hoveredNode])
+
+  const handleNodeClick = useCallback((node: Record<string, unknown>) => {
+    const id = node.id as string
+    fetchGraph(id)
+  }, [fetchGraph])
+
+  const handleNodeHover = useCallback((node: Record<string, unknown> | null) => {
+    if (!node) {
+      setHoveredNode(null)
+      return
+    }
+    setHoveredNode({
+      id: node.id as string,
+      label: node.label as string,
+      type: node.type as GraphNode['type'],
+      quadrant: node.quadrant as GraphNode['quadrant'],
+      importance: node.importance as number,
     })
-
-    nodesRef.current = simNodes
-    edgesRef.current = graph.edges
-
-    // Run simulation
-    let ticks = 0
-    const maxTicks = 300
-
-    const simulate = () => {
-      if (ticks >= maxTicks) {
-        draw(canvas, nodesRef.current, edgesRef.current, hoverRef.current, currentStartId)
-        return
-      }
-
-      const nodes = nodesRef.current
-
-      // Apply forces
-      for (let i = 0; i < nodes.length; i++) {
-        const n = nodes[i]
-
-        // Center pull
-        n.vx += (cx - n.x) * CENTER_PULL
-        n.vy += (cy - n.y) * CENTER_PULL
-
-        // Repulsion from other nodes
-        for (let j = i + 1; j < nodes.length; j++) {
-          const m = nodes[j]
-          const dx = n.x - m.x
-          const dy = n.y - m.y
-          let dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 1) dist = 1
-          const force = REPULSION / (dist * dist)
-          const fx = (dx / dist) * force
-          const fy = (dy / dist) * force
-          n.vx += fx
-          n.vy += fy
-          m.vx -= fx
-          m.vy -= fy
-        }
-      }
-
-      // Spring forces from edges
-      for (const edge of edgesRef.current) {
-        const s = nodes.find((n) => n.id === edge.source)
-        const t = nodes.find((n) => n.id === edge.target)
-        if (!s || !t) continue
-        const dx = t.x - s.x
-        const dy = t.y - s.y
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1
-        const displacement = dist - SPRING_LENGTH
-        const force = SPRING_STRENGTH * displacement
-        const fx = (dx / dist) * force
-        const fy = (dy / dist) * force
-        s.vx += fx
-        s.vy += fy
-        t.vx -= fx
-        t.vy -= fy
-      }
-
-      // Apply velocity
-      for (const n of nodes) {
-        if (dragRef.current.node === n) continue
-        n.vx *= DAMPING
-        n.vy *= DAMPING
-        n.x += n.vx
-        n.y += n.vy
-        // Bounds
-        n.x = Math.max(n.radius, Math.min(w - n.radius, n.x))
-        n.y = Math.max(n.radius, Math.min(h - n.radius, n.y))
-      }
-
-      draw(canvas, nodesRef.current, edgesRef.current, hoverRef.current, currentStartId)
-      ticks++
-      animRef.current = requestAnimationFrame(simulate)
-    }
-
-    cancelAnimationFrame(animRef.current)
-    simulate()
-
-    return () => cancelAnimationFrame(animRef.current)
-  }, [graph, currentStartId])
-
-  // Resize canvas
-  useEffect(() => {
-    const resize = () => {
-      const canvas = canvasRef.current
-      const container = containerRef.current
-      if (!canvas || !container) return
-      const rect = container.getBoundingClientRect()
-      const dpr = window.devicePixelRatio || 1
-      canvas.width = rect.width * dpr
-      canvas.height = 400 * dpr
-      canvas.style.width = `${rect.width}px`
-      canvas.style.height = '400px'
-      const ctx = canvas.getContext('2d')
-      if (ctx) ctx.scale(dpr, dpr)
-    }
-    resize()
-    window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
   }, [])
-
-  // Mouse interaction
-  const findNodeAt = (x: number, y: number): SimNode | null => {
-    for (const n of nodesRef.current) {
-      const dx = x - n.x
-      const dy = y - n.y
-      if (dx * dx + dy * dy < n.radius * n.radius) return n
-    }
-    return null
-  }
-
-  const getCanvasPos = (e: React.MouseEvent): { x: number; y: number } => {
-    const canvas = canvasRef.current
-    if (!canvas) return { x: 0, y: 0 }
-    const rect = canvas.getBoundingClientRect()
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
-  }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    const pos = getCanvasPos(e)
-    const node = findNodeAt(pos.x, pos.y)
-    if (node) {
-      dragRef.current = { node, offsetX: pos.x - node.x, offsetY: pos.y - node.y }
-    }
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const pos = getCanvasPos(e)
-    if (dragRef.current.node) {
-      dragRef.current.node.x = pos.x - dragRef.current.offsetX
-      dragRef.current.node.y = pos.y - dragRef.current.offsetY
-      dragRef.current.node.vx = 0
-      dragRef.current.node.vy = 0
-      const canvas = canvasRef.current
-      if (canvas) draw(canvas, nodesRef.current, edgesRef.current, hoverRef.current, currentStartId)
-    } else {
-      const node = findNodeAt(pos.x, pos.y)
-      hoverRef.current = node
-      setHoveredNode(node)
-      const canvas = canvasRef.current
-      if (canvas) {
-        canvas.style.cursor = node ? 'pointer' : 'default'
-        draw(canvas, nodesRef.current, edgesRef.current, node, currentStartId)
-      }
-    }
-  }
-
-  const handleMouseUp = () => {
-    dragRef.current = { node: null, offsetX: 0, offsetY: 0 }
-  }
-
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    const pos = getCanvasPos(e)
-    const node = findNodeAt(pos.x, pos.y)
-    if (node) fetchGraph(node.id)
-  }
 
   if (!startId && !currentStartId) {
     return (
@@ -359,8 +253,8 @@ export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
         </div>
       </div>
 
-      {/* Canvas */}
-      <div ref={containerRef} className="relative">
+      {/* Graph */}
+      <div ref={containerRef} className="relative" style={{ height: 400 }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)] bg-opacity-80 z-10">
             <span className="text-sm text-[var(--text-secondary)] animate-pulse">
@@ -373,20 +267,38 @@ export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
             <span className="text-sm text-[var(--color-error)]">{error}</span>
           </div>
         )}
-        <canvas
-          ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onDoubleClick={handleDoubleClick}
-          className="w-full"
-          style={{ height: 400 }}
-        />
+        {graphData.nodes.length > 0 && (
+          <ForceGraph2D
+            ref={fgRef}
+            graphData={graphData}
+            width={containerWidth}
+            height={400}
+            backgroundColor="#12141a"
+            nodeCanvasObject={paintNode}
+            nodePointerAreaPaint={(node: Record<string, unknown>, color: string, ctx: CanvasRenderingContext2D) => {
+              const x = node.x as number
+              const y = node.y as number
+              const importance = node.importance as number
+              const radius = 4 + importance * 10
+              ctx.beginPath()
+              ctx.arc(x, y, radius + 2, 0, 2 * Math.PI)
+              ctx.fillStyle = color
+              ctx.fill()
+            }}
+            linkColor={() => 'rgba(255, 255, 255, 0.2)'}
+            linkWidth={(link: Record<string, unknown>) => 0.5 + (link.weight as number) * 1.5}
+            onNodeClick={handleNodeClick}
+            onNodeHover={handleNodeHover}
+            enableZoomInteraction={true}
+            enablePanInteraction={true}
+            enableNodeDrag={true}
+            cooldownTicks={100}
+          />
+        )}
 
         {/* Hover tooltip */}
         {hoveredNode && (
-          <div className="absolute bottom-4 left-4 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs max-w-xs pointer-events-none shadow-lg">
+          <div className="absolute bottom-4 left-4 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs max-w-xs pointer-events-none shadow-lg z-20">
             <p className="text-[var(--text-primary)] font-medium line-clamp-2">
               {hoveredNode.label}
             </p>
@@ -412,13 +324,13 @@ export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
               </span>
             </div>
             <p className="text-[var(--text-tertiary)] mt-1 text-[10px]">
-              Double-click to re-center
+              Click to re-center
             </p>
           </div>
         )}
 
         {/* Legend */}
-        <div className="absolute top-2 right-2 bg-[var(--bg-tertiary)] bg-opacity-90 border border-[var(--border-secondary)] rounded-lg px-2 py-1.5 text-[10px]">
+        <div className="absolute top-2 right-2 bg-[var(--bg-tertiary)] bg-opacity-90 border border-[var(--border-secondary)] rounded-lg px-2 py-1.5 text-[10px] z-20">
           {Object.entries(QUADRANT_COLORS).map(([q, c]) => (
             <div key={q} className="flex items-center gap-1.5">
               <span
@@ -432,81 +344,4 @@ export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
       </div>
     </div>
   )
-}
-
-/* ── Canvas drawing ── */
-
-function draw(
-  canvas: HTMLCanvasElement,
-  nodes: SimNode[],
-  edges: SimEdge[],
-  hoveredNode: SimNode | null,
-  startId: string | null,
-) {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  const dpr = window.devicePixelRatio || 1
-  const w = canvas.width / dpr
-  const h = canvas.height / dpr
-
-  ctx.clearRect(0, 0, w, h)
-
-  // Draw edges
-  for (const edge of edges) {
-    const s = nodes.find((n) => n.id === edge.source)
-    const t = nodes.find((n) => n.id === edge.target)
-    if (!s || !t) continue
-
-    ctx.beginPath()
-    ctx.moveTo(s.x, s.y)
-    ctx.lineTo(t.x, t.y)
-    ctx.strokeStyle = `rgba(113, 113, 122, ${0.15 + edge.weight * 0.35})`
-    ctx.lineWidth = 0.5 + edge.weight * 1.5
-    ctx.stroke()
-
-    // Edge label
-    if (edge.label) {
-      const mx = (s.x + t.x) / 2
-      const my = (s.y + t.y) / 2
-      ctx.font = '9px sans-serif'
-      ctx.fillStyle = 'rgba(113, 113, 122, 0.6)'
-      ctx.textAlign = 'center'
-      ctx.fillText(edge.label, mx, my - 3)
-    }
-  }
-
-  // Draw nodes
-  for (const node of nodes) {
-    const isHovered = hoveredNode?.id === node.id
-    const isStart = node.id === startId
-
-    // Glow for hovered/start
-    if (isHovered || isStart) {
-      ctx.beginPath()
-      ctx.arc(node.x, node.y, node.radius + 4, 0, Math.PI * 2)
-      ctx.fillStyle = `${node.color}30`
-      ctx.fill()
-    }
-
-    // Node circle
-    ctx.beginPath()
-    ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2)
-    ctx.fillStyle = isHovered ? node.color : `${node.color}cc`
-    ctx.fill()
-
-    // Border
-    if (isStart) {
-      ctx.strokeStyle = '#fff'
-      ctx.lineWidth = 2
-      ctx.stroke()
-    }
-
-    // Label
-    const label =
-      node.label.length > 25 ? node.label.slice(0, 25) + '…' : node.label
-    ctx.font = `${isHovered ? 'bold ' : ''}10px sans-serif`
-    ctx.fillStyle = isHovered ? '#fafafa' : '#e4e4e7'
-    ctx.textAlign = 'center'
-    ctx.fillText(label, node.x, node.y + node.radius + 12)
-  }
 }
