@@ -31,7 +31,8 @@ interface GraphData {
 
 export function MemoryGraphView({ startId }: MemoryGraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const fgRef = useRef<{ d3ReheatSimulation?: () => void }>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fgRef = useRef<any>(null)
 
   const [graph, setGraph] = useState<GraphExport | null>(null)
   const [loading, setLoading] = useState(false)
