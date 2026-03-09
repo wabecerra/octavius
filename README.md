@@ -43,6 +43,31 @@ npm run dev
 
 Open http://localhost:3000.
 
+#### Running in the background (recommended)
+
+The dev server exits when your terminal closes. To keep it running persistently:
+
+```bash
+# Start detached with nohup (survives terminal close)
+nohup npx next dev -p 3000 > /tmp/octavius.log 2>&1 &
+
+# Check it's running
+curl -s http://localhost:3000/api/gateway/health
+
+# View logs
+tail -f /tmp/octavius.log
+
+# Stop it
+pkill -f "next dev"
+```
+
+For production use, prefer `npm run build && npm start` or a process manager like `pm2`:
+
+```bash
+npm run build
+pm2 start npm --name octavius -- start
+```
+
 ### 3. (Optional) Connect OpenClaw gateway
 
 If you want AI agents, install and run [OpenClaw](https://github.com/openclaw/openclaw):
@@ -139,11 +164,27 @@ octavius/
 
 | Data | Where | Persistence |
 |------|-------|-------------|
-| Dashboard state (tasks, connections, journal) | Browser localStorage | Per-browser, synced to Memory Service |
-| Health biometrics | SQLite `memory_items` | Server-side, `source_type = 'device_sync'` |
-| Agent memories | SQLite `memory_items` | Server-side, various source types |
+| Dashboard state (tasks, connections, journal) | SQLite `.data/memory.sqlite` | Server-side, local only |
+| Health biometrics | SQLite `.data/memory.sqlite` | Server-side, `source_type = 'device_sync'` |
+| Agent memories | SQLite `.data/memory.sqlite` | Server-side, various source types |
+| LLM cost logs, budgets, alerts | SQLite `.data/memory.sqlite` | Server-side |
 | Agent workspace files | `~/.openclaw/workspace-octavius-*/` | Filesystem |
 | Agent file version history | SQLite `agent_context_versions` | Server-side audit trail |
+| Browser UI state | Browser localStorage | Per-browser (ephemeral, syncs to SQLite) |
+
+#### ⚠️ Data privacy: your personal data stays local
+
+All personal data (tasks, journal, health, memories, costs) is stored in a **single SQLite file**:
+
+```
+octavius/.data/memory.sqlite
+```
+
+This file is in `.gitignore` — it is **never committed to git** and never leaves your machine. The `.data/` directory is created automatically on first run.
+
+To back up your data, copy this file. To reset, delete it.
+
+To move the database elsewhere, set the `OCTAVIUS_DATA_DIR` environment variable or edit `src/lib/memory/db.ts`.
 
 ## Health Data Integration
 
