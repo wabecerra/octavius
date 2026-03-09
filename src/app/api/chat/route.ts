@@ -4,7 +4,7 @@ import { promisify } from 'node:util'
 import { logGatewayChat } from '@/lib/llm-cost/tracker'
 
 const execAsync = promisify(exec)
-const OPENCLAW_PATH = '/local/workplace/wabo/ocbot/openclaw'
+const OPENCLAW_PATH = process.env.OPENCLAW_PATH || 'openclaw'
 
 /**
  * POST /api/chat — Send a message through the OpenClaw agent via CLI.
