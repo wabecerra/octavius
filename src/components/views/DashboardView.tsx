@@ -9,6 +9,7 @@ import {
 } from 'recharts'
 import { QuadrantCard } from '@/components/QuadrantCard'
 import { KpiCard } from '@/components/ui/KpiCard'
+import { TaskBoardSection } from '@/components/TaskBoardSection'
 import { CHART_THEME } from '@/lib/chart-theme'
 import type { WellnessCheckIn, Connection } from '@/types'
 
@@ -149,6 +150,9 @@ export function DashboardView({
           />
         </div>
       </div>
+
+      {/* Task Board (Kanban) */}
+      <TaskBoardSection />
 
       {/* Balance Score Radar */}
       <div

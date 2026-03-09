@@ -38,6 +38,13 @@ const PRIORITY_COLORS: Record<Task['priority'], string> = {
   low: 'bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)] border-[color-mix(in_srgb,var(--color-success)_30%,transparent)]',
 }
 
+const QUADRANT_META: Record<string, { label: string; color: string; bg: string }> = {
+  lifeforce:  { label: 'Lifeforce',  color: '#34d399', bg: 'rgba(52,211,153,0.10)' },
+  industry:   { label: 'Industry',   color: '#60a5fa', bg: 'rgba(96,165,250,0.10)' },
+  fellowship: { label: 'Fellowship', color: '#f87171', bg: 'rgba(248,113,113,0.10)' },
+  essence:    { label: 'Essence',    color: '#c084fc', bg: 'rgba(192,132,252,0.10)' },
+}
+
 // ─── Sortable Task Card ───
 
 interface SortableTaskCardProps {
@@ -88,6 +95,26 @@ function SortableTaskCard({ task, onEdit, onDelete }: SortableTaskCardProps) {
               {task.priority}
             </span>
           </div>
+          {/* Quadrant + Project tags */}
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {task.quadrant && QUADRANT_META[task.quadrant] && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight"
+                style={{
+                  color: QUADRANT_META[task.quadrant].color,
+                  backgroundColor: QUADRANT_META[task.quadrant].bg,
+                  border: `1px solid ${QUADRANT_META[task.quadrant].color}33`,
+                }}
+              >
+                {QUADRANT_META[task.quadrant].label}
+              </span>
+            )}
+            {task.project && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-primary)]">
+                {task.project}
+              </span>
+            )}
+          </div>
           {task.dueDate && (
             <p className="text-xs text-[var(--text-tertiary)] mt-1">{task.dueDate}</p>
           )}
@@ -124,6 +151,25 @@ function TaskCardOverlay({ task }: { task: Task }) {
         <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${PRIORITY_COLORS[task.priority]}`}>
           {task.priority}
         </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-1.5">
+        {task.quadrant && QUADRANT_META[task.quadrant] && (
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight"
+            style={{
+              color: QUADRANT_META[task.quadrant].color,
+              backgroundColor: QUADRANT_META[task.quadrant].bg,
+              border: `1px solid ${QUADRANT_META[task.quadrant].color}33`,
+            }}
+          >
+            {QUADRANT_META[task.quadrant].label}
+          </span>
+        )}
+        {task.project && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-primary)]">
+            {task.project}
+          </span>
+        )}
       </div>
     </div>
   )

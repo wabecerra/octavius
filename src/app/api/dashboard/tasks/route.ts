@@ -26,6 +26,12 @@ export async function GET(request: Request) {
     params.push(priority)
   }
 
+  const quadrant = url.searchParams.get('quadrant')
+  if (quadrant) {
+    query += ' AND quadrant = ?'
+    params.push(quadrant)
+  }
+
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
   params.push(limit, offset)
 
@@ -47,7 +53,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   const body = await request.json()
-  const { title, description, priority, status, dueDate } = body
+  const { title, description, priority, status, dueDate, quadrant, project } = body
 
   if (!title || typeof title !== 'string' || title.trim().length === 0) {
     return NextResponse.json({ error: 'title is required' }, { status: 400 })
@@ -58,8 +64,8 @@ export async function POST(request: Request) {
   const db = getDatabase()
 
   db.prepare(
-    `INSERT INTO dashboard_tasks (id, title, description, priority, status, due_date, completed, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`
+    `INSERT INTO dashboard_tasks (id, title, description, priority, status, due_date, quadrant, project, completed, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
   ).run(
     id,
     title.trim(),
@@ -67,6 +73,8 @@ export async function POST(request: Request) {
     priority || 'medium',
     status || 'backlog',
     dueDate || null,
+    quadrant || '',
+    project || '',
     now,
     now,
   )
@@ -97,6 +105,8 @@ export async function PATCH(request: Request) {
   if (updates.completed !== undefined) { setClauses.push('completed = ?'); params.push(updates.completed ? 1 : 0) }
   if (updates.title) { setClauses.push('title = ?'); params.push(updates.title) }
   if (updates.description !== undefined) { setClauses.push('description = ?'); params.push(updates.description) }
+  if (updates.quadrant !== undefined) { setClauses.push('quadrant = ?'); params.push(updates.quadrant) }
+  if (updates.project !== undefined) { setClauses.push('project = ?'); params.push(updates.project) }
 
   const placeholders = ids.map(() => '?').join(',')
   params.push(...ids)
@@ -114,6 +124,8 @@ function rowToTask(row: Record<string, unknown>) {
     priority: row.priority,
     status: row.status,
     dueDate: row.due_date || undefined,
+    quadrant: row.quadrant || '',
+    project: row.project || '',
     completed: row.completed === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

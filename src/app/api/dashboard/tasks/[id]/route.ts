@@ -9,6 +9,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({
     id: row.id, title: row.title, description: row.description || '',
     priority: row.priority, status: row.status, dueDate: row.due_date,
+    quadrant: row.quadrant || '', project: row.project || '',
     completed: row.completed === 1, createdAt: row.created_at, updatedAt: row.updated_at,
   })
 }
@@ -34,6 +35,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (updates.title) { sets.push('title = ?'); p.push(updates.title) }
   if (updates.description !== undefined) { sets.push('description = ?'); p.push(updates.description) }
   if (updates.dueDate !== undefined) { sets.push('due_date = ?'); p.push(updates.dueDate) }
+  if (updates.quadrant !== undefined) { sets.push('quadrant = ?'); p.push(updates.quadrant) }
+  if (updates.project !== undefined) { sets.push('project = ?'); p.push(updates.project) }
   p.push(params.id)
   db.prepare(`UPDATE dashboard_tasks SET ${sets.join(', ')} WHERE id = ?`).run(...p)
   // Return updated task
@@ -41,6 +44,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   return NextResponse.json({
     id: row.id, title: row.title, description: row.description || '',
     priority: row.priority, status: row.status, dueDate: row.due_date,
+    quadrant: row.quadrant || '', project: row.project || '',
     completed: row.completed === 1, createdAt: row.created_at, updatedAt: row.updated_at,
   })
 }

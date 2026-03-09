@@ -3,12 +3,16 @@
 import { useCallback } from 'react'
 import { useApi, apiCall } from './use-api'
 
+export type Quadrant = 'lifeforce' | 'industry' | 'fellowship' | 'essence' | ''
+
 export interface Task {
   id: string
   title: string
   description: string
   priority: 'high' | 'medium' | 'low'
   status: 'backlog' | 'in-progress' | 'done'
+  quadrant: Quadrant
+  project: string
   dueDate?: string
   completed: boolean
   createdAt: string
@@ -24,7 +28,7 @@ export function useTasks(filter?: { status?: string; priority?: string }) {
   qs.set('limit', '200')
   const { data, loading, error, mutate, refetch } = useApi<TasksResponse>(`/api/dashboard/tasks?${qs}`)
 
-  const createTask = useCallback(async (task: { title: string; description?: string; priority?: string; status?: string; dueDate?: string }) => {
+  const createTask = useCallback(async (task: { title: string; description?: string; priority?: string; status?: string; quadrant?: string; project?: string; dueDate?: string }) => {
     const created = await apiCall<Task>('/api/dashboard/tasks', { method: 'POST', body: JSON.stringify(task) })
     mutate(prev => prev ? { ...prev, tasks: [created, ...prev.tasks], total: prev.total + 1 } : { tasks: [created], total: 1 })
     return created

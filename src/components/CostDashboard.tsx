@@ -451,6 +451,7 @@ export function CostDashboard() {
                             <Tooltip
                               contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                               formatter={(value) => [formatUsd(Number(value)), 'Cost']}
+                              cursor={{ fill: 'transparent' }}
                             />
                             <Bar dataKey="cost_usd" radius={[0, 4, 4, 0]}>
                               {stats.top_models.slice(0, 8).map((_, i) => (

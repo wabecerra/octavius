@@ -14,6 +14,8 @@ export interface Task {
   title: string
   description?: string
   priority: 'high' | 'medium' | 'low'
+  quadrant?: 'lifeforce' | 'industry' | 'fellowship' | 'essence' | ''
+  project?: string
   dueDate?: string // ISO 8601 date
   completed: boolean
   createdAt: string

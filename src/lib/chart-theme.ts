@@ -22,6 +22,7 @@ export const CHART_THEME = {
       fontSize: '12px',
       boxShadow: 'var(--shadow-md)',
     } as React.CSSProperties,
+    cursor: { fill: 'transparent' },
   },
   colors: {
     /** Okabe-Ito color-blind safe categorical palette */

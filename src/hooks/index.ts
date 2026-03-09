@@ -10,7 +10,7 @@ export { useGratitude } from './use-gratitude'
 export { useFocusGoals } from './use-focus-goals'
 export { useSchedule } from './use-schedule'
 
-export type { Task } from './use-tasks'
+export type { Task, Quadrant } from './use-tasks'
 export type { CheckIn } from './use-checkins'
 export type { JournalEntry } from './use-journal'
 export type { Connection } from './use-connections'

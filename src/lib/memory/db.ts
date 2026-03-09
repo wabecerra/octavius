@@ -42,6 +42,21 @@ export function closeDatabase(db: Database.Database): void {
 
 function createSchema(db: Database.Database): void {
   db.exec(SCHEMA_SQL)
+  // --- Migrations for existing databases ---
+  migrateTaskColumns(db)
+}
+
+/** Add quadrant + project columns to dashboard_tasks if they don't exist yet. */
+function migrateTaskColumns(db: Database.Database): void {
+  const cols = db.prepare("PRAGMA table_info(dashboard_tasks)").all() as { name: string }[]
+  const names = new Set(cols.map(c => c.name))
+  if (!names.has('quadrant')) {
+    db.exec("ALTER TABLE dashboard_tasks ADD COLUMN quadrant TEXT NOT NULL DEFAULT '' ")
+  }
+  if (!names.has('project')) {
+    db.exec("ALTER TABLE dashboard_tasks ADD COLUMN project TEXT NOT NULL DEFAULT '' ")
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_tasks_quadrant ON dashboard_tasks(quadrant)")
 }
 
 const SCHEMA_SQL = /* sql */ `

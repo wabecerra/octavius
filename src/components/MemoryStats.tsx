@@ -158,6 +158,7 @@ export function MemoryStats() {
                     color: 'var(--text-primary)',
                     fontSize: 12,
                   }}
+                  cursor={{ fill: 'transparent' }}
                 />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                   {typeChartData.map((entry, i) => (
