@@ -184,6 +184,18 @@ export function CostDashboard() {
     }
   }, [getTimeRange, granularity, logPage, logFilter])
 
+  // Fetch on mount with retry for cold-start API compilation
+  useEffect(() => {
+    fetchData()
+    // Retry once after 3s if stats didn't load (handles Next.js cold compile)
+    const retryTimer = setTimeout(() => {
+      if (!stats) fetchData()
+    }, 3000)
+    return () => clearTimeout(retryTimer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Refetch when filters/time range change
   useEffect(() => { fetchData() }, [fetchData])
 
   // Fetch models on models tab
@@ -361,6 +373,16 @@ export function CostDashboard() {
 
       {loading && !stats ? (
         <div className="text-center py-12 text-[var(--text-tertiary)]">Loading cost data…</div>
+      ) : !stats ? (
+        <div className="text-center py-12 space-y-3">
+          <p className="text-[var(--text-tertiary)]">Could not load cost data.</p>
+          <button
+            onClick={fetchData}
+            className="px-4 py-2 rounded-lg bg-[var(--accent-muted)] text-[var(--accent)] text-sm hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            ↻ Retry
+          </button>
+        </div>
       ) : (
         <>
           {/* ═══ OVERVIEW TAB ═══ */}

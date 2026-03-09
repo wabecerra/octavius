@@ -108,7 +108,10 @@ export function MemoryConfigSection() {
   return (
     <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-[var(--text-primary)]">Memory Configuration</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-lg">⚙️</span>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Memory Configuration</h3>
+        </div>
         {saving && <span className="text-xs text-[var(--accent)]">Saving...</span>}
         {error && <span className="text-xs text-[var(--color-error)]">{error}</span>}
       </div>
@@ -116,7 +119,7 @@ export function MemoryConfigSection() {
       {/* Schedules */}
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-[var(--text-secondary)]">Job Schedules</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div>
             <label className={labelClass}>Consolidation Schedule</label>
             <input
@@ -153,7 +156,7 @@ export function MemoryConfigSection() {
       {/* Thresholds */}
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-[var(--text-secondary)]">Thresholds</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Decay Archive Threshold</label>
             <input
@@ -238,7 +241,7 @@ export function MemoryConfigSection() {
       {/* Advanced Search */}
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-[var(--text-secondary)]">Search &amp; Chunking</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div>
             <label className={labelClass}>Smart Chunking Target Tokens</label>
             <input

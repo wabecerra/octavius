@@ -63,8 +63,9 @@ function sanitizeFtsQuery(text: string): string {
 
   if (tokens.length === 0) return ''
 
-  // Quote each token and join with AND (implicit in FTS5 when space-separated)
-  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(' ')
+  // Quote each token and join with OR for better recall
+  // (AND was too strict — "business plan" would fail if "plan" wasn't in any item)
+  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(' OR ')
 }
 
 /**

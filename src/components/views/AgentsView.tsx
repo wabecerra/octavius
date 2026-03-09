@@ -263,10 +263,10 @@ function AgentTaskList({ agentTasks, agents }: { agentTasks: AgentTask[], agents
 
 export function AgentsView() {
   const [agents] = useState<Agent[]>([
-    { id: 'gen-health', name: 'Health Agent', role: 'generalist-health', status: 'idle' },
-    { id: 'gen-career', name: 'Career Agent', role: 'generalist-career', status: 'idle' },
-    { id: 'gen-relationships', name: 'Relationships Agent', role: 'generalist-relationships', status: 'idle' },
-    { id: 'gen-soul', name: 'Soul Agent', role: 'generalist-soul', status: 'idle' },
+    { id: 'gen-lifeforce', name: 'Lifeforce Agent', role: 'generalist-health', status: 'idle' },
+    { id: 'gen-industry', name: 'Industry Agent', role: 'generalist-career', status: 'idle' },
+    { id: 'gen-fellowship', name: 'Fellowship Agent', role: 'generalist-relationships', status: 'idle' },
+    { id: 'gen-essence', name: 'Essence Agent', role: 'generalist-soul', status: 'idle' },
   ])
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([])
   const [sendModalOpen, setSendModalOpen] = useState(false)

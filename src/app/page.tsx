@@ -86,9 +86,32 @@ export default function Dashboard() {
   // Gateway integration
   const gateway = useGatewayInit()
 
-  // Chat state
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  // Chat state — persist to sessionStorage so messages survive refresh
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = sessionStorage.getItem('octavius-chat-messages')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
   const [chatLoading, setChatLoading] = useState(false)
+
+  // Sync chat messages to sessionStorage on change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('octavius-chat-messages', JSON.stringify(chatMessages))
+    } catch {
+      // quota exceeded — trim older messages
+      try {
+        sessionStorage.setItem(
+          'octavius-chat-messages',
+          JSON.stringify(chatMessages.slice(-50))
+        )
+      } catch { /* give up */ }
+    }
+  }, [chatMessages])
 
   const addChatMessage = (message: ChatMessage) => {
     setChatMessages(prev => [...prev, message])
