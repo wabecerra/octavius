@@ -50,3 +50,27 @@ export async function GET(request: Request) {
     })),
   })
 }
+
+/**
+ * POST /api/dashboard/tasks/activity — Log agent activity on a task
+ *
+ * Body: { taskId: string, agentId: string, action: string, details: string, model?: string, costUsd?: number }
+ */
+export async function POST(request: Request) {
+  const body = await request.json()
+  const { taskId, agentId, action, details, model, costUsd } = body
+
+  if (!taskId || !agentId || !action) {
+    return NextResponse.json({ error: 'taskId, agentId, and action are required' }, { status: 400 })
+  }
+
+  const db = getDatabase()
+  const now = new Date().toISOString()
+
+  db.prepare(
+    `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(taskId, agentId, action, (details || '').slice(0, 500), model || null, costUsd || 0, now)
+
+  return NextResponse.json({ ok: true, timestamp: now })
+}
