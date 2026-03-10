@@ -16,6 +16,19 @@ interface AgentModelConfig {
   model: string
 }
 
+// ─── Activity Log Entry ───
+
+interface ActivityEntry {
+  id: number
+  taskId: string
+  agentId: string
+  action: string
+  details: string
+  model: string | null
+  costUsd: number
+  timestamp: string
+}
+
 // ─── Agent Card ───
 
 const AGENT_ICONS: Record<string, string> = {
@@ -287,6 +300,90 @@ function AgentTaskList({ agentTasks, agents }: { agentTasks: AgentTask[], agents
   )
 }
 
+// ─── Agent Activity Feed ───
+
+function AgentActivityFeed() {
+  const [activities, setActivities] = useState<ActivityEntry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchActivities = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/tasks/activity?limit=15')
+      if (res.ok) {
+        const data = await res.json()
+        setActivities(data.activities ?? [])
+      }
+    } catch { /* silent */ }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { void fetchActivities() }, [fetchActivities])
+
+  const ACTION_ICONS: Record<string, string> = {
+    started: '🚀',
+    progressed: '⚡',
+    completed: '✅',
+    spawn_requested: '🔀',
+  }
+
+  function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const secs = Math.floor(diff / 1000)
+    if (secs < 60) return `${secs}s ago`
+    const mins = Math.floor(secs / 60)
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    return `${Math.floor(hrs / 24)}d ago`
+  }
+
+  return (
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Agent Activity Feed</h3>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Recent agent spawns, task progress, and KB interactions</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void fetchActivities()}
+          className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-[var(--text-tertiary)] text-center py-3">Loading…</p>
+      ) : activities.length === 0 ? (
+        <p className="text-sm text-[var(--text-tertiary)] text-center py-4">No agent activity yet</p>
+      ) : (
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {activities.map((a) => (
+            <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-secondary,var(--border-primary))]">
+              <span className="text-sm mt-0.5">{ACTION_ICONS[a.action] || '🤖'}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-[var(--text-primary)]">{a.agentId}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]">
+                    {a.action}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">{a.details}</p>
+                <div className="flex items-center gap-3 mt-1 text-[10px] text-[var(--text-disabled)]">
+                  <span>{timeAgo(a.timestamp)}</span>
+                  {a.model && <span className="font-mono truncate">{a.model.split('/').pop()?.split('.').pop()}</span>}
+                  {a.costUsd > 0 && <span>${a.costUsd.toFixed(4)}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Agents View ───
 
 export function AgentsView() {
@@ -430,6 +527,9 @@ export function AgentsView() {
           ))}
         </div>
       </div>
+
+      {/* Agent Activity Feed */}
+      <AgentActivityFeed />
 
       {/* Agent Task List */}
       <AgentTaskList agentTasks={agentTasks} agents={agents} />
