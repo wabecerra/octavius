@@ -19,7 +19,10 @@ let bedrockClient: BedrockRuntimeClient | null = null
 
 function getBedrockClient(): BedrockRuntimeClient {
   if (!bedrockClient) {
-    bedrockClient = new BedrockRuntimeClient({ region: 'us-east-1' })
+    // Use us-east-1 for global.* model IDs; credentials from env vars
+    bedrockClient = new BedrockRuntimeClient({
+      region: process.env.AWS_BEDROCK_REGION || 'us-east-1',
+    })
   }
   return bedrockClient
 }
