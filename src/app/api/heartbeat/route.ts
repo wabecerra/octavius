@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { callAndLog, MODELS } from '@/lib/openrouter'
-import { callLLM } from '@/lib/llm-caller'
+import { spawnAgent } from '@/lib/agent-spawner'
 
 // ─── Helpers ───
 
@@ -27,13 +27,6 @@ function getHeartbeatConfig(db: DB) {
   }
 }
 
-function getAgentConfig(db: DB, agentId: string): { provider: string; model: string } {
-  const row = db.prepare(
-    'SELECT provider, model FROM agent_model_config WHERE agent_id = ?',
-  ).get(agentId) as { provider: string; model: string } | undefined
-  return row || { provider: 'openrouter', model: 'anthropic/claude-sonnet-4' }
-}
-
 function logHeartbeatRun(
   db: DB,
   run: { summary: string; taskCount: number; model: string | null; costUsd: number; actionable: boolean; checksRun: string[] },
@@ -44,102 +37,6 @@ function logHeartbeatRun(
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(new Date().toISOString(), run.summary, run.taskCount, run.model, run.costUsd, run.actionable ? 1 : 0, JSON.stringify(run.checksRun))
   } catch { /* best-effort */ }
-}
-
-function logTaskActivity(
-  db: DB,
-  entry: { taskId: string; agentId: string; action: string; details: string; model: string | null; costUsd: number },
-) {
-  try {
-    db.prepare(
-      `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(entry.taskId, entry.agentId, entry.action, entry.details.slice(0, 500), entry.model, entry.costUsd, new Date().toISOString())
-  } catch { /* best-effort */ }
-}
-
-// ─── Agent Personas ───
-
-const AGENT_PERSONAS: Record<string, string> = {
-  'gen-industry': `You are an Industry specialist — expert in career strategy, product development, marketing, engineering, and business execution. You produce actionable deliverables: plans, research summaries, content drafts, technical designs, and strategic recommendations. Be thorough but concise. Format your output with clear sections and next steps.`,
-  'gen-lifeforce': `You are a Lifeforce specialist — expert in health, wellness, fitness, nutrition, sleep, and mental health. You produce actionable health plans, workout routines, nutrition guides, and wellness recommendations. Be evidence-based and practical.`,
-  'gen-fellowship': `You are a Fellowship specialist — expert in relationships, networking, community building, and social dynamics. You produce outreach plans, conversation starters, relationship maintenance strategies, and social engagement recommendations.`,
-  'gen-essence': `You are an Essence specialist — expert in journaling, gratitude, mindfulness, purpose, creativity, and spiritual growth. You produce reflection prompts, gratitude exercises, creative briefs, and meaning-making frameworks.`,
-}
-
-const QUADRANT_AGENTS: Record<string, string> = {
-  industry: 'gen-industry',
-  lifeforce: 'gen-lifeforce',
-  fellowship: 'gen-fellowship',
-  essence: 'gen-essence',
-}
-
-// ─── Dispatch a single task to its agent ───
-
-async function dispatchTask(
-  db: DB,
-  task: Record<string, unknown>,
-): Promise<{ action: string; output: string; model: string; costUsd: number } | null> {
-  const quadrant = (task.quadrant as string) || 'industry'
-  const agentId = QUADRANT_AGENTS[quadrant] || 'gen-industry'
-  const agentCfg = getAgentConfig(db, agentId)
-  const systemPrompt = AGENT_PERSONAS[agentId] || AGENT_PERSONAS['gen-industry']
-
-  const taskContext = [
-    `## Task: ${task.title}`,
-    task.description ? `\n### Current Context:\n${task.description}` : '',
-    `\n### Details:`,
-    `- Priority: ${task.priority}`,
-    `- Status: ${task.status}`,
-    `- Quadrant: ${task.quadrant || 'industry'}`,
-    task.project ? `- Project: ${task.project}` : '',
-    task.due_date ? `- Due: ${task.due_date}` : '',
-  ].filter(Boolean).join('\n')
-
-  const userPrompt = task.status === 'in-progress'
-    ? `This task is IN PROGRESS. Review it and produce the next deliverable or progress update. If the work is substantially complete, say "TASK_COMPLETE" at the very end of your response.\n\n${taskContext}`
-    : `This task is in the BACKLOG and needs to be started. Produce an initial deliverable — a plan, research summary, draft, or first concrete output.\n\n${taskContext}`
-
-  try {
-    const result = await callLLM(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      { model: agentCfg.model, provider: agentCfg.provider, maxTokens: 2048, temperature: 0.4, label: `heartbeat-dispatch-${agentId}`, quadrant },
-    )
-
-    const now = new Date().toISOString()
-    const isComplete = result.text.includes('TASK_COMPLETE')
-    const agentOutput = result.text.replace('TASK_COMPLETE', '').trim()
-    const newStatus = isComplete ? 'done' : (task.status === 'backlog' ? 'in-progress' : task.status)
-    const action = isComplete ? 'completed' : (task.status === 'backlog' ? 'started' : 'progressed')
-
-    // Append agent output to task description
-    const existingDesc = (task.description as string) || ''
-    const ts = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    const updatedDesc = existingDesc
-      ? `${existingDesc}\n\n---\n**[${agentId} — ${ts}]**\n${agentOutput}`
-      : agentOutput
-
-    db.prepare(
-      'UPDATE dashboard_tasks SET status = ?, description = ?, updated_at = ? WHERE id = ?',
-    ).run(newStatus, updatedDesc, now, task.id)
-
-    logTaskActivity(db, {
-      taskId: task.id as string,
-      agentId,
-      action,
-      details: agentOutput,
-      model: result.model,
-      costUsd: result.costUsd,
-    })
-
-    return { action, output: agentOutput, model: result.model, costUsd: result.costUsd }
-  } catch (err) {
-    console.error(`[heartbeat-dispatch] ${agentId} failed on task ${task.id}:`, err)
-    return null
-  }
 }
 
 // ─── POST /api/heartbeat — Autonomous orchestrator heartbeat ───
@@ -168,51 +65,54 @@ export async function POST() {
 
   const inProgress = tasks.filter((t) => t.status === 'in-progress')
   const backlog = tasks.filter((t) => t.status === 'backlog')
-  const dispatched: Array<{ taskId: string; title: string; action: string; agentId: string; costUsd: number }> = []
+  const dispatched: Array<{ taskId: string; title: string; action: string; agentId: string; costUsd: number; kbContextUsed: boolean }> = []
   let totalDispatchCost = 0
 
-  // ── Phase 1: Autonomous dispatch (if enabled) ──
+  // ── Phase 1: Autonomous spawn (if enabled) ──
   if (config.autonomousMode) {
     const maxDispatch = config.maxDispatchPerRun
 
     // First: progress in-progress tasks
     for (const task of inProgress) {
       if (dispatched.length >= maxDispatch) break
-      const result = await dispatchTask(db, task)
-      if (result) {
-        const quadrant = (task.quadrant as string) || 'industry'
+      try {
+        const result = await spawnAgent({ taskId: task.id as string })
         dispatched.push({
           taskId: task.id as string,
           title: task.title as string,
           action: result.action,
-          agentId: QUADRANT_AGENTS[quadrant] || 'gen-industry',
+          agentId: result.agentId,
           costUsd: result.costUsd,
+          kbContextUsed: result.kbContextUsed,
         })
         totalDispatchCost += result.costUsd
+      } catch (err) {
+        console.error(`[heartbeat] Spawn failed for task ${task.id}:`, err)
       }
     }
 
-    // Then: pull from backlog (high priority first)
+    // Then: pull high-priority from backlog
     const highPriorityBacklog = backlog.filter((t) => t.priority === 'high')
     for (const task of highPriorityBacklog) {
       if (dispatched.length >= maxDispatch) break
-      const result = await dispatchTask(db, task)
-      if (result) {
-        const quadrant = (task.quadrant as string) || 'industry'
+      try {
+        const result = await spawnAgent({ taskId: task.id as string })
         dispatched.push({
           taskId: task.id as string,
           title: task.title as string,
           action: result.action,
-          agentId: QUADRANT_AGENTS[quadrant] || 'gen-industry',
+          agentId: result.agentId,
           costUsd: result.costUsd,
+          kbContextUsed: result.kbContextUsed,
         })
         totalDispatchCost += result.costUsd
+      } catch (err) {
+        console.error(`[heartbeat] Spawn failed for task ${task.id}:`, err)
       }
     }
   }
 
   // ── Phase 2: LLM briefing (always, uses cheap model) ──
-  // Re-fetch tasks after dispatch may have changed statuses
   const updatedTasks = db.prepare(
     `SELECT id, title, description, priority, status, quadrant, project, due_date, created_at
      FROM dashboard_tasks
@@ -236,7 +136,7 @@ export async function POST() {
 
   if (updatedTasks.length > 0) {
     const dispatchSummary = dispatched.length > 0
-      ? `\n\nAgent activity this cycle:\n${dispatched.map((d) => `- ${d.action}: "${d.title}" (${d.agentId}, $${d.costUsd.toFixed(4)})`).join('\n')}`
+      ? `\n\nAgent activity this cycle:\n${dispatched.map((d) => `- ${d.action}: "${d.title}" (${d.agentId}${d.kbContextUsed ? ', used KB' : ''}, $${d.costUsd.toFixed(4)})`).join('\n')}`
       : ''
 
     const systemPrompt = `You are a productivity assistant reviewing a kanban board. Be concise and actionable. Use 2-4 sentences max. Highlight what should be worked on today. If agents did work this cycle, briefly acknowledge it.`
@@ -258,10 +158,10 @@ export async function POST() {
 
   const totalCost = totalDispatchCost + briefingCost
   const checksRun = ['kanban']
-  if (dispatched.length > 0) checksRun.push('dispatch')
+  if (dispatched.length > 0) checksRun.push('spawn')
 
   logHeartbeatRun(db, {
-    summary: briefingSummary + (dispatched.length > 0 ? ` [${dispatched.length} tasks dispatched, $${totalDispatchCost.toFixed(4)}]` : ''),
+    summary: briefingSummary + (dispatched.length > 0 ? ` [${dispatched.length} agents spawned, $${totalDispatchCost.toFixed(4)}]` : ''),
     taskCount: updatedTasks.length,
     model: heartbeatModel,
     costUsd: totalCost,

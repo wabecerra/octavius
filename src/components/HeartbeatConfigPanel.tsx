@@ -127,9 +127,9 @@ export function HeartbeatConfigPanel() {
       const data = await res.json()
       let result = data.summary || ''
       if (data.dispatched && data.dispatched.length > 0) {
-        result += '\n\n🤖 Dispatched:\n' + data.dispatched.map(
-          (d: { title: string; action: string; agentId: string; costUsd: number }) =>
-            `• ${d.action}: "${d.title}" → ${d.agentId} ($${d.costUsd.toFixed(4)})`
+        result += '\n\n🤖 Spawned Agents:\n' + data.dispatched.map(
+          (d: { title: string; action: string; agentId: string; costUsd: number; kbContextUsed?: boolean }) =>
+            `• ${d.action}: "${d.title}" → ${d.agentId} ($${d.costUsd.toFixed(4)})${d.kbContextUsed ? ' 📚 KB' : ''}`
         ).join('\n')
       }
       setRunResult(result)
