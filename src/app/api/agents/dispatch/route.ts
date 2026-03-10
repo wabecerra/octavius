@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
-import { callAndLog } from '@/lib/openrouter'
+import { callLLM } from '@/lib/llm-caller'
 
 /**
  * POST /api/agents/dispatch — Dispatch a task to a generalist agent for execution.
@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     'SELECT * FROM agent_model_config WHERE agent_id = ?',
   ).get(resolvedAgentId) as { provider: string; model: string } | undefined
 
+  const provider = agentConfig?.provider || 'openrouter'
   const model = agentConfig?.model || 'anthropic/claude-sonnet-4'
 
   // Build the agent prompt based on quadrant
@@ -76,13 +77,14 @@ export async function POST(request: Request) {
     : `This task is in the BACKLOG and needs to be started. Produce an initial deliverable — a plan, research summary, draft, or first concrete output. Move it forward.\n\n${taskContext}`
 
   try {
-    const result = await callAndLog(
+    const result = await callLLM(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       {
         model,
+        provider,
         maxTokens: 2048,
         temperature: 0.4,
         label: `dispatch-${resolvedAgentId}`,

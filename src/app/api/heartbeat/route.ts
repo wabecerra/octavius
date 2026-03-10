@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { callAndLog, MODELS } from '@/lib/openrouter'
+import { callLLM } from '@/lib/llm-caller'
 
 // ─── Helpers ───
 
@@ -26,11 +27,11 @@ function getHeartbeatConfig(db: DB) {
   }
 }
 
-function getAgentModel(db: DB, agentId: string): string {
+function getAgentConfig(db: DB, agentId: string): { provider: string; model: string } {
   const row = db.prepare(
-    'SELECT model FROM agent_model_config WHERE agent_id = ?',
-  ).get(agentId) as { model: string } | undefined
-  return row?.model || 'anthropic/claude-sonnet-4'
+    'SELECT provider, model FROM agent_model_config WHERE agent_id = ?',
+  ).get(agentId) as { provider: string; model: string } | undefined
+  return row || { provider: 'openrouter', model: 'anthropic/claude-sonnet-4' }
 }
 
 function logHeartbeatRun(
@@ -81,7 +82,7 @@ async function dispatchTask(
 ): Promise<{ action: string; output: string; model: string; costUsd: number } | null> {
   const quadrant = (task.quadrant as string) || 'industry'
   const agentId = QUADRANT_AGENTS[quadrant] || 'gen-industry'
-  const model = getAgentModel(db, agentId)
+  const agentCfg = getAgentConfig(db, agentId)
   const systemPrompt = AGENT_PERSONAS[agentId] || AGENT_PERSONAS['gen-industry']
 
   const taskContext = [
@@ -100,12 +101,12 @@ async function dispatchTask(
     : `This task is in the BACKLOG and needs to be started. Produce an initial deliverable — a plan, research summary, draft, or first concrete output.\n\n${taskContext}`
 
   try {
-    const result = await callAndLog(
+    const result = await callLLM(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      { model, maxTokens: 2048, temperature: 0.4, label: `heartbeat-dispatch-${agentId}`, quadrant },
+      { model: agentCfg.model, provider: agentCfg.provider, maxTokens: 2048, temperature: 0.4, label: `heartbeat-dispatch-${agentId}`, quadrant },
     )
 
     const now = new Date().toISOString()
