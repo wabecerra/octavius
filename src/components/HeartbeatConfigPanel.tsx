@@ -6,6 +6,8 @@ interface HeartbeatConfig {
   enabled: boolean
   intervalMinutes: number
   model: string
+  autonomousMode: boolean
+  maxDispatchPerRun: number
   checks: {
     kanbanReview: boolean
     costCheck: boolean
@@ -123,7 +125,14 @@ export function HeartbeatConfigPanel() {
     try {
       const res = await fetch('/api/heartbeat', { method: 'POST' })
       const data = await res.json()
-      setRunResult(data.summary)
+      let result = data.summary || ''
+      if (data.dispatched && data.dispatched.length > 0) {
+        result += '\n\n🤖 Dispatched:\n' + data.dispatched.map(
+          (d: { title: string; action: string; agentId: string; costUsd: number }) =>
+            `• ${d.action}: "${d.title}" → ${d.agentId} ($${d.costUsd.toFixed(4)})`
+        ).join('\n')
+      }
+      setRunResult(result)
       // Refresh history
       const historyRes = await fetch('/api/heartbeat/history?limit=5')
       if (historyRes.ok) {
@@ -298,6 +307,58 @@ export function HeartbeatConfigPanel() {
             </label>
           </div>
         </div>
+      </div>
+
+      {/* Autonomous Mode */}
+      <div className="bg-[var(--bg-primary,var(--bg-secondary))] border border-[var(--border-secondary,var(--border-primary))] rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[var(--text-primary)]">🤖 Autonomous Mode</span>
+              {config.autonomousMode && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--color-warning)_15%,transparent)] text-[var(--color-warning)]">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
+              When enabled, the heartbeat will dispatch tasks to generalist agents for execution — not just report on them
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.autonomousMode || false}
+              onChange={(e) => void saveConfig({ autonomousMode: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-[var(--text-disabled)] peer-focus:ring-1 peer-focus:ring-[var(--border-focus)] rounded-full peer peer-checked:bg-[var(--color-warning)] transition-colors" />
+            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
+          </label>
+        </div>
+
+        {config.autonomousMode && (
+          <div className="space-y-2 pt-2 border-t border-[var(--border-secondary,var(--border-primary))]">
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-[var(--text-secondary)]">Max tasks per run:</label>
+              <select
+                value={config.maxDispatchPerRun || 1}
+                onChange={(e) => void saveConfig({ maxDispatchPerRun: Number(e.target.value) })}
+                className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded px-2 py-1 text-[var(--text-primary)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+              >
+                <option value={1}>1 (conservative)</option>
+                <option value={2}>2 (balanced)</option>
+                <option value={3}>3 (aggressive)</option>
+                <option value={5}>5 (max throughput)</option>
+              </select>
+            </div>
+            <div className="text-[10px] text-[var(--text-disabled)] space-y-1">
+              <p>🔄 <strong>Flow:</strong> Check in-progress → dispatch agents → pull high-priority backlog → update tasks</p>
+              <p>💰 <strong>Cost:</strong> Each dispatch uses the agent&apos;s configured model (see Generalist cards below)</p>
+              <p>📝 <strong>Output:</strong> Agent work is appended to the task description with timestamps</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Run Now */}

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 
+// Force dynamic rendering (GET + PUT in same route)
+export const dynamic = 'force-dynamic'
+
 export interface AgentModelConfig {
   agentId: string
   provider: string

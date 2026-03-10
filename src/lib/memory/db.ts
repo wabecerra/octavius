@@ -365,4 +365,22 @@ CREATE TABLE IF NOT EXISTS agent_model_config (
   model TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- ============================================================
+-- Task Activity Log — tracks what agents did on each task
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS task_activity_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  model TEXT,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  timestamp TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_activity_task ON task_activity_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_activity_ts ON task_activity_log(timestamp);
 `

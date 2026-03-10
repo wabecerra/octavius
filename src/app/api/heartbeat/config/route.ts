@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 
+// Force dynamic rendering (GET + PUT in same route)
+export const dynamic = 'force-dynamic'
+
 export interface HeartbeatConfig {
   enabled: boolean
   intervalMinutes: number
   model: string
+  autonomousMode: boolean
+  maxDispatchPerRun: number
   checks: {
     kanbanReview: boolean
     costCheck: boolean
@@ -17,6 +22,8 @@ const DEFAULT_CONFIG: HeartbeatConfig = {
   enabled: true,
   intervalMinutes: 30,
   model: 'qwen/qwen3-235b-a22b-2507',
+  autonomousMode: false,
+  maxDispatchPerRun: 1,
   checks: {
     kanbanReview: true,
     costCheck: true,
@@ -34,6 +41,8 @@ function loadConfig(db: ReturnType<typeof getDatabase>): HeartbeatConfig {
     enabled: map.enabled ? map.enabled === 'true' : DEFAULT_CONFIG.enabled,
     intervalMinutes: map.intervalMinutes ? Number(map.intervalMinutes) : DEFAULT_CONFIG.intervalMinutes,
     model: map.model ?? DEFAULT_CONFIG.model,
+    autonomousMode: map.autonomousMode === 'true',
+    maxDispatchPerRun: map.maxDispatchPerRun ? Number(map.maxDispatchPerRun) : DEFAULT_CONFIG.maxDispatchPerRun,
     checks: map.checks ? JSON.parse(map.checks) : { ...DEFAULT_CONFIG.checks },
   }
 }
@@ -63,6 +72,8 @@ export async function PUT(request: Request) {
     if (body.enabled !== undefined) upsert.run('enabled', String(body.enabled), now)
     if (body.intervalMinutes !== undefined) upsert.run('intervalMinutes', String(body.intervalMinutes), now)
     if (body.model !== undefined) upsert.run('model', body.model, now)
+    if (body.autonomousMode !== undefined) upsert.run('autonomousMode', String(body.autonomousMode), now)
+    if (body.maxDispatchPerRun !== undefined) upsert.run('maxDispatchPerRun', String(body.maxDispatchPerRun), now)
     if (body.checks !== undefined) upsert.run('checks', JSON.stringify(body.checks), now)
   })
 
