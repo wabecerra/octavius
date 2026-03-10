@@ -1,10 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { routeTask } from '@/lib/model-router'
 import { WorkspaceFilesEditor } from '@/components/WorkspaceFilesEditor'
+import { HeartbeatConfigPanel } from '@/components/HeartbeatConfigPanel'
+import { AgentModelSelector } from '@/components/AgentModelSelector'
 import type { Agent, AgentTask, AgentTaskStatus, ModelTier } from '@/types'
+
+// ─── Agent Model Config ───
+
+interface AgentModelConfig {
+  agentId: string
+  provider: string
+  model: string
+}
 
 // ─── Agent Card ───
 
@@ -27,7 +37,17 @@ const STATUS_COLORS: Record<Agent['status'], string> = {
   error: 'bg-[var(--color-error)]',
 }
 
-function AgentCardItem({ agent, onSendTask }: { agent: Agent; onSendTask: (agent: Agent) => void }) {
+function AgentCardItem({
+  agent,
+  onSendTask,
+  modelConfigs,
+  onSaveModel,
+}: {
+  agent: Agent
+  onSendTask: (agent: Agent) => void
+  modelConfigs: AgentModelConfig[]
+  onSaveModel: (agentId: string, provider: string, model: string) => void
+}) {
   return (
     <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 space-y-3 transition-colors duration-150 shadow-sm">
       <div className="flex items-center justify-between">
@@ -43,6 +63,14 @@ function AgentCardItem({ agent, onSendTask }: { agent: Agent; onSendTask: (agent
           Last active: {new Date(agent.lastActivityAt).toLocaleString()}
         </p>
       )}
+
+      {/* Model selector */}
+      <AgentModelSelector
+        agentId={agent.id}
+        configs={modelConfigs}
+        onSave={onSaveModel}
+      />
+
       <button
         type="button"
         onClick={() => onSendTask(agent)}
@@ -212,7 +240,7 @@ function AgentTaskList({ agentTasks, agents }: { agentTasks: AgentTask[], agents
 
   return (
     <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)]">Task History</h3>
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">Task History</h3>
       {sorted.length === 0 ? (
         <p className="text-sm text-[var(--text-tertiary)] text-center py-4">No tasks dispatched yet</p>
       ) : (
@@ -271,9 +299,44 @@ export function AgentsView() {
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([])
   const [sendModalOpen, setSendModalOpen] = useState(false)
   const [targetAgent, setTargetAgent] = useState<Agent | null>(null)
+  const [modelConfigs, setModelConfigs] = useState<AgentModelConfig[]>([])
 
   const generalists = agents.filter((a) => a.role.startsWith('generalist-'))
   const specialists = agents.filter((a) => a.role.startsWith('specialist-'))
+
+  // Fetch agent model configs
+  const fetchModelConfigs = useCallback(async () => {
+    try {
+      const res = await fetch('/api/agents/config')
+      if (res.ok) {
+        const data = await res.json()
+        setModelConfigs(data.configs ?? [])
+      }
+    } catch {
+      // silent
+    }
+  }, [])
+
+  useEffect(() => { void fetchModelConfigs() }, [fetchModelConfigs])
+
+  const handleSaveModel = async (agentId: string, provider: string, model: string) => {
+    try {
+      const res = await fetch('/api/agents/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, provider, model }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setModelConfigs((prev) => {
+          const filtered = prev.filter((c) => c.agentId !== agentId)
+          return [...filtered, { agentId: updated.agentId, provider: updated.provider, model: updated.model }]
+        })
+      }
+    } catch {
+      // silent
+    }
+  }
 
   const openSendTask = (agent: Agent) => {
     setTargetAgent(agent)
@@ -286,24 +349,84 @@ export function AgentsView() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">Agent Fleet Management</h2>
+        <p className="text-sm text-[var(--text-tertiary)] mt-1">
+          Orchestrator, generalists, and specialist agents powering your Life OS
+        </p>
+      </div>
+
+      {/* Orchestrator */}
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-3 transition-colors duration-150 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🧠</span>
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Octavius Orchestrator</h3>
+              <p className="text-xs text-[var(--text-tertiary)]">
+                Central coordinator — routes tasks to agents, runs heartbeat checks, manages the fleet
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
+            <span className="text-xs text-[var(--color-success)]">Active</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="text-center">
+            <p className="text-lg font-semibold text-[var(--text-primary)]">{agents.length}</p>
+            <p className="text-[10px] text-[var(--text-tertiary)]">Generalists</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-[var(--text-primary)]">{specialists.length || '—'}</p>
+            <p className="text-[10px] text-[var(--text-tertiary)]">Specialists</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-[var(--text-primary)]">{agentTasks.length}</p>
+            <p className="text-[10px] text-[var(--text-tertiary)]">Tasks Run</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-[var(--text-primary)]">4</p>
+            <p className="text-[10px] text-[var(--text-tertiary)]">Quadrants</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Heartbeat Configuration */}
+      <HeartbeatConfigPanel />
+
       {/* Generalist Agents */}
       <div>
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Generalist Agents</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Generalist Agents</h3>
         <p className="text-xs text-[var(--text-tertiary)] mb-3">One per quadrant — handles general tasks in their domain</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {generalists.map((agent) => (
-            <AgentCardItem key={agent.id} agent={agent} onSendTask={openSendTask} />
+            <AgentCardItem
+              key={agent.id}
+              agent={agent}
+              onSendTask={openSendTask}
+              modelConfigs={modelConfigs}
+              onSaveModel={handleSaveModel}
+            />
           ))}
         </div>
       </div>
 
       {/* Specialist Agents */}
       <div>
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Specialist Agents</h3>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Specialist Agents</h3>
         <p className="text-xs text-[var(--text-tertiary)] mb-3">Domain experts for focused tasks</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {specialists.map((agent) => (
-            <AgentCardItem key={agent.id} agent={agent} onSendTask={openSendTask} />
+            <AgentCardItem
+              key={agent.id}
+              agent={agent}
+              onSendTask={openSendTask}
+              modelConfigs={modelConfigs}
+              onSaveModel={handleSaveModel}
+            />
           ))}
         </div>
       </div>

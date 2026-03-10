@@ -331,4 +331,38 @@ CREATE TABLE IF NOT EXISTS dashboard_schedule (
 );
 
 CREATE INDEX IF NOT EXISTS idx_schedule_date ON dashboard_schedule(date);
+
+-- ============================================================
+-- Heartbeat Configuration & Run History
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS heartbeat_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS heartbeat_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  task_count INTEGER NOT NULL DEFAULT 0,
+  model TEXT,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  actionable INTEGER NOT NULL DEFAULT 0,
+  checks_run TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE INDEX IF NOT EXISTS idx_heartbeat_runs_ts ON heartbeat_runs(timestamp);
+
+-- ============================================================
+-- Agent Model Configuration
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS agent_model_config (
+  agent_id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL DEFAULT 'openrouter',
+  model TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `

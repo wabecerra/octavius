@@ -2,6 +2,39 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { callAndLog, MODELS } from '@/lib/openrouter'
 
+/** Load the configured heartbeat model from SQLite, falling back to MODELS.cheap */
+function getHeartbeatModel(db: ReturnType<typeof getDatabase>): string {
+  try {
+    const row = db.prepare("SELECT value FROM heartbeat_config WHERE key = 'model'").get() as { value: string } | undefined
+    return row?.value || MODELS.cheap
+  } catch {
+    return MODELS.cheap
+  }
+}
+
+/** Log a heartbeat run to the history table */
+function logHeartbeatRun(
+  db: ReturnType<typeof getDatabase>,
+  run: { summary: string; taskCount: number; model: string | null; costUsd: number; actionable: boolean; checksRun: string[] },
+) {
+  try {
+    db.prepare(
+      `INSERT INTO heartbeat_runs (timestamp, summary, task_count, model, cost_usd, actionable, checks_run)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      new Date().toISOString(),
+      run.summary,
+      run.taskCount,
+      run.model,
+      run.costUsd,
+      run.actionable ? 1 : 0,
+      JSON.stringify(run.checksRun),
+    )
+  } catch {
+    // Non-fatal — history logging is best-effort
+  }
+}
+
 /**
  * POST /api/heartbeat — Run a heartbeat analysis of pending kanban tasks.
  *
@@ -9,9 +42,11 @@ import { callAndLog, MODELS } from '@/lib/openrouter'
  * and return a prioritized summary with suggestions.
  *
  * Cost is automatically logged to the LLM cost tracker.
+ * Each run is also logged to heartbeat_runs for history display.
  */
 export async function POST() {
   const db = getDatabase()
+  const model = getHeartbeatModel(db)
 
   // Fetch open tasks
   const tasks = db
@@ -26,12 +61,14 @@ export async function POST() {
     .all() as Array<Record<string, unknown>>
 
   if (tasks.length === 0) {
-    return NextResponse.json({
+    const result = {
       summary: 'No open tasks. Kanban board is clear! 🎉',
       taskCount: 0,
       model: null,
       costUsd: 0,
-    })
+    }
+    logHeartbeatRun(db, { ...result, actionable: false, checksRun: ['kanban'] })
+    return NextResponse.json(result)
   }
 
   // Build a compact task list for the LLM
@@ -57,36 +94,55 @@ export async function POST() {
         { role: 'user', content: userPrompt },
       ],
       {
-        model: MODELS.cheap,
+        model,
         maxTokens: 256,
         temperature: 0.3,
         label: 'heartbeat',
       },
     )
 
-    return NextResponse.json({
+    const response = {
       summary: result.text,
       taskCount: tasks.length,
       model: result.model,
       costUsd: result.costUsd,
       usage: result.usage,
+    }
+
+    logHeartbeatRun(db, {
+      summary: result.text,
+      taskCount: tasks.length,
+      model: result.model,
+      costUsd: result.costUsd,
+      actionable: tasks.some((t) => t.priority === 'high' || t.status === 'in-progress'),
+      checksRun: ['kanban'],
     })
+
+    return NextResponse.json(response)
   } catch (err) {
     console.error('[heartbeat] OpenRouter call failed:', err)
-    // Fallback: return task list without LLM analysis
-    return NextResponse.json(
-      {
-        summary: `${tasks.length} open tasks. LLM analysis unavailable.`,
-        taskCount: tasks.length,
-        tasks: tasks.map((t) => ({
-          title: t.title,
-          priority: t.priority,
-          status: t.status,
-        })),
-        error: String(err),
-      },
-      { status: 200 }, // Still 200 — degraded but usable
-    )
+
+    const fallback = {
+      summary: `${tasks.length} open tasks. LLM analysis unavailable.`,
+      taskCount: tasks.length,
+      tasks: tasks.map((t) => ({
+        title: t.title,
+        priority: t.priority,
+        status: t.status,
+      })),
+      error: String(err),
+    }
+
+    logHeartbeatRun(db, {
+      summary: fallback.summary,
+      taskCount: tasks.length,
+      model: null,
+      costUsd: 0,
+      actionable: false,
+      checksRun: ['kanban'],
+    })
+
+    return NextResponse.json(fallback, { status: 200 })
   }
 }
 

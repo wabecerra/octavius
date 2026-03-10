@@ -27,13 +27,13 @@ export const NAV_GROUPS = [
 ] as const
 
 export const PAGE_TITLES: Record<ViewKey, string> = {
-  dashboard: 'Dashboard',
-  lifeforce: 'Lifeforce',
-  industry: 'Industry',
-  fellowship: 'Fellowship',
-  essence: 'Essence',
-  agents: 'Agents',
-  memory: 'Memory',
-  costs: 'LLM Costs',
-  settings: 'Settings',
+  dashboard: 'Command Center',
+  lifeforce: 'Lifeforce — Health & Wellness',
+  industry: 'Industry — Career & Productivity',
+  fellowship: 'Fellowship — Relationships & Community',
+  essence: 'Essence — Soul & Reflection',
+  agents: 'Agent Fleet Management',
+  memory: 'Memory — Knowledge Graph',
+  costs: 'LLM Cost Intelligence',
+  settings: 'System Configuration',
 }
