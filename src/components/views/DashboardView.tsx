@@ -10,8 +10,12 @@ import {
 import { QuadrantCard } from '@/components/QuadrantCard'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { TaskBoardSection } from '@/components/TaskBoardSection'
+import { SprintHeader } from '@/components/SprintHeader'
+import { StandupBrief } from '@/components/StandupBrief'
 import { CHART_THEME } from '@/lib/chart-theme'
 import type { WellnessCheckIn, Connection } from '@/types'
+import type { Sprint } from '@/lib/sprint'
+import type { Task, CheckIn, FocusGoal } from '@/hooks'
 
 interface DashboardViewProps {
   profileName: string
@@ -23,6 +27,18 @@ interface DashboardViewProps {
   weekJournals: number
   radarData: { quadrant: string; score: number }[]
   showWeeklyReview: boolean
+  // Sprint props
+  sprint: Sprint
+  isCurrentSprint: boolean
+  onSprintBack: () => void
+  onSprintForward: () => void
+  onSprintToday: () => void
+  // Standup props
+  completedYesterday: Task[]
+  inProgressTasks: Task[]
+  todayFocusGoals: FocusGoal[]
+  todayCheckin: CheckIn | null
+  carriedOverCount: number
 }
 
 export function DashboardView({
@@ -35,6 +51,16 @@ export function DashboardView({
   weekJournals,
   radarData,
   showWeeklyReview,
+  sprint,
+  isCurrentSprint,
+  onSprintBack,
+  onSprintForward,
+  onSprintToday,
+  completedYesterday,
+  inProgressTasks,
+  todayFocusGoals,
+  todayCheckin,
+  carriedOverCount,
 }: DashboardViewProps) {
   const latest = checkins.length > 0 ? checkins[0] : null
 
@@ -68,9 +94,27 @@ export function DashboardView({
         </div>
       )}
 
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard
+      {/* Sprint Header */}
+      <SprintHeader
+        sprint={sprint}
+        isCurrent={isCurrentSprint}
+        onBack={onSprintBack}
+        onForward={onSprintForward}
+        onToday={onSprintToday}
+      />
+
+      {/* Daily Standup Brief + KPI Summary Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+        <StandupBrief
+          completedYesterday={completedYesterday}
+          inProgress={inProgressTasks}
+          todayGoals={todayFocusGoals}
+          latestCheckin={todayCheckin}
+          overdueConnections={overdueConnections}
+          carriedOverCount={carriedOverCount}
+        />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <KpiCard
           title="Mood"
           value={latest ? `${latest.mood}/5` : '—'}
           icon="💚"
@@ -93,11 +137,12 @@ export function DashboardView({
           accentColor="var(--quadrant-relationships)"
         />
         <KpiCard
-          title="Journal (week)"
+          title="Journal (sprint)"
           value={weekJournals}
           icon="🧘"
           accentColor="var(--quadrant-soul)"
         />
+        </div>
       </div>
 
       {/* Quadrant Cards Grid */}
@@ -145,14 +190,14 @@ export function DashboardView({
             name="Essence"
             icon="🧘"
             color="#c084fc"
-            metrics={[{ label: 'Journal entries (week)', value: weekJournals }]}
+            metrics={[{ label: 'Journal entries (sprint)', value: weekJournals }]}
             agentStatus="idle"
           />
         </div>
       </div>
 
       {/* Task Board (Kanban) */}
-      <TaskBoardSection />
+      <TaskBoardSection sprint={sprint} />
 
       {/* Balance Score Radar */}
       <div
@@ -161,7 +206,7 @@ export function DashboardView({
         aria-label={`Quadrant balance radar chart: ${radarData.map((d) => `${d.quadrant} ${d.score}%`).join(', ')}`}
         aria-describedby="radar-data-table"
       >
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Quadrant Balance</h3>
+        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Sprint Balance</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData}>
@@ -194,8 +239,8 @@ export function DashboardView({
       {/* Weekly Review Prompt */}
       {showWeeklyReview && (
         <div className="bg-[var(--bg-secondary)] border-2 border-[var(--accent)] rounded-xl p-6 transition-colors duration-150 shadow-sm">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Weekly Review</h3>
-          <p className="text-sm text-[var(--text-secondary)]">Time to reflect on your week. What went well? What could improve?</p>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Sprint Review</h3>
+          <p className="text-sm text-[var(--text-secondary)]">End of sprint — time to reflect. What went well? What could improve? What carries into next sprint?</p>
         </div>
       )}
     </div>

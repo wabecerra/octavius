@@ -10,15 +10,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { useCheckins, useJournal, useGratitude } from '@/hooks'
+import { useCheckins, useJournal, useGratitude, useSprint } from '@/hooks'
 import { useToast } from '@/components/Toast'
 import { CHART_THEME } from '@/lib/chart-theme'
 import { toChartData } from '@/lib/chart-utils'
+import { SprintHeader } from '@/components/SprintHeader'
 
 // ─── Journal ───
 
-function JournalSection() {
-  const { entries, addEntry } = useJournal()
+function JournalSection({ sprintStart, sprintEnd }: { sprintStart: string; sprintEnd: string }) {
+  const { entries, addEntry } = useJournal({ since: sprintStart, until: sprintEnd })
   const { toast } = useToast()
   const [text, setText] = useState('')
 
@@ -34,7 +35,7 @@ function JournalSection() {
     }
   }
 
-  const recentEntries = [...entries]
+  const sprintEntries = [...entries]
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, 5)
 
@@ -51,10 +52,10 @@ function JournalSection() {
         className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] resize-none transition-colors duration-150"
       />
 
-      {recentEntries.length > 0 && (
+      {sprintEntries.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-[var(--border-primary)]">
-          <p className="text-xs text-[var(--text-tertiary)]">Recent entries</p>
-          {recentEntries.map((entry) => (
+          <p className="text-xs text-[var(--text-tertiary)]">This sprint</p>
+          {sprintEntries.map((entry) => (
             <div key={entry.id} className="bg-[var(--bg-secondary)] rounded-lg px-3 py-2">
               <p className="text-xs text-[var(--text-tertiary)] mb-1">
                 {new Date(entry.timestamp).toLocaleDateString()}
@@ -123,8 +124,8 @@ function GratitudePrompt() {
 
 // ─── Mood Tracker Chart ───
 
-function MoodTrackerChart() {
-  const { checkins } = useCheckins()
+function MoodTrackerChart({ sprintStart, sprintEnd }: { sprintStart: string; sprintEnd: string }) {
+  const { checkins } = useCheckins({ since: sprintStart, until: sprintEnd })
   const chartData = toChartData(checkins)
 
   const formattedData = chartData.map((d) => ({
@@ -190,12 +191,23 @@ function MoodTrackerChart() {
 // ─── Main Essence View ───
 
 export function EssenceView() {
+  const { sprint, isCurrent, goBack, goForward, goToday } = useSprint()
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <JournalSection />
-      <div className="space-y-6">
-        <GratitudePrompt />
-        <MoodTrackerChart />
+    <div className="space-y-6">
+      <SprintHeader
+        sprint={sprint}
+        isCurrent={isCurrent}
+        onBack={goBack}
+        onForward={goForward}
+        onToday={goToday}
+      />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <JournalSection sprintStart={sprint.startDate} sprintEnd={sprint.endDate} />
+        <div className="space-y-6">
+          <GratitudePrompt />
+          <MoodTrackerChart sprintStart={sprint.startDate} sprintEnd={sprint.endDate} />
+        </div>
       </div>
     </div>
   )

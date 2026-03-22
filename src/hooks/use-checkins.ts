@@ -13,9 +13,10 @@ export interface CheckIn {
 
 interface CheckInsResponse { checkins: CheckIn[]; total: number }
 
-export function useCheckins(since?: string) {
+export function useCheckins(range?: { since?: string; until?: string }) {
   const qs = new URLSearchParams({ limit: '100' })
-  if (since) qs.set('since', since)
+  if (range?.since) qs.set('since', range.since)
+  if (range?.until) qs.set('until', range.until)
   const { data, loading, error, mutate, refetch } = useApi<CheckInsResponse>(`/api/dashboard/checkins?${qs}`)
 
   const createCheckin = useCallback(async (checkin: { mood: number; energy: number; stress: number }) => {

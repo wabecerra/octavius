@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useFocusGoals, useSchedule } from '@/hooks'
+import { useFocusGoals, useSchedule, useSprint } from '@/hooks'
 import { TaskBoardSection } from '@/components/TaskBoardSection'
+import { SprintHeader } from '@/components/SprintHeader'
 
 // ─── Focus Goals ───
 
@@ -165,9 +166,18 @@ function DailySchedule() {
 // ─── Main Industry View ───
 
 export function IndustryView() {
+  const { sprint, isCurrent, goBack, goForward, goToday } = useSprint()
+
   return (
     <div className="space-y-6">
-      <TaskBoardSection />
+      <SprintHeader
+        sprint={sprint}
+        isCurrent={isCurrent}
+        onBack={goBack}
+        onForward={goForward}
+        onToday={goToday}
+      />
+      <TaskBoardSection sprint={sprint} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FocusGoalsSection />
         <DailySchedule />

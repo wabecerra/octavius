@@ -2,17 +2,27 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { nanoid } from 'nanoid'
 
-/** GET /api/dashboard/gratitude */
+/** GET /api/dashboard/gratitude — Query params: date, since, until (YYYY-MM-DD), limit */
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const date = url.searchParams.get('date')
+  const since = url.searchParams.get('since')
+  const until = url.searchParams.get('until')
   const limit = Math.min(Number(url.searchParams.get('limit')) || 30, 200)
   const db = getDatabase()
-  let query = 'SELECT * FROM dashboard_gratitude'
+
+  const conditions: string[] = []
   const params: unknown[] = []
-  if (date) { query += ' WHERE date = ?'; params.push(date) }
+
+  if (date) { conditions.push('date = ?'); params.push(date) }
+  if (since) { conditions.push('date >= ?'); params.push(since) }
+  if (until) { conditions.push('date <= ?'); params.push(until) }
+
+  let query = 'SELECT * FROM dashboard_gratitude'
+  if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ')
   query += ' ORDER BY date DESC LIMIT ?'
   params.push(limit)
+
   const rows = db.prepare(query).all(...params) as Array<Record<string, unknown>>
   return NextResponse.json({
     entries: rows.map(r => ({ id: r.id, date: r.date, items: JSON.parse(r.items as string) })),

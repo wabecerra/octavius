@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useCheckins } from '@/hooks'
+import { useCheckins, useSprint } from '@/hooks'
 import { useToast } from '@/components/Toast'
 import { validateCheckInValue } from '@/lib/validation'
 import { BreathingTool } from '@/components/BreathingTool'
+import { SprintHeader } from '@/components/SprintHeader'
 import {
   HeartRateChart,
   HrvChart,
@@ -267,15 +268,26 @@ function BiometricDataSection() {
 // ─── Main Lifeforce View ───
 
 export function LifeforceView() {
+  const { sprint, isCurrent, goBack, goForward, goToday } = useSprint()
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2">
-        <BiometricDataSection />
-      </div>
-      <div className="space-y-6">
-        <WellnessCheckInForm />
-        <HealthMetricsForm />
-        <BreathingTool />
+    <div className="space-y-6">
+      <SprintHeader
+        sprint={sprint}
+        isCurrent={isCurrent}
+        onBack={goBack}
+        onForward={goForward}
+        onToday={goToday}
+      />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <BiometricDataSection />
+        </div>
+        <div className="space-y-6">
+          <WellnessCheckInForm />
+          <HealthMetricsForm />
+          <BreathingTool />
+        </div>
       </div>
     </div>
   )

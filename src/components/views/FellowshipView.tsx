@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { useConnections } from '@/hooks'
+import { useConnections, useSprint } from '@/hooks'
 import { useToast } from '@/components/Toast'
+import { SprintHeader } from '@/components/SprintHeader'
 import type { Connection } from '@/types'
 
 // ─── Connection Modal ───
@@ -178,6 +179,7 @@ function ActivityLogForm({ connections }: { connections: Connection[] }) {
 
 export function FellowshipView() {
   const { connections, updateConnection } = useConnections()
+  const { sprint, isCurrent, goBack, goForward, goToday } = useSprint()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingConnection, setEditingConnection] = useState<Connection | undefined>()
@@ -206,6 +208,13 @@ export function FellowshipView() {
 
   return (
     <div className="space-y-6">
+      <SprintHeader
+        sprint={sprint}
+        isCurrent={isCurrent}
+        onBack={goBack}
+        onForward={goForward}
+        onToday={goToday}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Connection List */}
         <div className="lg:col-span-2 space-y-4">

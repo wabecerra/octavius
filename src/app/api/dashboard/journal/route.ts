@@ -2,12 +2,26 @@ import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { nanoid } from 'nanoid'
 
-/** GET /api/dashboard/journal */
+/** GET /api/dashboard/journal — Query params: since, until (YYYY-MM-DD), limit */
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 500)
+  const since = url.searchParams.get('since')
+  const until = url.searchParams.get('until')
+
   const db = getDatabase()
-  const rows = db.prepare('SELECT * FROM dashboard_journal ORDER BY timestamp DESC LIMIT ?').all(limit)
+  const conditions: string[] = []
+  const params: unknown[] = []
+
+  if (since) { conditions.push('date(timestamp) >= ?'); params.push(since) }
+  if (until) { conditions.push('date(timestamp) <= ?'); params.push(until) }
+
+  let query = 'SELECT * FROM dashboard_journal'
+  if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ')
+  query += ' ORDER BY timestamp DESC LIMIT ?'
+  params.push(limit)
+
+  const rows = db.prepare(query).all(...params)
   return NextResponse.json({ entries: rows, total: rows.length })
 }
 

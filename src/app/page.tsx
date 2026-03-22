@@ -14,9 +14,11 @@ import { AgentsView } from '@/components/views/AgentsView'
 import { MemoryView } from '@/components/views/MemoryView'
 import { CostsView } from '@/components/views/CostsView'
 import { SettingsView } from '@/components/views/SettingsView'
-import { useTasks, useCheckins, useJournal, useConnections, useProfile, useFocusGoals } from '@/hooks'
+import { NerveCenterView } from '@/components/views/NerveCenterView'
+import { GatewayView } from '@/components/gateway/GatewayView'
+import { useTasks, useCheckins, useJournal, useConnections, useProfile, useFocusGoals, useSprint } from '@/hooks'
 import { computeBalanceScore } from '@/lib/balance-score'
-import { shouldShowWeeklyReviewPrompt } from '@/lib/weekly-review'
+import { shouldShowSprintReview } from '@/lib/weekly-review'
 import { useGatewayInit } from '@/lib/gateway/use-gateway'
 import type { ChatMessage } from '@/lib/gateway/types'
 
@@ -75,13 +77,16 @@ export default function Dashboard() {
   const [now, setNow] = useState<Date | null>(null)
   const [mounted, setMounted] = useState(false)
 
-  // API hooks
+  // Sprint navigation (must come before data hooks so they can use sprint bounds)
+  const { sprint, isCurrent: isCurrentSprintActive, goBack, goForward, goToday } = useSprint()
+
+  // API hooks — scoped to active sprint
   const { profile } = useProfile()
-  const { checkins } = useCheckins()
-  const { tasks } = useTasks()
+  const { checkins } = useCheckins({ since: sprint.startDate, until: sprint.endDate })
+  const { tasks } = useTasks({ since: sprint.startDate, until: sprint.endDate, includeOpen: true })
   const { goals } = useFocusGoals()
   const { connections } = useConnections()
-  const { entries: journalEntries } = useJournal()
+  const { entries: journalEntries } = useJournal({ since: sprint.startDate, until: sprint.endDate })
 
   // Gateway integration
   const gateway = useGatewayInit()
@@ -169,16 +174,24 @@ export default function Dashboard() {
   const timeStr = mounted ? formatTime(safeNow) : ''
   const compoundPhase = getCompoundPhase(safeNow.getDay())
 
-  // Balance score calculation
-  const weekStart = new Date(safeNow)
-  weekStart.setDate(safeNow.getDate() - safeNow.getDay())
-  const weekStartStr = weekStart.toISOString().slice(0, 10)
+  // Balance score — data is already sprint-scoped from the API.
+  // Tasks include carry-overs (includeOpen=1), so separate them.
+  const sprintNativeTasks = tasks.filter((t) => t.createdAt >= sprint.startDate)
+  const carriedOverTasks = tasks.filter(
+    (t) => !t.completed && t.createdAt < sprint.startDate
+  )
+
+  // Overdue connections (needed for balance score + standup)
+  const overdueConnections = connections.filter(c => {
+    const daysSince = (Date.now() - new Date(c.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)
+    return daysSince > c.reminderFrequencyDays
+  })
 
   const balanceCounts = {
-    health: checkins.filter((c) => c.timestamp >= weekStartStr).length,
-    career: tasks.filter((t) => t.createdAt >= weekStartStr).length,
-    relationships: 0,
-    soul: journalEntries.filter((j) => j.timestamp >= weekStartStr).length,
+    health: checkins.length,
+    career: sprintNativeTasks.length,
+    relationships: connections.length > 0 ? connections.length - overdueConnections.length : 0,
+    soul: journalEntries.length,
   }
   const balanceScore = computeBalanceScore(balanceCounts)
 
@@ -189,17 +202,24 @@ export default function Dashboard() {
     { quadrant: 'Essence', score: balanceScore.soul },
   ]
 
-  // Weekly review prompt
-  const showWeeklyReview = shouldShowWeeklyReviewPrompt(safeNow, { weeklyReviewDay: 0 })
+  // Sprint review prompt — show on the last day of the sprint (Sunday)
+  const showWeeklyReview = shouldShowSprintReview(safeNow)
 
-  // Derived metrics
-  const overdueConnections = connections.filter(c => {
-    const daysSince = (Date.now() - new Date(c.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)
-    return daysSince > c.reminderFrequencyDays
-  })
+  // Derived metrics — data already sprint-scoped from API
   const incompleteTasks = tasks.filter((t) => !t.completed).length
   const todayGoals = goals.length
-  const weekJournals = journalEntries.filter((j) => j.timestamp >= weekStartStr).length
+  const weekJournals = journalEntries.length
+
+  // Standup data
+  const todayStr = safeNow.toISOString().slice(0, 10)
+  const yesterday = new Date(safeNow)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = yesterday.toISOString().slice(0, 10)
+  const completedYesterday = tasks.filter(
+    (t) => t.completed && t.updatedAt?.slice(0, 10) === yesterdayStr
+  )
+  const inProgressTasks = tasks.filter((t) => t.status === 'in-progress')
+  const todayCheckin = checkins.find((c) => c.timestamp.slice(0, 10) === todayStr) ?? null
 
   // ─── View Rendering ───
 
@@ -217,6 +237,16 @@ export default function Dashboard() {
             weekJournals={weekJournals}
             radarData={radarData}
             showWeeklyReview={showWeeklyReview}
+            sprint={sprint}
+            isCurrentSprint={isCurrentSprintActive}
+            onSprintBack={goBack}
+            onSprintForward={goForward}
+            onSprintToday={goToday}
+            completedYesterday={completedYesterday}
+            inProgressTasks={inProgressTasks}
+            todayFocusGoals={goals}
+            todayCheckin={todayCheckin}
+            carriedOverCount={carriedOverTasks.length}
           />
         )
       case 'lifeforce':
@@ -227,6 +257,8 @@ export default function Dashboard() {
         return <FellowshipView />
       case 'essence':
         return <EssenceView />
+      case 'town':
+        return <NerveCenterView />
       case 'agents':
         return <AgentsView />
       case 'memory':
@@ -235,6 +267,8 @@ export default function Dashboard() {
         return <CostsView />
       case 'settings':
         return <SettingsView />
+      case 'gateway':
+        return <GatewayView />
       default:
         return null
     }

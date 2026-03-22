@@ -49,11 +49,12 @@ const QUADRANT_META: Record<string, { label: string; color: string; bg: string }
 
 interface SortableTaskCardProps {
   task: Task
+  isCarriedOver?: boolean
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
 }
 
-function SortableTaskCard({ task, onEdit, onDelete }: SortableTaskCardProps) {
+function SortableTaskCard({ task, isCarriedOver, onEdit, onDelete }: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -112,6 +113,11 @@ function SortableTaskCard({ task, onEdit, onDelete }: SortableTaskCardProps) {
             {task.project && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-primary)]">
                 {task.project}
+              </span>
+            )}
+            {isCarriedOver && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] text-[var(--color-warning)] border border-[color-mix(in_srgb,var(--color-warning)_25%,transparent)]">
+                ↻ carried over
               </span>
             )}
           </div>
@@ -179,12 +185,14 @@ function TaskCardOverlay({ task }: { task: Task }) {
 
 interface KanbanBoardProps {
   tasks: Task[]
+  /** Sprint start date (YYYY-MM-DD) — tasks created before this are "carried over" */
+  sprintStart?: string
   onMoveTask: (taskId: string, newStatus: KanbanColumn) => Promise<void>
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
 }
 
-export function KanbanBoard({ tasks, onMoveTask, onEdit, onDelete }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, sprintStart, onMoveTask, onEdit, onDelete }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
 
   const sensors = useSensors(
@@ -271,6 +279,7 @@ export function KanbanBoard({ tasks, onMoveTask, onEdit, onDelete }: KanbanBoard
                     <SortableTaskCard
                       key={task.id}
                       task={task}
+                      isCarriedOver={!!sprintStart && task.createdAt < sprintStart}
                       onEdit={onEdit}
                       onDelete={onDelete}
                     />

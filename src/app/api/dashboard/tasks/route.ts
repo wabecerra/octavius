@@ -3,44 +3,64 @@ import { getDatabase } from '@/lib/memory/db'
 import { nanoid } from 'nanoid'
 
 /**
- * GET /api/dashboard/tasks — List all tasks (optionally filter by status/priority)
- * Query params: status, priority, limit, offset
+ * GET /api/dashboard/tasks — List tasks with optional filters.
+ *
+ * Query params:
+ *   status, priority, quadrant   — exact match filters
+ *   since, until                 — date range on created_at (YYYY-MM-DD, inclusive)
+ *   includeOpen                  — "1" to also include non-completed tasks created
+ *                                  before `since` (sprint carry-over)
+ *   limit, offset                — pagination
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const status = url.searchParams.get('status')
   const priority = url.searchParams.get('priority')
+  const quadrant = url.searchParams.get('quadrant')
+  const since = url.searchParams.get('since')   // YYYY-MM-DD
+  const until = url.searchParams.get('until')   // YYYY-MM-DD
+  const includeOpen = url.searchParams.get('includeOpen') === '1'
   const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500)
   const offset = Number(url.searchParams.get('offset')) || 0
 
   const db = getDatabase()
-  let query = 'SELECT * FROM dashboard_tasks WHERE 1=1'
+
+  const conditions: string[] = []
   const params: unknown[] = []
 
-  if (status) {
-    query += ' AND status = ?'
-    params.push(status)
-  }
-  if (priority) {
-    query += ' AND priority = ?'
-    params.push(priority)
+  if (status) { conditions.push('status = ?'); params.push(status) }
+  if (priority) { conditions.push('priority = ?'); params.push(priority) }
+  if (quadrant) { conditions.push('quadrant = ?'); params.push(quadrant) }
+
+  // Sprint-scoped date filtering:
+  // When includeOpen=1, return tasks created in the date range
+  // PLUS any incomplete tasks from before the range (carry-over).
+  if (since && until && includeOpen) {
+    conditions.push(
+      '((date(created_at) >= ? AND date(created_at) <= ?) OR (completed = 0 AND date(created_at) < ?))'
+    )
+    params.push(since, until, since)
+  } else if (since && until) {
+    conditions.push('date(created_at) >= ? AND date(created_at) <= ?')
+    params.push(since, until)
+  } else if (since) {
+    conditions.push('date(created_at) >= ?')
+    params.push(since)
+  } else if (until) {
+    conditions.push('date(created_at) <= ?')
+    params.push(until)
   }
 
-  const quadrant = url.searchParams.get('quadrant')
-  if (quadrant) {
-    query += ' AND quadrant = ?'
-    params.push(quadrant)
-  }
-
-  query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
+  const whereClause = conditions.length > 0 ? conditions.join(' AND ') : '1=1'
+  const query = `SELECT * FROM dashboard_tasks WHERE ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   params.push(limit, offset)
 
   const rows = db.prepare(query).all(...params) as Array<Record<string, unknown>>
+
+  const countParams = params.slice(0, -2)
   const total = db.prepare(
-    'SELECT COUNT(*) as count FROM dashboard_tasks' +
-    (status ? ' WHERE status = ?' : '') +
-    (priority && status ? ' AND priority = ?' : priority ? ' WHERE priority = ?' : '')
-  ).get(...(status && priority ? [status, priority] : status ? [status] : priority ? [priority] : [])) as { count: number }
+    `SELECT COUNT(*) as count FROM dashboard_tasks WHERE ${whereClause}`
+  ).get(...countParams) as { count: number }
 
   return NextResponse.json({
     tasks: rows.map(rowToTask),

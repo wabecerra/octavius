@@ -21,10 +21,22 @@ export interface Task {
 
 interface TasksResponse { tasks: Task[]; total: number }
 
-export function useTasks(filter?: { status?: string; priority?: string }) {
+export function useTasks(filter?: {
+  status?: string
+  priority?: string
+  /** Sprint start date (YYYY-MM-DD). When combined with `until`, scopes to a sprint. */
+  since?: string
+  /** Sprint end date (YYYY-MM-DD). */
+  until?: string
+  /** Include open tasks from before `since` (sprint carry-over). */
+  includeOpen?: boolean
+}) {
   const qs = new URLSearchParams()
   if (filter?.status) qs.set('status', filter.status)
   if (filter?.priority) qs.set('priority', filter.priority)
+  if (filter?.since) qs.set('since', filter.since)
+  if (filter?.until) qs.set('until', filter.until)
+  if (filter?.includeOpen) qs.set('includeOpen', '1')
   qs.set('limit', '200')
   const { data, loading, error, mutate, refetch } = useApi<TasksResponse>(`/api/dashboard/tasks?${qs}`)
 

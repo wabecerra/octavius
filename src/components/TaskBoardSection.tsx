@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useTasks, Task, Quadrant } from '@/hooks'
+import type { Sprint } from '@/lib/sprint'
 import { KanbanBoard } from '@/components/ui/KanbanBoard'
 
 // ─── Shared Constants ───
@@ -28,12 +29,15 @@ function TaskModal({
   open,
   onOpenChange,
   editingTask,
+  onCreateTask,
+  onUpdateTask,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   editingTask?: Task
+  onCreateTask: (task: { title: string; description?: string; priority?: string; status?: string; quadrant?: string; project?: string; dueDate?: string }) => Promise<Task>
+  onUpdateTask: (id: string, updates: Partial<Task>) => Promise<Task>
 }) {
-  const { createTask, updateTask } = useTasks()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -64,7 +68,7 @@ function TaskModal({
     if (!title.trim()) return
     try {
       if (editingTask) {
-        await updateTask(editingTask.id, {
+        await onUpdateTask(editingTask.id, {
           title: title.trim(),
           description: description.trim() || undefined,
           priority,
@@ -73,7 +77,7 @@ function TaskModal({
           dueDate: dueDate || undefined,
         })
       } else {
-        await createTask({
+        await onCreateTask({
           title: title.trim(),
           description: description.trim() || undefined,
           priority,
@@ -232,12 +236,35 @@ function DeleteConfirmModal({
 
 // ─── Exported Task Board Section ───
 
-export function TaskBoardSection() {
-  const { tasks, updateTask, deleteTask } = useTasks()
+export function TaskBoardSection({ sprint }: { sprint: Sprint }) {
+  const { tasks, updateTask, deleteTask, createTask } = useTasks({
+    since: sprint.startDate,
+    until: sprint.endDate,
+    includeOpen: true,
+  })
 
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
+
+  // Count carried-over tasks (open tasks created before this sprint)
+  const carriedOverCount = useMemo(
+    () => tasks.filter((t) => !t.completed && t.createdAt < sprint.startDate).length,
+    [tasks, sprint.startDate],
+  )
+
+  // For the done column: only show tasks completed during this sprint
+  // (done tasks from before the sprint are excluded by the API unless they're still open)
+  const visibleTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      // Show all non-done tasks (backlog + in-progress, including carry-overs)
+      if (t.status !== 'done') return true
+      // For done tasks: show if created in this sprint OR completed in this sprint
+      if (t.createdAt >= sprint.startDate) return true
+      if (t.updatedAt && t.updatedAt >= sprint.startDate) return true
+      return false
+    })
+  }, [tasks, sprint.startDate])
 
   const handleMoveTask = async (taskId: string, newStatus: string) => {
     try {
@@ -257,7 +284,14 @@ export function TaskBoardSection() {
     <>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">Task Board</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)]">Sprint Board</h3>
+            {carriedOverCount > 0 && (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] text-[var(--color-warning)] border border-[color-mix(in_srgb,var(--color-warning)_30%,transparent)]">
+                {carriedOverCount} carried over
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={openCreate}
@@ -268,14 +302,21 @@ export function TaskBoardSection() {
         </div>
 
         <KanbanBoard
-          tasks={tasks}
+          tasks={visibleTasks}
+          sprintStart={sprint.startDate}
           onMoveTask={handleMoveTask}
           onEdit={openEdit}
           onDelete={(task) => setDeleteTarget(task)}
         />
       </div>
 
-      <TaskModal open={taskModalOpen} onOpenChange={setTaskModalOpen} editingTask={editingTask} />
+      <TaskModal
+        open={taskModalOpen}
+        onOpenChange={setTaskModalOpen}
+        editingTask={editingTask}
+        onCreateTask={createTask}
+        onUpdateTask={updateTask}
+      />
       <DeleteConfirmModal
         open={!!deleteTarget}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}

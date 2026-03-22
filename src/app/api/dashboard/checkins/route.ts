@@ -4,21 +4,23 @@ import { nanoid } from 'nanoid'
 
 /**
  * GET /api/dashboard/checkins — List check-ins
+ * Query params: since, until (YYYY-MM-DD), limit
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 500)
-  const since = url.searchParams.get('since') // ISO date
+  const since = url.searchParams.get('since') // ISO date or YYYY-MM-DD
+  const until = url.searchParams.get('until') // YYYY-MM-DD
 
   const db = getDatabase()
-  let query = 'SELECT * FROM dashboard_checkins'
+  const conditions: string[] = []
   const params: unknown[] = []
 
-  if (since) {
-    query += ' WHERE timestamp >= ?'
-    params.push(since)
-  }
+  if (since) { conditions.push('timestamp >= ?'); params.push(since) }
+  if (until) { conditions.push('date(timestamp) <= ?'); params.push(until) }
 
+  let query = 'SELECT * FROM dashboard_checkins'
+  if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ')
   query += ' ORDER BY timestamp DESC LIMIT ?'
   params.push(limit)
 
