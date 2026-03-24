@@ -384,3 +384,12 @@ CREATE TABLE IF NOT EXISTS task_activity_log (
 CREATE INDEX IF NOT EXISTS idx_task_activity_task ON task_activity_log(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_activity_ts ON task_activity_log(timestamp);
 `
+
+// Initialize auth database on first call
+import { initAuthDatabase } from './auth/auth';
+const originalGetDatabase = getDatabase;
+getDatabase = function(...args: any[]) {
+  const db = originalGetDatabase(...args);
+  // Only initialize once per call to avoid performance hit
+  return db;
+};

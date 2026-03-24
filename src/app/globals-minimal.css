@@ -1,0 +1,22 @@
+/* TEMPORARY FIX - CSS Variables Only - No Tailwind directives */
+:root, .dark {
+  --bg-primary: #12141a;
+  --bg-secondary: #181b22;
+  --bg-tertiary: #1a1d25;
+  --bg-hover: #262a35;
+  --text-primary: #eef0f4;
+  --text-secondary: #b0b6c3;
+  --text-tertiary: #8a91a0;
+  --border-primary: #252932;
+  --accent: #ff5c5c;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --quadrant-health: #34d399;
+  --quadrant-career: #60a5fa;
+  --quadrant-relationships: #f87171;
+  --quadrant-soul: #c084fc;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }

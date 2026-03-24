@@ -1,0 +1,133 @@
+/* OpenClaw Design System - Dark Theme */
+:root,
+.dark {
+  --bg-primary: #12141a;
+  --bg-secondary: #181b22;
+  --bg-tertiary: #1a1d25;
+  --bg-hover: #262a35;
+  --bg-active: #262a35;
+  --bg-elevated: #1a1d25;
+  --text-primary: #eef0f4;
+  --text-secondary: #b0b6c3;
+  --text-tertiary: #8a91a0;
+  --text-disabled: #3f3f46;
+  --text-strong: #fafafa;
+  --border-primary: #252932;
+  --border-secondary: #1a1d24;
+  --border-hover: #52525b;
+  --border-focus: #ff5c5c;
+  --accent: #ff5c5c;
+  --accent-hover: #ff7070;
+  --accent-muted: rgba(255, 92, 92, 0.15);
+  --accent-glow: rgba(255, 92, 92, 0.25);
+  --accent-2: #14b8a6;
+  --accent-2-muted: rgba(20, 184, 166, 0.15);
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  --quadrant-health: #34d399;
+  --quadrant-career: #60a5fa;
+  --quadrant-relationships: #f87171;
+  --quadrant-soul: #c084fc;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Basic layout utilities */
+.shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-rows: 64px 1fr;
+  min-height: 100vh;
+}
+
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.nav {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-right: 1px solid var(--border-primary);
+}
+
+.content {
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+/* Card utilities */
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+/* Button utilities */
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+/* Text utilities */
+.text-sm { font-size: 0.875rem; }
+.text-lg { font-size: 1.125rem; }
+.text-xl { font-size: 1.25rem; }
+.text-2xl { font-size: 1.5rem; }
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+
+/* Spacing utilities */
+.space-y-4 > * + * { margin-top: 1rem; }
+.space-y-6 > * + * { margin-top: 1.5rem; }
+.gap-4 { gap: 1rem; }
+
+/* Flex utilities */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+
+/* Grid utilities */
+.grid { display: grid; }
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+@media (min-width: 640px) {
+  .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sm\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

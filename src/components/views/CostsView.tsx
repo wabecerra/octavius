@@ -1,7 +1,9 @@
 'use client'
-
-import { CostDashboard } from '@/components/CostDashboard'
-
 export function CostsView() {
-  return <CostDashboard />
+  return (
+    <div style={{ padding: '2rem', textAlign: 'center', color: '#667eea' }}>
+      <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>💰 LLM Costs</h2>
+      <p>Track your AI spending and budgets</p>
+    </div>
+  )
 }
