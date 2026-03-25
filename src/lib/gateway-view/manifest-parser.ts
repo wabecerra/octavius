@@ -138,7 +138,7 @@ export function parseRoomManifest(json: string): ParseResult<RoomManifest> {
     version: hasVersion ? raw.version as number : undefined,
     rooms: rooms as RoomDef[],
     waypoints: waypoints as WaypointDef[],
-    walkGraph: isObject(raw.walkGraph) ? raw.walkGraph as RoomManifest['walkGraph'] : undefined,
+    walkGraph: isObject(raw.walkGraph) ? raw.walkGraph as unknown as RoomManifest['walkGraph'] : undefined,
     walkableZones: Array.isArray(raw.walkableZones) ? raw.walkableZones as RoomManifest['walkableZones'] : undefined,
     workZones: Array.isArray(raw.workZones) ? raw.workZones as RoomManifest['workZones'] : undefined,
     occluders: Array.isArray(raw.occluders) ? raw.occluders as RoomManifest['occluders'] : undefined,

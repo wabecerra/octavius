@@ -1,163 +1,68 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
+import { useEffect, useState, useCallback } from 'react'
 import { townEvents, type SeatStatus } from '@/lib/town/events'
 import { useFleet, useFleetConfigSync } from '@/lib/town/use-fleet'
-import { getFleetStore, type FleetAgent, type ActivityEntry } from '@/lib/town/fleet-store'
-
-const PhaserGame = dynamic(() => import('@/components/town/game/PhaserGame'), { ssr: false })
+import { getFleetStore, type FleetAgent } from '@/lib/town/fleet-store'
 
 // ── Constants ──
 
 const QUADRANT_COLORS: Record<string, string> = {
-  lifeforce: 'var(--quadrant-health)',
-  industry: 'var(--quadrant-career)',
-  fellowship: 'var(--quadrant-relationships)',
-  essence: 'var(--quadrant-soul)',
+  lifeforce: '#34d399',
+  industry: '#60a5fa',
+  fellowship: '#f87171',
+  essence: '#c084fc',
 }
 
-const STATUS_DOT: Record<SeatStatus, { color: string; pulse: boolean; label: string }> = {
-  empty: { color: 'var(--text-tertiary)', pulse: false, label: 'Idle' },
-  running: { color: 'var(--color-success)', pulse: true, label: 'Working' },
-  returning: { color: 'var(--color-warning)', pulse: true, label: 'Returning' },
-  done: { color: 'var(--color-success)', pulse: false, label: 'Done' },
-  failed: { color: 'var(--color-error)', pulse: false, label: 'Error' },
+const STATUS_CONFIG: Record<SeatStatus, { color: string; pulse: boolean; label: string }> = {
+  empty: { color: '#6b7280', pulse: false, label: 'Idle' },
+  running: { color: '#22c55e', pulse: true, label: 'Working' },
+  returning: { color: '#f59e0b', pulse: true, label: 'Returning' },
+  done: { color: '#22c55e', pulse: false, label: 'Done' },
+  failed: { color: '#ef4444', pulse: false, label: 'Error' },
 }
 
-// ── Fleet Status Bar ──
+// ── Room definitions ──
 
-function FleetBar({ agents, gatewayOk }: { agents: FleetAgent[]; gatewayOk: boolean }) {
-  const active = agents.filter(a => a.status === 'running').length
-  const generalists = agents.filter(a => a.role === 'generalist')
-  const specialists = agents.filter(a => a.role === 'specialist')
-
-  return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-lg border"
-      style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}>
-      <div className="flex items-center gap-1.5">
-        <div className={`w-1.5 h-1.5 rounded-full ${gatewayOk ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-        <span className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
-          {gatewayOk ? 'Gateway' : 'Offline'}
-        </span>
-      </div>
-      <div className="w-px h-3" style={{ background: 'var(--border-primary)' }} />
-      {generalists.map(a => {
-        const dot = STATUS_DOT[a.status]
-        return (
-          <div key={a.id} className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-            style={{ background: a.status === 'running' ? `${QUADRANT_COLORS[a.quadrant!]}15` : 'transparent' }}>
-            <span className="text-xs">{a.emoji}</span>
-            <div className={`w-1.5 h-1.5 rounded-full ${dot.pulse ? 'animate-pulse' : ''}`}
-              style={{ background: dot.color }} />
-          </div>
-        )
-      })}
-      <div className="w-px h-3" style={{ background: 'var(--border-primary)' }} />
-      <span className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
-        {specialists.filter(s => s.status === 'running').length}/{specialists.length} spec
-      </span>
-      <div className="flex-1" />
-      <span className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
-        {active} active
-      </span>
-    </div>
-  )
+interface Room {
+  id: string
+  label: string
+  icon: string
+  row: number
+  col: number
+  colSpan?: number
+  rowSpan?: number
+  color: string
+  agents: string[]
 }
 
-// ── Agent Pill (HUD overlay) ──
-
-function AgentPill({ agent }: { agent: FleetAgent }) {
-  const dot = STATUS_DOT[agent.status]
-  const color = agent.quadrant ? QUADRANT_COLORS[agent.quadrant] : 'var(--text-secondary)'
-  return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono pointer-events-auto"
-      style={{
-        background: 'rgba(18, 20, 26, 0.85)', backdropFilter: 'blur(8px)', color,
-        border: agent.status === 'running' ? `1px solid ${color}30` : '1px solid transparent',
-      }}>
-      <span>{agent.emoji}</span>
-      <span>{agent.label}</span>
-      <div className={`w-1.5 h-1.5 rounded-full ${dot.pulse ? 'animate-pulse' : ''}`} style={{ background: dot.color }} />
-      {agent.currentTask && <span className="max-w-[120px] truncate opacity-70">— {agent.currentTask}</span>}
-    </div>
-  )
-}
-
-// ── Activity Panel ──
-
-function ActivityPanel({ entries, visible, onClose }: { entries: ActivityEntry[]; visible: boolean; onClose: () => void }) {
-  if (!visible) return null
-  return (
-    <div className="absolute right-3 top-14 bottom-14 w-72 rounded-xl border overflow-hidden pointer-events-auto"
-      style={{ background: 'rgba(18, 20, 26, 0.92)', borderColor: 'var(--border-primary)', backdropFilter: 'blur(12px)', zIndex: 25 }}>
-      <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border-primary)' }}>
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>Activity</span>
-        </div>
-        <button onClick={onClose} className="text-xs" style={{ color: 'var(--text-tertiary)' }}>✕</button>
-      </div>
-      <div className="overflow-y-auto" style={{ maxHeight: 'calc(100% - 36px)' }}>
-        {entries.length === 0 ? (
-          <div className="px-3 py-8 text-center text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
-            Agents standing by
-          </div>
-        ) : entries.map(e => (
-          <div key={e.id} className="px-3 py-1.5 border-b flex items-start gap-1.5"
-            style={{ borderColor: 'var(--border-secondary)' }}>
-            <span className="text-[10px] font-mono shrink-0 mt-px" style={{ color: 'var(--text-tertiary)' }}>{e.ts.slice(11, 19)}</span>
-            <span className="text-[10px]">{e.emoji}</span>
-            <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{e.message}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Seat-to-agent mapping ──
-
-const SEAT_TO_QUADRANT: Record<number, string> = { 0: 'lifeforce', 1: 'industry', 2: 'fellowship', 3: 'essence' }
-const QUADRANT_TO_AGENT: Record<string, string> = {
-  lifeforce: 'gen-lifeforce', industry: 'gen-industry', fellowship: 'gen-fellowship', essence: 'gen-essence',
-}
-// Room labels for display (matches NerveScene WORKER_HOME_ROOMS order)
-const SEAT_TO_ROOM_LABEL: Record<number, string> = { 0: 'Vault', 1: 'Forge', 2: 'Dispatch', 3: 'Workshop' }
-
-function resolveAgentForSeat(seatId: string, agents: FleetAgent[]): { agentId: string; quadrant: string } | null {
-  // Direct match on agent id
-  const direct = agents.find(a => a.id === seatId)
-  if (direct) return { agentId: direct.id, quadrant: direct.quadrant ?? 'industry' }
-  // Match on seatId field
-  const bySeat = agents.find(a => a.seatId === seatId)
-  if (bySeat) return { agentId: bySeat.id, quadrant: bySeat.quadrant ?? 'industry' }
-  // Parse seat-N index
-  const match = seatId.match(/seat-(\d+)/)
-  if (match) {
-    const idx = parseInt(match[1], 10)
-    const q = SEAT_TO_QUADRANT[idx]
-    if (q) return { agentId: QUADRANT_TO_AGENT[q], quadrant: q }
-  }
-  return null
-}
+const ROOMS: Room[] = [
+  { id: 'hub', label: 'Command Hub', icon: '⚡', row: 1, col: 1, colSpan: 2, color: '#ff5c5c', agents: [] },
+  { id: 'vault', label: 'Memory Vault', icon: '🧠', row: 0, col: 0, color: '#34d399', agents: ['gen-lifeforce'] },
+  { id: 'forge', label: 'Task Forge', icon: '🔨', row: 0, col: 1, color: '#60a5fa', agents: ['gen-industry'] },
+  { id: 'library', label: 'Writing Room', icon: '✍️', row: 0, col: 2, color: '#a78bfa', agents: ['specialist-writing', 'specialist-marketing'] },
+  { id: 'lab', label: 'Research Lab', icon: '🔬', row: 0, col: 3, color: '#818cf8', agents: ['specialist-research'] },
+  { id: 'dispatch', label: 'Dispatch Bay', icon: '📡', row: 1, col: 0, color: '#f87171', agents: ['gen-fellowship'] },
+  { id: 'engine', label: 'Engine Room', icon: '⚙️', row: 1, col: 3, color: '#fb923c', agents: ['specialist-engineering'] },
+  { id: 'workshop', label: 'Soul Workshop', icon: '🧘', row: 2, col: 0, color: '#c084fc', agents: ['gen-essence'] },
+  { id: 'studio', label: 'Media Studio', icon: '🎬', row: 2, col: 1, colSpan: 2, color: '#f472b6', agents: ['specialist-video', 'specialist-image'] },
+  { id: 'breakroom', label: 'Break Room', icon: '☕', row: 2, col: 3, color: '#a3a3a3', agents: [] },
+]
 
 // ── Task Assignment Modal ──
 
-function TaskAssignModal({ seatId, agents, onClose }: { seatId: string; agents: FleetAgent[]; onClose: () => void }) {
+function TaskAssignModal({ agentId, agents, onClose }: { agentId: string; agents: FleetAgent[]; onClose: () => void }) {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const resolved = resolveAgentForSeat(seatId, agents)
-  const agent = agents.find(a => a.id === (resolved?.agentId ?? seatId))
+  const agent = agents.find(a => a.id === agentId)
 
   const handleSubmit = async () => {
-    if (!message.trim() || !resolved) return
+    if (!message.trim() || !agent) return
     setSending(true)
     setError(null)
 
     try {
-      // 1. Create the task in SQLite → shows on kanban board
       const taskRes = await fetch('/api/dashboard/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -166,42 +71,33 @@ function TaskAssignModal({ seatId, agents, onClose }: { seatId: string; agents: 
           description: message.trim(),
           priority: 'medium',
           status: 'in-progress',
-          quadrant: resolved.quadrant,
+          quadrant: agent.quadrant,
         }),
       })
       if (!taskRes.ok) throw new Error(`Failed to create task: ${taskRes.status}`)
       const task = await taskRes.json()
 
-      // 2. Update fleet store with taskId (for kanban sync on complete/fail)
       const store = getFleetStore()
-      store.assignTask(resolved.agentId, task.id, message.trim())
-
-      // 3. Emit town event so the pixel worker starts animating
-      townEvents.emit('task-assigned', seatId, message.trim())
-
-      // 4. Close modal immediately — dispatch runs async
-      townEvents.emit('terminal-closed')
+      store.assignTask(agentId, task.id, message.trim())
+      townEvents.emit('task-assigned', agentId, message.trim())
       onClose()
 
-      // 5. Dispatch to the agent
       try {
         const dispatchRes = await fetch('/api/agents/dispatch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ taskId: task.id, agentId: resolved.agentId }),
+          body: JSON.stringify({ taskId: task.id, agentId }),
         })
         if (dispatchRes.ok) {
-          // Fleet store handles kanban PATCH to 'done'
-          store.completeTask(resolved.agentId)
-          townEvents.emit('task-completed', seatId)
+          store.completeTask(agentId)
+          townEvents.emit('task-completed', agentId)
         } else {
-          // Fleet store handles kanban PATCH back to 'backlog'
-          store.failTask(resolved.agentId)
-          townEvents.emit('task-failed', seatId)
+          store.failTask(agentId)
+          townEvents.emit('task-failed', agentId)
         }
       } catch {
-        store.failTask(resolved.agentId)
-        townEvents.emit('task-failed', seatId)
+        store.failTask(agentId)
+        townEvents.emit('task-failed', agentId)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to assign task')
@@ -211,43 +107,41 @@ function TaskAssignModal({ seatId, agents, onClose }: { seatId: string; agents: 
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() }
-    if (e.key === 'Escape') { townEvents.emit('terminal-closed'); onClose() }
+    if (e.key === 'Escape') onClose()
   }
 
+  if (!agent) return null
+  const qColor = agent.quadrant ? QUADRANT_COLORS[agent.quadrant] : 'var(--accent)'
+
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto" style={{ zIndex: 35 }}>
-      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }}
-        onClick={() => { townEvents.emit('terminal-closed'); onClose() }} />
-      <div className="relative rounded-xl border p-4 w-96 max-w-[90vw]"
-        style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', boxShadow: 'var(--shadow-xl)' }}>
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">{agent?.emoji ?? '⚡'}</span>
+    <div className="nc-modal-overlay" onClick={onClose}>
+      <div className="nc-modal" onClick={e => e.stopPropagation()}>
+        <div className="nc-modal-head">
+          <span style={{ fontSize: 28 }}>{agent.emoji}</span>
           <div>
-            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              Assign task to {agent?.label ?? seatId}
-            </span>
-            {resolved && (
-              <div className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
-                {resolved.agentId} · {resolved.quadrant} quadrant
-              </div>
-            )}
+            <div className="nc-modal-title">Assign task to {agent.label}</div>
+            <div className="nc-modal-sub">{agentId}</div>
           </div>
         </div>
-        <textarea autoFocus value={message} onChange={e => setMessage(e.target.value)} onKeyDown={handleKeyDown}
-          placeholder="Describe the task..." rows={3}
-          className="w-full rounded-lg border px-3 py-2 text-sm resize-none"
-          style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)', outline: 'none' }} />
-        {error && (
-          <div className="mt-2 text-xs px-2 py-1 rounded" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--color-error)' }}>
-            {error}
-          </div>
-        )}
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>Enter to send · Esc to cancel</span>
-          <button onClick={handleSubmit} disabled={!message.trim() || sending || !resolved}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#fff' }}>
-            {sending ? 'Sending...' : 'Assign'}
+        <textarea
+          autoFocus
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Describe the task..."
+          rows={3}
+          className="nc-modal-input"
+        />
+        {error && <div className="nc-modal-error">{error}</div>}
+        <div className="nc-modal-foot">
+          <span className="nc-hint">Enter to send</span>
+          <button
+            onClick={handleSubmit}
+            disabled={!message.trim() || sending}
+            className="nc-modal-btn"
+            style={{ background: qColor }}
+          >
+            {sending ? 'Dispatching...' : 'Assign Task'}
           </button>
         </div>
       </div>
@@ -258,17 +152,12 @@ function TaskAssignModal({ seatId, agents, onClose }: { seatId: string; agents: 
 // ── Main View ──
 
 export function NerveCenterView() {
-  // Read from persistent fleet store (survives tab switches)
   const { agents, activity } = useFleet()
   useFleetConfigSync()
 
   const [gatewayOk, setGatewayOk] = useState(false)
-  const [gameReady, setGameReady] = useState(false)
-  const [showActivity, setShowActivity] = useState(false)
-  const [showFleet, setShowFleet] = useState(true)
-  const [taskModalSeatId, setTaskModalSeatId] = useState<string | null>(null)
+  const [taskModalAgent, setTaskModalAgent] = useState<string | null>(null)
 
-  // Gateway health polling
   useEffect(() => {
     const check = async () => {
       try { const r = await fetch('/api/gateway/health'); setGatewayOk(r.ok) } catch { setGatewayOk(false) }
@@ -278,92 +167,553 @@ export function NerveCenterView() {
     return () => clearInterval(iv)
   }, [])
 
-  // Game events (only the ones that need local UI state)
-  useEffect(() => {
-    const unsub1 = townEvents.on('seats-discovered', () => setGameReady(true))
-    const unsub2 = townEvents.on('open-terminal', (seatId) => { if (seatId) setTaskModalSeatId(seatId) })
-    return () => { unsub1(); unsub2() }
+  const openTerminal = useCallback((agentId: string) => {
+    setTaskModalAgent(agentId)
   }, [])
 
-  const generalists = agents.filter(a => a.role === 'generalist')
-  const specialists = agents.filter(a => a.role === 'specialist')
+  const active = agents.filter(a => a.status === 'running').length
+  const completed = agents.reduce((sum, a) => sum + a.tasksCompleted, 0)
 
   return (
-    <div className="space-y-3">
-      <FleetBar agents={agents} gatewayOk={gatewayOk} />
-
-      <div className="relative rounded-xl overflow-hidden border"
-        style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)', height: 'calc(100vh - 260px)', minHeight: '480px' }}>
-
-        <div className="absolute inset-0"><PhaserGame /></div>
-
-        {/* HUD overlay */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
-          <div className="flex items-center gap-1.5 p-2 flex-wrap">
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono pointer-events-auto"
-              style={{ background: 'rgba(18, 20, 26, 0.85)', color: 'var(--accent)', backdropFilter: 'blur(8px)' }}>
-              ⚡ Octavius
-            </div>
-            {generalists.map(a => <AgentPill key={a.id} agent={a} />)}
-            {specialists.filter(s => s.status === 'running').map(s => <AgentPill key={s.id} agent={s} />)}
-          </div>
-
-          <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-mono pointer-events-auto"
-              style={{ background: 'rgba(18, 20, 26, 0.85)', color: 'var(--text-tertiary)', backdropFilter: 'blur(8px)' }}>
-              <span>WASD move</span><span>•</span><span>E interact</span><span>•</span><span>Scroll zoom</span>
-            </div>
-            <div className="flex items-center gap-1.5 pointer-events-auto">
-              <button onClick={() => setShowFleet(v => !v)}
-                className="px-2.5 py-1 rounded-full text-[10px] font-mono transition-colors"
-                style={{ background: showFleet ? 'rgba(255,92,92,0.2)' : 'rgba(18,20,26,0.85)', color: showFleet ? 'var(--accent)' : 'var(--text-tertiary)', backdropFilter: 'blur(8px)' }}>
-                Fleet
-              </button>
-              <button onClick={() => setShowActivity(v => !v)}
-                className="px-2.5 py-1 rounded-full text-[10px] font-mono transition-colors"
-                style={{ background: showActivity ? 'rgba(255,92,92,0.2)' : 'rgba(18,20,26,0.85)', color: showActivity ? 'var(--accent)' : 'var(--text-tertiary)', backdropFilter: 'blur(8px)' }}>
-                Activity {activity.length > 0 && `(${activity.length})`}
-              </button>
-            </div>
+    <div className="nc-root">
+      {/* ── Layout: Map + Sidebar ── */}
+      <div className="nc-layout">
+        {/* ── Room Map ── */}
+        <div className="nc-map">
+          <div className="nc-map-grid">
+            {ROOMS.map(room => {
+              const roomAgents = agents.filter(a => room.agents.includes(a.id))
+              const anyRunning = roomAgents.some(a => a.status === 'running')
+              return (
+                <div
+                  key={room.id}
+                  className={`nc-room ${anyRunning ? 'nc-room-active' : ''}`}
+                  style={{
+                    gridRow: `${room.row + 1} / span ${room.rowSpan || 1}`,
+                    gridColumn: `${room.col + 1} / span ${room.colSpan || 1}`,
+                    '--rc': room.color,
+                  } as React.CSSProperties}
+                >
+                  <div className="nc-room-head">
+                    <span className="nc-room-icon">{room.icon}</span>
+                    <span className="nc-room-name">{room.label}</span>
+                    {anyRunning && <span className="nc-room-pulse" />}
+                  </div>
+                  <div className="nc-room-agents">
+                    {roomAgents.map(agent => {
+                      const cfg = STATUS_CONFIG[agent.status]
+                      return (
+                        <button
+                          key={agent.id}
+                          className="nc-agent"
+                          onClick={() => openTerminal(agent.id)}
+                          title={agent.currentTask || cfg.label}
+                        >
+                          <span className="nc-agent-emoji">{agent.emoji}</span>
+                          <span className="nc-agent-label">{agent.label}</span>
+                          <span
+                            className={`nc-dot ${cfg.pulse ? 'nc-dot-pulse' : ''}`}
+                            style={{ background: cfg.color }}
+                          />
+                          {agent.currentTask && (
+                            <span className="nc-agent-task">{agent.currentTask}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                    {roomAgents.length === 0 && room.id !== 'hub' && room.id !== 'breakroom' && (
+                      <div className="nc-room-standby">standby</div>
+                    )}
+                    {room.id === 'hub' && (
+                      <div className="nc-hub-status">
+                        <div className="nc-hub-line">
+                          <span className={`nc-dot ${gatewayOk ? 'nc-dot-ok' : 'nc-dot-err'}`} />
+                          <span>{gatewayOk ? 'Gateway Online' : 'Gateway Offline'}</span>
+                        </div>
+                        <div className="nc-hub-line">
+                          <span className="nc-hub-num">{active}</span>/{agents.length} agents active
+                        </div>
+                        <div className="nc-hub-line">
+                          <span className="nc-hub-num">{completed}</span> tasks completed
+                        </div>
+                      </div>
+                    )}
+                    {room.id === 'breakroom' && (
+                      <div className="nc-room-standby">All quiet</div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        <ActivityPanel entries={activity} visible={showActivity} onClose={() => setShowActivity(false)} />
-        {taskModalSeatId && <TaskAssignModal seatId={taskModalSeatId} agents={agents} onClose={() => setTaskModalSeatId(null)} />}
+        {/* ── Sidebar: Room Routing + Activity ── */}
+        <div className="nc-sidebar">
+          <div className="nc-sidebar-section">
+            <div className="nc-sidebar-title">ROOM ROUTING</div>
+            {ROOMS.map(room => {
+              const roomAgents = agents.filter(a => room.agents.includes(a.id))
+              const anyRunning = roomAgents.some(a => a.status === 'running')
+              const agentCount = roomAgents.length
+              return (
+                <div key={room.id} className="nc-route-row">
+                  <span className={`nc-dot ${anyRunning ? 'nc-dot-pulse' : ''}`}
+                    style={{ background: anyRunning ? room.color : '#6b7280' }}
+                  />
+                  <span className="nc-route-name" style={{ color: room.color }}>{room.label}</span>
+                  <span className="nc-route-status">{anyRunning ? 'ACTIVE' : 'IDLE'}</span>
+                  <span className="nc-route-count">{agentCount}</span>
+                </div>
+              )
+            })}
+          </div>
 
-        {!gameReady && (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(18,20,26,0.95)', zIndex: 30 }}>
-            <div className="text-center">
-              <div className="text-3xl mb-2 animate-pulse">⚡</div>
-              <div className="text-xs font-mono" style={{ color: 'var(--accent)' }}>Loading Nerve Center...</div>
+          <div className="nc-sidebar-section nc-sidebar-activity">
+            <div className="nc-sidebar-title">LIVE ACTIVITY</div>
+            <div className="nc-activity-list">
+              {activity.length === 0 ? (
+                <div className="nc-activity-empty">All agents standing by</div>
+              ) : activity.slice(0, 30).map(e => (
+                <div key={e.id} className="nc-activity-row">
+                  <span className="nc-activity-ts">{e.ts.slice(11, 19)}</span>
+                  <span className="nc-activity-emoji">{e.emoji}</span>
+                  <span className="nc-activity-msg">{e.message}</span>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {showFleet && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2">
-          {agents.map(a => {
-            const dot = STATUS_DOT[a.status]
-            const color = a.quadrant ? QUADRANT_COLORS[a.quadrant] : 'var(--text-secondary)'
-            return (
-              <div key={a.id} className="rounded-lg border px-2.5 py-2 transition-all"
-                style={{ background: a.status === 'running' ? `${color}08` : 'var(--bg-secondary)', borderColor: a.status === 'running' ? `${color}30` : 'var(--border-primary)' }}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-sm">{a.emoji}</span>
-                  <span className="text-[10px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>{a.label}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className={`w-1 h-1 rounded-full ${dot.pulse ? 'animate-pulse' : ''}`} style={{ background: dot.color }} />
-                  <span className="text-[9px] font-mono" style={{ color: 'var(--text-tertiary)' }}>{dot.label}</span>
-                  {a.tasksCompleted > 0 && <span className="text-[9px] font-mono ml-auto" style={{ color: 'var(--text-tertiary)' }}>×{a.tasksCompleted}</span>}
-                </div>
-                {a.currentTask && <div className="text-[9px] font-mono mt-1 truncate" style={{ color: 'var(--text-tertiary)' }}>{a.currentTask}</div>}
-              </div>
-            )
-          })}
+      {/* ── Stats bar ── */}
+      <div className="nc-stats">
+        <div className="nc-stat">
+          <span className="nc-stat-num">{agents.length}</span>
+          <span className="nc-stat-label">AGENTS</span>
         </div>
+        <div className="nc-stat">
+          <span className="nc-stat-num">{active}</span>
+          <span className="nc-stat-label">LIVE</span>
+        </div>
+        <div className="nc-stat">
+          <span className="nc-stat-num">{completed}</span>
+          <span className="nc-stat-label">DONE</span>
+        </div>
+        <div className="nc-stat-sep" />
+        {agents.filter(a => a.status === 'running').map(a => (
+          <div key={a.id} className="nc-stat-running">
+            <span>{a.emoji}</span>
+            <span>{a.label}</span>
+            <span className="nc-dot nc-dot-pulse" style={{ background: '#22c55e' }} />
+          </div>
+        ))}
+        {active === 0 && <span className="nc-stat-idle">All agents idle</span>}
+      </div>
+
+      {/* ── Task assign modal ── */}
+      {taskModalAgent && (
+        <TaskAssignModal
+          agentId={taskModalAgent}
+          agents={agents}
+          onClose={() => setTaskModalAgent(null)}
+        />
       )}
+
+      <style jsx>{`
+        .nc-root {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        }
+
+        /* ── Layout ── */
+        .nc-layout {
+          display: flex;
+          gap: 12px;
+          min-height: calc(100vh - 260px);
+        }
+
+        /* ── Map ── */
+        .nc-map {
+          flex: 1;
+          background: var(--nerve-bg, #0f1117);
+          border: 1px solid var(--nerve-border, #1e2231);
+          border-radius: 12px;
+          padding: 16px;
+          overflow: hidden;
+        }
+        .nc-map-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          grid-template-rows: repeat(3, 1fr);
+          gap: 10px;
+          height: 100%;
+        }
+
+        /* ── Room ── */
+        .nc-room {
+          background: var(--nerve-room-bg, #161922);
+          border: 1px solid var(--nerve-room-border, #252a3a);
+          border-radius: 10px;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          transition: border-color 0.3s, box-shadow 0.3s;
+          cursor: default;
+          overflow: hidden;
+        }
+        .nc-room:hover {
+          border-color: var(--rc);
+          box-shadow: 0 0 20px color-mix(in srgb, var(--rc) 15%, transparent);
+        }
+        .nc-room-active {
+          border-color: var(--rc) !important;
+          box-shadow: 0 0 24px color-mix(in srgb, var(--rc) 20%, transparent),
+                      inset 0 0 30px color-mix(in srgb, var(--rc) 5%, transparent);
+        }
+        .nc-room-head {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .nc-room-icon {
+          font-size: 18px;
+        }
+        .nc-room-name {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--rc);
+        }
+        .nc-room-pulse {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #22c55e;
+          margin-left: auto;
+          animation: ncPulse 2s ease-in-out infinite;
+        }
+        .nc-room-agents {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+        }
+        .nc-room-standby {
+          font-size: 10px;
+          color: #4a5568;
+          font-style: italic;
+        }
+
+        /* ── Hub status ── */
+        .nc-hub-status {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: 4px;
+        }
+        .nc-hub-line {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: #8a91a0;
+        }
+        .nc-hub-num {
+          font-weight: 700;
+          color: #e2e8f0;
+          font-size: 14px;
+        }
+
+        /* ── Agent chip ── */
+        .nc-agent {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 8px;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: left;
+          color: #e2e8f0;
+          font-size: 11px;
+        }
+        .nc-agent:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(255, 255, 255, 0.12);
+        }
+        .nc-agent-emoji {
+          font-size: 14px;
+        }
+        .nc-agent-label {
+          font-weight: 500;
+          white-space: nowrap;
+        }
+        .nc-agent-task {
+          font-size: 9px;
+          color: #6b7280;
+          max-width: 100px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          margin-left: auto;
+        }
+
+        /* ── Dots ── */
+        .nc-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .nc-dot-pulse {
+          animation: ncPulse 2s ease-in-out infinite;
+        }
+        .nc-dot-ok { background: #22c55e; }
+        .nc-dot-err { background: #ef4444; }
+
+        /* ── Sidebar ── */
+        .nc-sidebar {
+          width: 260px;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .nc-sidebar-section {
+          background: var(--nerve-bg, #0f1117);
+          border: 1px solid var(--nerve-border, #1e2231);
+          border-radius: 12px;
+          padding: 12px;
+        }
+        .nc-sidebar-activity {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        .nc-sidebar-title {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: #6b7280;
+          margin-bottom: 10px;
+        }
+
+        /* ── Route rows ── */
+        .nc-route-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 5px 0;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .nc-route-row:last-child { border-bottom: none; }
+        .nc-route-name {
+          font-size: 11px;
+          font-weight: 600;
+          flex: 1;
+        }
+        .nc-route-status {
+          font-size: 9px;
+          color: #6b7280;
+        }
+        .nc-route-count {
+          font-size: 11px;
+          font-weight: 700;
+          color: #e2e8f0;
+          min-width: 20px;
+          text-align: right;
+        }
+
+        /* ── Activity ── */
+        .nc-activity-list {
+          flex: 1;
+          overflow-y: auto;
+          min-height: 0;
+        }
+        .nc-activity-empty {
+          color: #4a5568;
+          font-size: 10px;
+          text-align: center;
+          padding: 20px 0;
+        }
+        .nc-activity-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 6px;
+          padding: 4px 0;
+          border-bottom: 1px solid rgba(255,255,255,0.03);
+          font-size: 10px;
+        }
+        .nc-activity-ts {
+          color: #4a5568;
+          flex-shrink: 0;
+        }
+        .nc-activity-emoji {
+          flex-shrink: 0;
+        }
+        .nc-activity-msg {
+          color: #8a91a0;
+          line-height: 1.3;
+        }
+
+        /* ── Stats bar ── */
+        .nc-stats {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 10px 16px;
+          background: var(--nerve-bg, #0f1117);
+          border: 1px solid var(--nerve-border, #1e2231);
+          border-radius: 12px;
+        }
+        .nc-stat {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .nc-stat-num {
+          font-size: 18px;
+          font-weight: 800;
+          color: #e2e8f0;
+          line-height: 1;
+        }
+        .nc-stat-label {
+          font-size: 8px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+        .nc-stat-sep {
+          width: 1px;
+          height: 28px;
+          background: #1e2231;
+        }
+        .nc-stat-running {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          border-radius: 20px;
+          background: rgba(34, 197, 94, 0.08);
+          border: 1px solid rgba(34, 197, 94, 0.15);
+          font-size: 10px;
+          color: #a3e635;
+        }
+        .nc-stat-idle {
+          font-size: 10px;
+          color: #4a5568;
+          font-style: italic;
+        }
+
+        /* ── Modal ── */
+        .nc-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 50;
+        }
+        .nc-modal {
+          width: 420px;
+          max-width: 90vw;
+          background: #1a1d27;
+          border: 1px solid #252a3a;
+          border-radius: 12px;
+          padding: 20px;
+          box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        .nc-modal-head {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        .nc-modal-title {
+          font-size: 15px;
+          font-weight: 700;
+          color: #e2e8f0;
+        }
+        .nc-modal-sub {
+          font-size: 10px;
+          color: #6b7280;
+        }
+        .nc-modal-input {
+          width: 100%;
+          padding: 10px 12px;
+          background: #0f1117;
+          border: 1px solid #252a3a;
+          border-radius: 8px;
+          color: #e2e8f0;
+          font-size: 13px;
+          font-family: inherit;
+          resize: none;
+          outline: none;
+          box-sizing: border-box;
+        }
+        .nc-modal-input:focus {
+          border-color: var(--accent, #ff5c5c);
+        }
+        .nc-modal-error {
+          margin-top: 8px;
+          padding: 6px 8px;
+          background: rgba(239, 68, 68, 0.1);
+          border-radius: 6px;
+          color: #f87171;
+          font-size: 12px;
+        }
+        .nc-modal-foot {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 12px;
+        }
+        .nc-hint {
+          font-size: 10px;
+          color: #4a5568;
+        }
+        .nc-modal-btn {
+          padding: 7px 18px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #fff;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+        }
+        .nc-modal-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+
+        @keyframes ncPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+          .nc-layout { flex-direction: column; }
+          .nc-sidebar { width: 100%; flex-direction: row; }
+          .nc-sidebar-section { flex: 1; }
+          .nc-map-grid {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: auto;
+          }
+          .nc-room { grid-column: auto !important; grid-row: auto !important; }
+        }
+      `}</style>
     </div>
   )
 }

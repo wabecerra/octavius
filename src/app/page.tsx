@@ -16,7 +16,7 @@ import { CostsView } from '@/components/views/CostsView'
 import { SettingsView } from '@/components/views/SettingsView'
 import { NerveCenterView } from '@/components/views/NerveCenterView'
 import { GatewayView } from '@/components/gateway/GatewayView'
-import { useTasks, useCheckins, useJournal, useConnections, useProfile, useFocusGoals, useSprint } from '@/hooks'
+import { useTasks, useCheckins, useJournal, useConnections, useProfile, useFocusGoals, useSprint, useAuth } from '@/hooks'
 import { computeBalanceScore } from '@/lib/balance-score'
 import { shouldShowSprintReview } from '@/lib/weekly-review'
 import { useGatewayInit } from '@/lib/gateway/use-gateway'
@@ -72,10 +72,18 @@ const COMMAND_PALETTE_ITEMS: CommandPaletteItem[] = [
 // ─── Main Dashboard Component ───
 
 export default function Dashboard() {
+  const { user, loading: authLoading, logout } = useAuth()
   const [activeView, setActiveView] = useState<ViewKey>('dashboard')
   const [navCollapsed, setNavCollapsed] = useState(false)
   const [now, setNow] = useState<Date | null>(null)
   const [mounted, setMounted] = useState(false)
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      window.location.href = '/login'
+    }
+  }, [authLoading, user])
 
   // Sprint navigation (must come before data hooks so they can use sprint bounds)
   const { sprint, isCurrent: isCurrentSprintActive, goBack, goForward, goToday } = useSprint()
@@ -274,6 +282,26 @@ export default function Dashboard() {
     }
   }
 
+  // Show nothing while checking auth (prevents flash)
+  if (authLoading || !user) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary, #12141a)',
+        color: 'var(--text-tertiary, #8a91a0)',
+        fontFamily: 'system-ui, sans-serif',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem', animation: 'pulse 2s infinite' }}>⚡</div>
+          <div style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>Loading Octavius...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <Shell
@@ -287,6 +315,8 @@ export default function Dashboard() {
         greeting={greeting}
         profileName={profile.name}
         dateStr={dateStr}
+        onLogout={logout}
+        userEmail={user?.email}
       >
         {renderContent()}
       </Shell>

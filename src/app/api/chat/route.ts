@@ -6,6 +6,12 @@ import { logGatewayChat } from '@/lib/llm-cost/tracker'
 const execAsync = promisify(exec)
 const OPENCLAW_PATH = process.env.OPENCLAW_PATH || 'openclaw'
 
+/** Strip ANSI escape codes from CLI output */
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;]*m/g, '')
+}
+
 /**
  * POST /api/chat — Send a message through the OpenClaw agent via CLI.
  * Automatically logs the LLM call to the cost tracker.
@@ -34,8 +40,9 @@ export async function POST(request: Request) {
       console.log('[Chat API] Stderr:', stderr.slice(0, 200))
     }
     
-    // Parse the JSON response from the CLI
-    const result = JSON.parse(stdout.trim())
+    // Strip ANSI codes and parse the JSON response from the CLI
+    const cleanOutput = stripAnsi(stdout.trim())
+    const result = JSON.parse(cleanOutput)
     
     if (result.status !== 'ok') {
       throw new Error(`Agent failed: ${result.summary || 'unknown error'}`)
@@ -88,7 +95,7 @@ export async function POST(request: Request) {
     // Try to parse partial JSON response if available
     if (error.stdout) {
       try {
-        const partialResult = JSON.parse(error.stdout)
+        const partialResult = JSON.parse(stripAnsi(error.stdout))
         if (partialResult.result?.payloads?.[0]?.text) {
           return NextResponse.json({
             response: partialResult.result.payloads[0].text,

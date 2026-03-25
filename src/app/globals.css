@@ -218,6 +218,22 @@ body {
   gap: 12px;
 }
 
+.topbar-logout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  cursor: pointer;
+  transition: all 150ms;
+}
+.topbar-logout:hover {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
 /* Brand */
 .brand {
   display: flex;

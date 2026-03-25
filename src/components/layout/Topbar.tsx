@@ -8,9 +8,11 @@ interface TopbarProps {
   gatewayStatus: string
   timeStr: string
   compoundPhase: string
+  onLogout?: () => void
+  userEmail?: string
 }
 
-export function Topbar({ navCollapsed, setNavCollapsed, gatewayStatus, timeStr, compoundPhase }: TopbarProps) {
+export function Topbar({ navCollapsed, setNavCollapsed, gatewayStatus, timeStr, compoundPhase, onLogout, userEmail }: TopbarProps) {
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -45,6 +47,22 @@ export function Topbar({ navCollapsed, setNavCollapsed, gatewayStatus, timeStr, 
           <span className="text-xs text-[var(--accent)]">{compoundPhase} phase</span>
         </div>
         <ThemeToggle />
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="topbar-logout"
+            title={userEmail ? `Signed in as ${userEmail}` : 'Sign out'}
+          >
+            <span className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+              {userEmail ? userEmail.split('@')[0] : 'User'}
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-tertiary)' }}>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        )}
       </div>
     </header>
   )

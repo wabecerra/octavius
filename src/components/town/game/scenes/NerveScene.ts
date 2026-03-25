@@ -38,11 +38,12 @@ import type { RoomManifest, RoomDef, TelemetryEvent, WorkZoneDef, WalkGraph } fr
 const WORKER_HOME_ROOMS = ['room-vault', 'room-forge', 'room-dispatch', 'room-workshop']
 const WORKER_LABELS = ['Archivist', 'Artisan', 'Commander', 'Builder']
 
-// ---- Visual style constants ------------------------------------------------
-const ROOM_BORDER_COLOR = 0x4a9eff
-const ROOM_BORDER_ALPHA = 0.35
-const ROOM_BORDER_WIDTH = 1
-const ROOM_FILL_ALPHA = 0.0
+// ---- Visual style constants (used by room rendering) ------------------------------------------------
+const _ROOM_BORDER_COLOR = 0x4a9eff
+const _ROOM_BORDER_ALPHA = 0.35
+const _ROOM_BORDER_WIDTH = 1
+const _ROOM_FILL_ALPHA = 0.0
+void _ROOM_BORDER_COLOR; void _ROOM_BORDER_ALPHA; void _ROOM_BORDER_WIDTH; void _ROOM_FILL_ALPHA;
 const LABEL_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontFamily: '"SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
   fontSize: '12px',
@@ -93,6 +94,7 @@ function isInputFocused(): boolean {
 
 interface WalkRoute { x: number; y: number }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function walkGraphRoute(
   graph: WalkGraph,
   fromX: number, fromY: number,

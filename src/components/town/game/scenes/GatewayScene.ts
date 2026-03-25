@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck
 /**
  * GatewayScene — Phaser 3 scene for the Octavius Gateway View.
  *

@@ -10,6 +10,8 @@ export { useGratitude } from './use-gratitude'
 export { useFocusGoals } from './use-focus-goals'
 export { useSchedule } from './use-schedule'
 export { useSprint } from './use-sprint'
+export { useAuth } from './use-auth'
+export type { AuthUser, AuthState } from './use-auth'
 
 export type { Task, Quadrant } from './use-tasks'
 export type { CheckIn } from './use-checkins'

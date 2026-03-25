@@ -7,6 +7,12 @@ import { logGatewayChat } from '@/lib/llm-cost/tracker'
 const execAsync = promisify(exec)
 const OPENCLAW_PATH = process.env.OPENCLAW_PATH || 'openclaw'
 
+/** Strip ANSI escape codes from CLI output */
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;]*m/g, '')
+}
+
 /**
  * POST /api/agents/dispatch — Dispatch a task to an agent via OpenClaw CLI.
  *
@@ -65,8 +71,8 @@ export async function POST(request: Request) {
       console.log('[dispatch] Stderr:', stderr.slice(0, 300))
     }
 
-    // Parse the JSON response
-    const result = JSON.parse(stdout.trim())
+    // Strip ANSI codes and parse the JSON response
+    const result = JSON.parse(stripAnsi(stdout.trim()))
 
     if (result.status !== 'ok') {
       throw new Error(`Agent failed: ${result.summary || 'unknown error'}`)
@@ -92,6 +98,21 @@ export async function POST(request: Request) {
     db.prepare(
       'UPDATE dashboard_tasks SET status = ?, description = ?, updated_at = ? WHERE id = ?',
     ).run(newStatus, updatedDesc, now, taskId)
+
+    // Check for specialist spawn request — cascade via agent-spawner
+    const spawnMatch = responseText.match(/SPAWN_SPECIALIST:\s*(\S+)\nINSTRUCTION:\s*(.+)/m)
+    if (spawnMatch) {
+      const [, specialistId, specialistInstruction] = spawnMatch
+      console.log(`[dispatch] Generalist ${resolvedAgentId} requested specialist ${specialistId}`)
+      // Fire-and-forget: specialist runs async, appends output to task description
+      import('@/lib/agent-spawner').then(({ spawnAgent }) => {
+        spawnAgent({
+          taskId,
+          agentId: specialistId,
+          instruction: `Called by ${resolvedAgentId}: ${specialistInstruction}`,
+        }).catch(err => console.error(`[dispatch] Specialist cascade failed:`, err))
+      })
+    }
 
     // Log to cost tracker
     logGatewayChat({
@@ -133,7 +154,7 @@ export async function POST(request: Request) {
     // Try to salvage partial output
     if (error.stdout) {
       try {
-        const partial = JSON.parse(error.stdout)
+        const partial = JSON.parse(stripAnsi(error.stdout))
         if (partial.result?.payloads?.[0]?.text) {
           const partialText = partial.result.payloads[0].text
           const now = new Date().toISOString()

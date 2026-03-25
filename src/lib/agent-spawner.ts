@@ -285,15 +285,25 @@ export async function spawnAgent(request: SpawnRequest): Promise<SpawnResult> {
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(request.taskId, agentId, action, agentOutput.slice(0, 500), result.model, result.costUsd, now)
 
-  // Check for SPAWN_SPECIALIST requests in output
+  // Check for SPAWN_SPECIALIST requests in output — auto-cascade to specialist
   const spawnMatch = agentOutput.match(/SPAWN_SPECIALIST:\s*(\S+)\nINSTRUCTION:\s*(.+)/m)
   if (spawnMatch) {
     const [, specialistId, specialistInstruction] = spawnMatch
-    // Log the spawn request (actual spawn would be async)
     db.prepare(
       `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(request.taskId, agentId, 'spawn_requested', `Requested ${specialistId}: ${specialistInstruction}`, null, 0, now)
+
+    // Automatically spawn the specialist (fire-and-forget, don't block return)
+    if (AGENT_WORKSPACE_MAP[specialistId]) {
+      spawnSpecialistCascade(request.taskId, agentId, specialistId, specialistInstruction).catch(err => {
+        console.error(`[agent-spawner] Specialist cascade failed for ${specialistId}:`, err)
+        db.prepare(
+          `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run(request.taskId, specialistId, 'spawn_failed', String(err), null, 0, new Date().toISOString())
+      })
+    }
   }
 
   return {
@@ -307,4 +317,29 @@ export async function spawnAgent(request: SpawnRequest): Promise<SpawnResult> {
     costUsd: result.costUsd,
     kbContextUsed: kbContext.length > 0,
   }
+}
+
+// ─── Specialist Cascade ───
+
+/**
+ * Spawns a specialist agent when a generalist requests one.
+ * The specialist works on the same task with restricted context (only the
+ * generalist's instruction + task details). Its output is appended to the
+ * task description so the generalist can reference it on next invocation.
+ */
+async function spawnSpecialistCascade(
+  taskId: string,
+  requestingAgentId: string,
+  specialistId: string,
+  instruction: string,
+): Promise<void> {
+  console.log(`[agent-spawner] Cascading to specialist ${specialistId} for task ${taskId} (requested by ${requestingAgentId})`)
+
+  const specialistResult = await spawnAgent({
+    taskId,
+    agentId: specialistId,
+    instruction: `You were called by ${requestingAgentId} to handle a specialized sub-task.\n\n**Specialist Instruction:**\n${instruction}\n\nProduce a focused deliverable addressing this instruction. Do NOT mark the task as TASK_COMPLETE — the generalist will decide that.`,
+  })
+
+  console.log(`[agent-spawner] Specialist ${specialistId} completed: ${specialistResult.action}, cost=$${specialistResult.costUsd.toFixed(4)}`)
 }

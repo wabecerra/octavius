@@ -39,5 +39,5 @@ export const PAGE_TITLES: Record<ViewKey, string> = {
   memory: 'Memory — Knowledge Graph',
   costs: 'LLM Cost Intelligence',
   settings: 'System Configuration',
-  gateway: 'Gateway — Spatial System View',
+  gateway: 'Gateway — OpenClaw Integration',
 }

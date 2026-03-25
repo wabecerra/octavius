@@ -192,8 +192,8 @@ export class GatewayActor {
     this.pendingWorkState = EVENT_TO_WORK_STATE[queued.event.type]
 
     // Navigate to the centre of the target room
-    const targetX = queued.targetRoom.x + queued.targetRoom.width / 2
-    const targetY = queued.targetRoom.y + queued.targetRoom.height / 2
+    const targetX = (queued.targetRoom.x ?? 0) + (queued.targetRoom.width ?? 0) / 2
+    const targetY = (queued.targetRoom.y ?? 0) + (queued.targetRoom.height ?? 0) / 2
 
     const p = this.pathfinder.findPath(this.sprite.x, this.sprite.y, targetX, targetY)
     if (p && p.length > 1) {

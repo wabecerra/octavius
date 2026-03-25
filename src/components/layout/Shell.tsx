@@ -18,6 +18,8 @@ interface ShellProps {
   profileName: string
   dateStr: string
   children: ReactNode
+  onLogout?: () => void
+  userEmail?: string
 }
 
 const viewTransition = {
@@ -39,6 +41,8 @@ export function Shell({
   profileName,
   dateStr,
   children,
+  onLogout,
+  userEmail,
 }: ShellProps) {
   return (
     <div className={`shell ${navCollapsed ? 'shell--nav-collapsed' : ''}`}>
@@ -48,6 +52,8 @@ export function Shell({
         gatewayStatus={gatewayStatus}
         timeStr={timeStr}
         compoundPhase={compoundPhase}
+        onLogout={onLogout}
+        userEmail={userEmail}
       />
 
       <Sidebar
