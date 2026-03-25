@@ -406,7 +406,7 @@ export function CostDashboard() {
                   <p className="text-sm text-[var(--text-tertiary)] text-center py-8">No data for this time range</p>
                 ) : (
                   <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <AreaChart data={timeseries}>
                         <defs>
                           <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
@@ -443,7 +443,7 @@ export function CostDashboard() {
                   ) : (
                     <>
                       <div className="h-48 mb-4">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                           <BarChart data={stats.top_models.slice(0, 8)} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                             <XAxis type="number" tick={{ fill: '#6B7280', fontSize: 10 }} tickFormatter={(v: number) => formatUsd(v)} />

@@ -35,7 +35,7 @@ export function HrvChart({ data }: HrvChartProps) {
     >
       <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Heart Rate Variability</h4>
       <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <LineChart data={chartData}>
             <CartesianGrid {...CHART_THEME.grid} />
             <XAxis

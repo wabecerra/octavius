@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useConnections, useSprint } from '@/hooks'
 import { useToast } from '@/components/Toast'
@@ -13,12 +13,15 @@ function ConnectionModal({
   open,
   onOpenChange,
   editingConnection,
+  onAdd,
+  onUpdate,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   editingConnection?: Connection
+  onAdd: (conn: { name: string; relationshipType: string; reminderFrequencyDays?: number }) => Promise<Connection>
+  onUpdate: (id: string, updates: Partial<Connection>) => Promise<void>
 }) {
-  const { addConnection, updateConnection } = useConnections()
 
   const [name, setName] = useState('')
   const [relationshipType, setRelationshipType] = useState('')
@@ -40,13 +43,13 @@ function ConnectionModal({
     if (!name.trim() || !relationshipType.trim()) return
     try {
       if (editingConnection) {
-        await updateConnection(editingConnection.id, {
+        await onUpdate(editingConnection.id, {
           name: name.trim(),
           relationshipType: relationshipType.trim(),
           reminderFrequencyDays: Number(reminderDays) || 14,
         })
       } else {
-        await addConnection({
+        await onAdd({
           name: name.trim(),
           relationshipType: relationshipType.trim(),
           reminderFrequencyDays: Number(reminderDays) || 14,
@@ -68,6 +71,9 @@ function ConnectionModal({
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
             {editingConnection ? 'Edit Connection' : 'Add Connection'}
           </Dialog.Title>
+          <Dialog.Description className="sr-only">
+            {editingConnection ? 'Edit connection details' : 'Add a new connection to track'}
+          </Dialog.Description>
           <div className="space-y-3">
             <input
               type="text"
@@ -178,17 +184,19 @@ function ActivityLogForm({ connections }: { connections: Connection[] }) {
 // ─── Main Fellowship View ───
 
 export function FellowshipView() {
-  const { connections, updateConnection } = useConnections()
+  const { connections, addConnection, updateConnection } = useConnections()
   const { sprint, isCurrent, goBack, goForward, goToday } = useSprint()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingConnection, setEditingConnection] = useState<Connection | undefined>()
 
-  const overdueConnections = connections.filter(c => {
-    const daysSince = (Date.now() - new Date(c.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)
-    return daysSince > c.reminderFrequencyDays
-  })
-  const overdueIds = new Set(overdueConnections.map(c => c.id))
+  const overdueIds = useMemo(() => {
+    const overdue = connections.filter(c => {
+      const days = (Date.now() - new Date(c.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)
+      return days > c.reminderFrequencyDays
+    })
+    return new Set(overdue.map(c => c.id))
+  }, [connections])
 
   const openCreate = () => { setEditingConnection(undefined); setModalOpen(true) }
   const openEdit = (conn: Connection) => { setEditingConnection(conn); setModalOpen(true) }
@@ -292,7 +300,7 @@ export function FellowshipView() {
         </div>
       </div>
 
-      <ConnectionModal open={modalOpen} onOpenChange={setModalOpen} editingConnection={editingConnection} />
+      <ConnectionModal open={modalOpen} onOpenChange={setModalOpen} editingConnection={editingConnection} onAdd={addConnection} onUpdate={updateConnection} />
     </div>
   )
 }

@@ -208,7 +208,7 @@ export function DashboardView({
       >
         <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Sprint Balance</h3>
         <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <RadarChart data={radarData}>
               <PolarGrid stroke={CHART_THEME.grid.stroke} />
               <PolarAngleAxis dataKey="quadrant" tick={CHART_THEME.axis.tick} />

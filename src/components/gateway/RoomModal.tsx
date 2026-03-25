@@ -514,6 +514,7 @@ export function RoomModal({ roomId, assetManifest, onClose }: RoomModalProps) {
             <Dialog.Title className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
               {title}
             </Dialog.Title>
+            <Dialog.Description className="sr-only">View and manage room data</Dialog.Description>
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
                 {loading ? 'Loading…' : `${filteredRows.length} / ${rows.length} rows`}

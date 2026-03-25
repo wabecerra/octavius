@@ -38,7 +38,7 @@ export function SleepChart({ data }: SleepChartProps) {
     >
       <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Sleep Stages</h4>
       <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <BarChart data={chartData}>
             <CartesianGrid {...CHART_THEME.grid} />
             <XAxis

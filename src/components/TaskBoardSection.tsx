@@ -42,6 +42,7 @@ function TaskModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<Task['priority']>('medium')
+  const [status, setStatus] = useState<KanbanColumn>('backlog')
   const [quadrant, setQuadrant] = useState<Quadrant>('')
   const [project, setProject] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -51,6 +52,7 @@ function TaskModal({
       setTitle(editingTask.title)
       setDescription(editingTask.description ?? '')
       setPriority(editingTask.priority)
+      setStatus((editingTask.status as KanbanColumn) ?? 'backlog')
       setQuadrant(editingTask.quadrant ?? '')
       setProject(editingTask.project ?? '')
       setDueDate(editingTask.dueDate ?? '')
@@ -58,6 +60,7 @@ function TaskModal({
       setTitle('')
       setDescription('')
       setPriority('medium')
+      setStatus('backlog')
       setQuadrant('')
       setProject('')
       setDueDate('')
@@ -72,6 +75,7 @@ function TaskModal({
           title: title.trim(),
           description: description.trim() || undefined,
           priority,
+          status,
           quadrant,
           project: project.trim(),
           dueDate: dueDate || undefined,
@@ -101,6 +105,9 @@ function TaskModal({
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
             {editingTask ? 'Edit Task' : 'New Task'}
           </Dialog.Title>
+          <Dialog.Description className="sr-only">
+            {editingTask ? 'Edit task details including title, priority, status, and quadrant' : 'Create a new task with title, priority, and other details'}
+          </Dialog.Description>
           <div className="space-y-3">
             <input
               type="text"
@@ -132,6 +139,29 @@ function TaskModal({
                 </button>
               ))}
             </div>
+
+            {/* Status (edit only) */}
+            {editingTask && (
+              <div>
+                <label className="block text-xs text-[var(--text-tertiary)] mb-1.5">Status</label>
+                <div className="flex gap-2">
+                  {(['backlog', 'in-progress', 'done'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStatus(s)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ${
+                        status === s
+                          ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                          : 'border-[var(--border-primary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      {s === 'in-progress' ? 'In Progress' : s.charAt(0).toUpperCase() + s.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Quadrant */}
             <div>
@@ -211,6 +241,7 @@ function DeleteConfirmModal({
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-xl">
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">Delete Task</Dialog.Title>
+          <Dialog.Description className="sr-only">Confirm deletion of a task</Dialog.Description>
           <p className="text-sm text-[var(--text-secondary)]">
             Remove &ldquo;{taskTitle}&rdquo;? This can&apos;t be undone.
           </p>

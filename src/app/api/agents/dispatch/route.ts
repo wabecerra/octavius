@@ -3,6 +3,7 @@ import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { getDatabase } from '@/lib/memory/db'
 import { logGatewayChat } from '@/lib/llm-cost/tracker'
+import { spawnAgent } from '@/lib/agent-spawner'
 
 const execAsync = promisify(exec)
 const OPENCLAW_PATH = process.env.OPENCLAW_PATH || 'openclaw'
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
       const [, specialistId, specialistInstruction] = spawnMatch
       console.log(`[dispatch] Generalist ${resolvedAgentId} requested specialist ${specialistId}`)
       // Fire-and-forget: specialist runs async, appends output to task description
-      import('@/lib/agent-spawner').then(({ spawnAgent }) => {
+      Promise.resolve().then(() => {
         spawnAgent({
           taskId,
           agentId: specialistId,
@@ -139,19 +140,9 @@ export async function POST(request: Request) {
   } catch (err: unknown) {
     const error = err as Error & { stdout?: string; stderr?: string }
     const durationMs = Date.now() - startTime
-    console.error(`[dispatch] OpenClaw agent failed (${durationMs}ms):`, error.message)
+    console.error(`[dispatch] OpenClaw CLI failed (${durationMs}ms):`, error.message)
 
-    // Log error
-    logGatewayChat({
-      model: 'unknown',
-      durationMs,
-      sessionId: `octavius-task-${taskId}`,
-      agentId: resolvedAgentId,
-      status: error.message.includes('timeout') ? 'timeout' : 'error',
-      error: error.message,
-    })
-
-    // Try to salvage partial output
+    // Try to salvage partial output from CLI
     if (error.stdout) {
       try {
         const partial = JSON.parse(stripAnsi(error.stdout))
@@ -175,9 +166,52 @@ export async function POST(request: Request) {
       } catch { /* ignore parse errors */ }
     }
 
-    return NextResponse.json(
-      { error: `Agent dispatch failed: ${error.message}`, taskId, agentId: resolvedAgentId },
-      { status: 500 },
-    )
+    // Fallback: use embedded agent spawner (bypasses OpenClaw CLI)
+    console.log(`[dispatch] Falling back to embedded agent spawner for task=${taskId}`)
+    try {
+      const spawnResult = await spawnAgent({
+        taskId,
+        agentId: resolvedAgentId,
+        instruction,
+      })
+
+      logGatewayChat({
+        model: spawnResult.model,
+        provider: spawnResult.provider,
+        durationMs: Date.now() - startTime,
+        usage: null,
+        sessionId,
+        agentId: resolvedAgentId,
+        status: 'success',
+      })
+
+      return NextResponse.json({
+        taskId,
+        agentId: spawnResult.agentId,
+        output: spawnResult.output,
+        action: spawnResult.action,
+        newStatus: spawnResult.newStatus,
+        model: spawnResult.model,
+        provider: spawnResult.provider,
+        source: 'embedded-fallback',
+      })
+    } catch (fallbackErr: unknown) {
+      const fbError = fallbackErr as Error
+      console.error(`[dispatch] Embedded fallback also failed:`, fbError.message)
+
+      logGatewayChat({
+        model: 'unknown',
+        durationMs: Date.now() - startTime,
+        sessionId,
+        agentId: resolvedAgentId,
+        status: 'error',
+        error: fbError.message,
+      })
+
+      return NextResponse.json(
+        { error: `Agent dispatch failed: ${fbError.message}`, taskId, agentId: resolvedAgentId },
+        { status: 500 },
+      )
+    }
   }
 }

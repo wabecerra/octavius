@@ -35,7 +35,7 @@ export function SpO2Chart({ data }: SpO2ChartProps) {
     >
       <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Blood Oxygen (SpO2)</h4>
       <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <LineChart data={chartData}>
             <CartesianGrid {...CHART_THEME.grid} />
             <XAxis

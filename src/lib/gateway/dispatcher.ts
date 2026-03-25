@@ -39,6 +39,7 @@ export class TaskDispatcher {
   private timeoutTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
   private config: TaskDispatcherConfig
   private executeTaskFn: ExecuteTaskFn
+  private spendCache: { value: number; expiresAt: number } = { value: 0, expiresAt: 0 }
 
   constructor(
     private client: GatewayClient,
@@ -346,11 +347,22 @@ export class TaskDispatcher {
     }
   }
 
-  /** Get current daily spend (simplified — reads from gateway_events or returns 0) */
+  /** Get current daily spend by querying llm_logs (cached for 5 minutes) */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private getDailySpend(_config: ModelRouterConfig): number {
-    // In a full implementation this would aggregate token usage from today's sessions.
-    // For now, return 0 to allow dispatch (budget gate still enforced via canDispatch).
-    return 0
+    const now = Date.now()
+    if (now < this.spendCache.expiresAt) return this.spendCache.value
+    try {
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const row = this.db
+        .prepare('SELECT COALESCE(SUM(cost_total_usd), 0) as spent FROM llm_logs WHERE timestamp >= ?')
+        .get(todayStart.toISOString()) as { spent: number } | undefined
+      const spent = row?.spent ?? 0
+      this.spendCache = { value: spent, expiresAt: now + 300_000 }
+      return spent
+    } catch {
+      return 0
+    }
   }
 }

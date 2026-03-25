@@ -145,7 +145,7 @@ function MoodTrackerChart({ sprintStart, sprintEnd }: { sprintStart: string; spr
       ) : (
         <>
           <div className="h-48" role="img" aria-label="Line chart showing mood scores over time">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <LineChart data={formattedData}>
                 <CartesianGrid {...CHART_THEME.grid} />
                 <XAxis

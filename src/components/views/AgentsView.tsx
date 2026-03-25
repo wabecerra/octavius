@@ -167,6 +167,7 @@ function SendTaskModal({
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
             Send Task to {targetAgent?.name ?? 'Agent'}
           </Dialog.Title>
+          <Dialog.Description className="sr-only">Dispatch a task to the selected agent</Dialog.Description>
           <div className="space-y-3">
             <textarea
               value={description}

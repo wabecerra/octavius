@@ -114,7 +114,7 @@ export function QuadrantCard({
         {/* Sparkline */}
         {sparkData && sparkData.length > 1 && (
           <div className="mt-3 h-10" aria-hidden="true">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <LineChart data={sparkData}>
                 <Line
                   type="monotone"
