@@ -38,7 +38,7 @@ export function useTasks(filter?: {
   if (filter?.until) qs.set('until', filter.until)
   if (filter?.includeOpen) qs.set('includeOpen', '1')
   qs.set('limit', '200')
-  const { data, loading, error, mutate, refetch } = useApi<TasksResponse>(`/api/dashboard/tasks?${qs}`)
+  const { data, loading, error, mutate, refetch } = useApi<TasksResponse>(`/api/dashboard/tasks?${qs}`, { refreshInterval: 10_000 })
 
   const createTask = useCallback(async (task: { title: string; description?: string; priority?: string; status?: string; quadrant?: string; project?: string; dueDate?: string }) => {
     const created = await apiCall<Task>('/api/dashboard/tasks', { method: 'POST', body: JSON.stringify(task) })

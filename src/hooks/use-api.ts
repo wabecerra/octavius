@@ -15,21 +15,22 @@ type FetchState<T> = {
  * - Fetches on mount and when `url` changes
  * - `mutate(newData)` optimistically updates and triggers revalidation
  * - `refetch()` forces a fresh fetch
+ * - `refreshInterval` (ms) enables background polling without loading flicker
  */
-export function useApi<T>(url: string | null) {
+export function useApi<T>(url: string | null, opts?: { refreshInterval?: number }) {
   const [state, setState] = useState<FetchState<T>>({ data: null, loading: true, error: null })
   const mountedRef = useRef(true)
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     if (!url) { setState({ data: null, loading: false, error: null }); return }
-    setState(s => ({ ...s, loading: true, error: null }))
+    if (!silent) setState(s => ({ ...s, loading: true, error: null }))
     try {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (mountedRef.current) setState({ data, loading: false, error: null })
     } catch (err) {
-      if (mountedRef.current) setState(s => ({ ...s, loading: false, error: err instanceof Error ? err.message : 'Fetch failed' }))
+      if (mountedRef.current && !silent) setState(s => ({ ...s, loading: false, error: err instanceof Error ? err.message : 'Fetch failed' }))
     }
   }, [url])
 
@@ -38,6 +39,13 @@ export function useApi<T>(url: string | null) {
     fetchData()
     return () => { mountedRef.current = false }
   }, [fetchData])
+
+  // Background polling
+  useEffect(() => {
+    if (!opts?.refreshInterval || !url) return
+    const iv = setInterval(() => fetchData(true), opts.refreshInterval)
+    return () => clearInterval(iv)
+  }, [fetchData, opts?.refreshInterval, url])
 
   const mutate = useCallback((newData: T | ((prev: T | null) => T)) => {
     setState(s => ({
