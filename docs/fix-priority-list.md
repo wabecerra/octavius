@@ -106,12 +106,7 @@ Consolidated from: E2E test results (71 tests), deep feature audit (10 integrati
 - **As-Is**: Biometric data uploaded in Lifeforce view is not used by the Lifeforce agent for health insights.
 - **To-Be**: Lifeforce agent can query health data to provide personalized recommendations.
 
-### 15. Obsidian Bidirectional Sync Not Implemented
-- **Source**: Integration Gap #8
-- **As-Is**: `/api/obsidian/*` endpoints are stubs. No actual sync with Obsidian vault.
-- **To-Be**: Memory items sync bidirectionally with Obsidian markdown files.
-
-### 16. Missing Dialog Descriptions (Accessibility)
+### 15. Missing Dialog Descriptions (Accessibility)
 - **Source**: E2E console warnings
 - **As-Is**: New Task, Edit Task, Add Connection modals missing `aria-describedby`.
 - **To-Be**: All Radix UI dialogs have `DialogDescription` component for screen reader support.
