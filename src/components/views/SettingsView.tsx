@@ -240,6 +240,55 @@ function DataManagementSection() {
   )
 }
 
+// ─── Obsidian Integration Status ───
+
+function ObsidianStatusSection() {
+  const [status, setStatus] = useState<{ enabled: boolean; connected: boolean; vault_folder?: string; sync_direction?: string } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/obsidian/status')
+      .then((r) => r.ok ? r.json() : null)
+      .then(setStatus)
+      .catch(() => {})
+  }, [])
+
+  return (
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Obsidian Integration</h3>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Sync memories with your Obsidian vault</p>
+        </div>
+        {status && (
+          <span className={`flex items-center gap-1.5 text-xs font-medium ${
+            status.connected ? 'text-[var(--color-success)]' : status.enabled ? 'text-[var(--color-error)]' : 'text-[var(--text-tertiary)]'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              status.connected ? 'bg-[var(--color-success)]' : status.enabled ? 'bg-[var(--color-error)]' : 'bg-[var(--text-tertiary)]'
+            }`} />
+            {status.connected ? 'Connected' : status.enabled ? 'Disconnected' : 'Disabled'}
+          </span>
+        )}
+      </div>
+      {status?.connected && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="text-[10px] text-[var(--text-tertiary)] block">Vault Folder</span>
+            <span className="text-xs text-[var(--text-primary)] font-mono">{status.vault_folder ?? '—'}</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-[var(--text-tertiary)] block">Sync Direction</span>
+            <span className="text-xs text-[var(--text-primary)]">{status.sync_direction ?? '—'}</span>
+          </div>
+        </div>
+      )}
+      <p className="text-xs text-[var(--text-disabled)]">
+        Configure Obsidian sync in Memory → Obsidian Integration panel
+      </p>
+    </div>
+  )
+}
+
 // ─── Main Settings View ───
 
 export function SettingsView() {
@@ -444,6 +493,9 @@ export function SettingsView() {
 
       {/* Data Management */}
       <DataManagementSection />
+
+      {/* Obsidian Integration Status */}
+      <ObsidianStatusSection />
     </div>
   )
 }

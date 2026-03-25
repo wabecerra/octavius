@@ -805,6 +805,45 @@ const TOOL_REGISTRY: ToolDef[] = [
     execute: async (api) => json(await octFetch(api, "/api/memory/jobs")),
   },
   {
+    name: "octavius_lcm_status",
+    category: "system",
+    description: "Check lossless-claw (LCM) status — conversation count, summary DAG stats, DB size. Shows whether persistent conversation memory is active.",
+    keywords: ["lcm", "lossless", "context", "memory", "conversations", "summaries", "dag", "compaction"],
+    parameters: { type: "object", properties: {} },
+    execute: async (api) => json(await octFetch(api, "/api/lcm/status")),
+  },
+  {
+    name: "octavius_lcm_search",
+    category: "system",
+    description: "Search across all LCM conversation history (messages + summaries). Use this to recall details from past agent conversations that may have been compacted. Complements lcm_grep (which searches within the current OpenClaw session).",
+    keywords: ["lcm", "search", "conversation", "history", "recall", "past", "compacted", "summary"],
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search text" },
+        limit: { type: "number", default: 20 },
+      },
+      required: ["query"],
+    },
+    execute: async (api, _id, params) => json(await octFetch(api, "/api/lcm/search", { method: "POST", body: JSON.stringify(params) })),
+  },
+  {
+    name: "octavius_lcm_conversations",
+    category: "system",
+    description: "List LCM conversations or get detail for a specific conversation (summaries + recent messages).",
+    keywords: ["lcm", "conversations", "list", "sessions", "history", "browse"],
+    parameters: {
+      type: "object",
+      properties: {
+        conversationId: { type: "number", description: "Get detail for a specific conversation ID" },
+      },
+    },
+    execute: async (api, _id, params) => {
+      const qs = params.conversationId ? `?id=${params.conversationId}` : "";
+      return json(await octFetch(api, `/api/lcm/conversations${qs}`));
+    },
+  },
+  {
     name: "octavius_weekly_review",
     category: "dashboard",
     description: "Create a weekly review entry — what went well, what didn't, next week's focus.",
@@ -929,8 +968,9 @@ export default function register(api: any) {
       appendSystemContext: [
         "\n## Octavius Life Dashboard",
         "You have the Octavius life dashboard connected. Use `octavius_discover` to find available tools by describing what you need.",
-        "Categories: dashboard (tasks, journal, goals, checkins), memory (search, store, graph), agents (provision, delegate), health (import, ingest), system (gateway, jobs).",
+        "Categories: dashboard (tasks, journal, goals, checkins), memory (search, store, graph), agents (provision, delegate), health (import, ingest), system (gateway, jobs, lcm).",
         "Quadrants: health (Lifeforce), career (Industry), relationships (Fellowship), soul (Essence).",
+        "LCM (lossless-claw): persistent conversation memory — use octavius_lcm_search to recall details from past agent conversations.",
         `Total tools available: ${TOOL_REGISTRY.length + 1} (use octavius_discover to find the right one).`,
       ].join("\n"),
     };

@@ -149,6 +149,38 @@ export interface MemoryConfig {
   reranking_enabled: boolean // auto-enabled when embedding_enabled is true
   query_expansion_enabled: boolean // auto-enabled when embedding_enabled is true
   smart_chunking_target_tokens: number // default 900 — target tokens per chunk
+  // Obsidian integration
+  obsidian_enabled: boolean // default false
+  obsidian_api_url: string // default 'https://127.0.0.1:27124'
+  obsidian_api_key: string // from Obsidian Local REST API plugin settings
+  obsidian_vault_folder: string // subfolder in vault for synced memories, default 'octavius'
+  obsidian_sync_direction: 'bidirectional' | 'push_only' | 'pull_only' // default 'bidirectional'
+  obsidian_insecure_ssl: boolean // skip SSL verification for self-signed cert, default true
+}
+
+// Obsidian vault types
+export interface ObsidianNote {
+  path: string
+  content: string
+  frontmatter?: Record<string, unknown>
+}
+
+export interface ObsidianGraphNode {
+  id: string
+  label: string
+  path: string
+  isMemorySynced: boolean
+  memoryId?: string
+  linkCount: number
+}
+
+export interface ObsidianGraphExport {
+  nodes: ObsidianGraphNode[]
+  edges: Array<{
+    source: string
+    target: string
+    label: string
+  }>
 }
 
 // Valid value sets for validation

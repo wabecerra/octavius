@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { JobRunLog, MemoryConfig, MemoryItem } from './models'
 import { NoveltyDetector } from './novelty'
+import { LcmBridgeClient } from '@/lib/lcm/client'
 
 /** File system operations interface for dependency injection (testability). */
 export interface FsOps {
@@ -108,6 +109,64 @@ function extractPatterns(memories: MemoryItem[]): { behaviors: string[]; prefere
 }
 
 /**
+ * Extract behavioral patterns from LCM conversation summaries.
+ * Scans recent summaries for patterns, preferences, and recurring themes
+ * that agents discussed with the user.
+ */
+function extractPatternsFromLcmSummaries(
+  summaries: Array<{ content: string; sessionKey: string | null; depth: number }>,
+  agentId: string,
+): { behaviors: string[]; preferences: string[] } {
+  const behaviors: string[] = []
+  const preferences: string[] = []
+
+  // Match summaries to agents by session key pattern
+  const agentSuffix = agentId.replace(/^(agent|specialist)-/, '')
+  const relevantSummaries = summaries.filter((s) => {
+    if (!s.sessionKey) return false
+    // Match session keys like "agent:main:*", "agent:lifeforce:*", etc.
+    const key = s.sessionKey.toLowerCase()
+    return (
+      key.includes(agentSuffix) ||
+      key.includes('main') || // orchestrator sessions are relevant to all
+      agentId === 'octavius-orchestrator'
+    )
+  })
+
+  for (const summary of relevantSummaries) {
+    const lines = summary.content.split('\n').filter((l) => l.trim().length > 10)
+
+    for (const line of lines) {
+      const lower = line.toLowerCase()
+      // Look for behavioral signals in conversation summaries
+      if (
+        lower.includes('pattern') ||
+        lower.includes('workflow') ||
+        lower.includes('approach') ||
+        lower.includes('strategy') ||
+        lower.includes('decided to') ||
+        lower.includes('agreed to')
+      ) {
+        behaviors.push(`[from conversation] ${line.trim().slice(0, 200)}`)
+      }
+
+      if (
+        lower.includes('prefer') ||
+        lower.includes('always') ||
+        lower.includes('never') ||
+        lower.includes('likes to') ||
+        lower.includes('wants to') ||
+        lower.includes('asked for')
+      ) {
+        preferences.push(`[from conversation] ${line.trim().slice(0, 200)}`)
+      }
+    }
+  }
+
+  return { behaviors: behaviors.slice(0, 10), preferences: preferences.slice(0, 10) }
+}
+
+/**
  * Append new content to a Markdown file, preserving existing structure.
  * Adds a dated section at the end.
  */
@@ -152,6 +211,18 @@ export async function runEvolution(
   const noveltyDetector = new NoveltyDetector(config.novelty_similarity_threshold)
   const workspaceBase = getWorkspaceBase()
 
+  // Load recent LCM conversation summaries (if lossless-claw is installed)
+  let lcmSummaries: Array<{ content: string; sessionKey: string | null; depth: number }> = []
+  try {
+    const lcmClient = new LcmBridgeClient()
+    if (lcmClient.isAvailable()) {
+      lcmSummaries = lcmClient.getRecentSummariesForEvolution(50)
+      lcmClient.close()
+    }
+  } catch {
+    // LCM not available — that's fine, evolution works without it
+  }
+
   for (const agent of AGENTS) {
     try {
       // 1. Query recent episodic memories for this agent
@@ -170,8 +241,15 @@ export async function runEvolution(
         continue
       }
 
-      // 2. Extract patterns
+      // 2. Extract patterns from memory items
       const { behaviors, preferences } = extractPatterns(memories)
+
+      // 2b. Extract patterns from LCM conversation summaries (if available)
+      if (lcmSummaries.length > 0) {
+        const lcmPatterns = extractPatternsFromLcmSummaries(lcmSummaries, agent.id)
+        behaviors.push(...lcmPatterns.behaviors)
+        preferences.push(...lcmPatterns.preferences)
+      }
 
       // 3. Read and update context files
       const workspacePath = join(workspaceBase, agent.workspace)

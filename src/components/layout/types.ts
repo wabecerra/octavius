@@ -1,5 +1,5 @@
 // Navigation structure shared between Shell, Sidebar, and page.tsx
-export type ViewKey = 'dashboard' | 'lifeforce' | 'industry' | 'fellowship' | 'essence' | 'agents' | 'memory' | 'costs' | 'settings'
+export type ViewKey = 'dashboard' | 'lifeforce' | 'industry' | 'fellowship' | 'essence' | 'town' | 'agents' | 'memory' | 'costs' | 'settings' | 'gateway'
 
 export interface NavItem {
   key: ViewKey
@@ -14,10 +14,12 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'industry', label: 'Industry', icon: '💼', group: 'quadrants' },
   { key: 'fellowship', label: 'Fellowship', icon: '🤝', group: 'quadrants' },
   { key: 'essence', label: 'Essence', icon: '🧘', group: 'quadrants' },
+  { key: 'town', label: 'Nerve Center', icon: '⚡', group: 'system' },
   { key: 'agents', label: 'Agents', icon: '🤖', group: 'system' },
   { key: 'memory', label: 'Memory', icon: '🧠', group: 'system' },
   { key: 'costs', label: 'LLM Costs', icon: '💸', group: 'system' },
   { key: 'settings', label: 'Settings', icon: '⚙', group: 'system' },
+  { key: 'gateway', label: 'Gateway', icon: '🌐', group: 'system' },
 ]
 
 export const NAV_GROUPS = [
@@ -32,8 +34,10 @@ export const PAGE_TITLES: Record<ViewKey, string> = {
   industry: 'Industry — Career & Productivity',
   fellowship: 'Fellowship — Relationships & Community',
   essence: 'Essence — Soul & Reflection',
+  town: 'Nerve Center — Agent Observability',
   agents: 'Agent Fleet Management',
   memory: 'Memory — Knowledge Graph',
   costs: 'LLM Cost Intelligence',
   settings: 'System Configuration',
+  gateway: 'Gateway — Spatial System View',
 }

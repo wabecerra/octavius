@@ -1,6 +1,6 @@
 # Octavius Plugin for OpenClaw
 
-Connects your OpenClaw AI agent to the [Octavius](https://github.com/wabecerra/octavius) life dashboard. Once installed, your agent gets **42 tools** to manage your entire life operating system — or it can use **1 discovery tool** to find exactly what it needs.
+Connects your OpenClaw AI agent to the [Octavius](https://github.com/wabecerra/octavius) life dashboard. Once installed, your agent gets **45 tools** to manage your entire life operating system — or it can use **1 discovery tool** to find exactly what it needs.
 
 ## Install
 
@@ -102,6 +102,16 @@ The agent discovers what's available, then calls the specific tools. This keeps 
 | `octavius_gateway_status` | Check OpenClaw gateway connection |
 | `octavius_jobs_list` | List background job history |
 
+### LCM / Lossless Context (3 tools)
+
+| Tool | What it does |
+|------|-------------|
+| `octavius_lcm_status` | Check lossless-claw status (conversations, DAG stats) |
+| `octavius_lcm_search` | Cross-search all LCM conversation history |
+| `octavius_lcm_conversations` | List/browse LCM conversations with detail |
+
+These tools complement lossless-claw's native `lcm_grep`, `lcm_describe`, and `lcm_expand_query` tools. Use the native tools for within-session recall, and the Octavius bridge tools for cross-session search from the dashboard API.
+
 ## Architecture
 
 ```
@@ -115,14 +125,20 @@ The agent discovers what's available, then calls the specific tools. This keeps 
 │  task_create ───────────────────────►│                      │
 │  octavius_       │                   │  /api/dashboard/*    │
 │  memory_search ─────────────────────►│  /api/memory/*       │
-│  ...42 tools     │                   │  /api/gateway/*      │
-└─────────────────┘                    └──────────────────────┘
-                                              │
-                                        SQLite (WAL mode)
-                                        ├── dashboard_*
-                                        ├── memory_items (FTS5)
-                                        ├── memory_edges (graph)
-                                        └── memory_embeddings
+│  octavius_       │                   │  /api/lcm/*          │
+│  lcm_search ────────────────────────►│                      │
+│  ...45 tools     │                   └──────────┬───────────┘
+└────────┬────────┘                           │         │
+         │                              SQLite (WAL)    │ read-only
+         │  lossless-claw               ├── dashboard_* │
+         │  (context engine)            ├── memory_*    │
+         │         │                    └── memory_fts  │
+         │         ▼                                    ▼
+         │  ┌──────────────┐              ┌──────────────────┐
+         └──│  lcm.db      │◄─────────────│  LCM Bridge      │
+            │  (DAG store) │  read-only   │  (Octavius reads  │
+            └──────────────┘              │   LCM SQLite)     │
+                                          └──────────────────┘
 ```
 
 ## Optional Config

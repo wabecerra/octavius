@@ -128,6 +128,25 @@ The \`contexts\` array (parallel to items) contains human-readable descriptions 
 - Store task results as episodic memories with your agent_id in provenance
 - The search pipeline automatically expands your query into alternative phrasings — write natural language queries, not keyword lists
 - Context annotations help you understand what a memory is (e.g. "Biometric data from RingConn" vs "User journal entry") — use them to weigh information appropriately
+
+## Lossless Context (LCM)
+
+When lossless-claw is installed, all agent conversations are automatically persisted with DAG-based summarization. You have access to:
+
+### LCM Agent Tools (provided by lossless-claw)
+- \`lcm_grep\` — Search compacted conversation history by regex or full-text. Start here for recall.
+- \`lcm_describe\` — Inspect a specific summary's full content (cheap, no sub-agent).
+- \`lcm_expand_query\` — Deep recall: spawn a sub-agent to expand the DAG and answer a focused question about past conversations.
+
+### LCM via Octavius API
+- \`GET /api/lcm/status\` — Check if LCM is active, conversation count, summary DAG stats.
+- \`POST /api/lcm/search\` — Cross-search all LCM conversations (messages + summaries). Body: \`{ query: string, limit?: number }\`.
+- \`GET /api/lcm/conversations\` — List all LCM conversations. Add \`?id=N\` for detail.
+
+### When to use LCM vs Memory
+- **Memory system** — Structured knowledge: facts, preferences, patterns, entity profiles. Persists across sessions.
+- **LCM** — Conversation history: what was discussed, decisions made, exact commands/errors. Persists within and across sessions.
+- Use both together: search Memory for "what do I know about X?" and LCM for "what did we discuss about X?"
 `
 
 const QUADRANT_TEMPLATES: Record<string, { agents: string; user: string }> = {
@@ -412,6 +431,39 @@ export function generateOpenClawConfig(): Record<string, unknown> {
           heartbeat: false,
         })),
       ],
+    },
+    // Lossless Context Management — auto-configured for Octavius agents.
+    // Ensures all agent conversations persist with DAG-based summarization.
+    plugins: {
+      slots: {
+        contextEngine: 'lossless-claw',
+      },
+      entries: {
+        'lossless-claw': {
+          enabled: true,
+          config: {
+            freshTailCount: 32,
+            contextThreshold: 0.75,
+            incrementalMaxDepth: -1,
+            // Exclude cron heartbeat sessions from LCM storage (low-value noise)
+            ignoreSessionPatterns: [
+              'agent:*:cron:**',
+            ],
+            // Sub-agent sessions can read LCM context but don't write to it
+            statelessSessionPatterns: [
+              'agent:*:subagent:**',
+            ],
+            skipStatelessSessions: true,
+          },
+        },
+      },
+    },
+    // Long session idle window — LCM handles context, so sessions can live longer
+    session: {
+      reset: {
+        mode: 'idle',
+        idleMinutes: 10080, // 7 days
+      },
     },
   }
 }

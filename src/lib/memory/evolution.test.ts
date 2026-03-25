@@ -31,6 +31,15 @@ function makeConfig(overrides?: Partial<MemoryConfig>): MemoryConfig {
     embedding_model: 'nomic-embed-text',
     api_secret_token: 'test-token',
     context_retrieval_top_n: 10,
+    reranking_enabled: false,
+    query_expansion_enabled: false,
+    smart_chunking_target_tokens: 900,
+    obsidian_enabled: false,
+    obsidian_api_url: 'https://127.0.0.1:27124',
+    obsidian_api_key: '',
+    obsidian_vault_folder: 'octavius',
+    obsidian_sync_direction: 'bidirectional',
+    obsidian_insecure_ssl: true,
     ...overrides,
   }
 }

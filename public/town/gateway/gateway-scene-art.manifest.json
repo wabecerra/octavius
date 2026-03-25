@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "tilemap": "maps/gateway.json",
+  "tilesets": [
+    { "name": "gateway-interior", "path": "tilesets/gateway-interior.png" },
+    { "name": "gateway-furniture", "path": "tilesets/gateway-furniture.png" },
+    { "name": "gateway-tech", "path": "tilesets/gateway-tech.png" },
+    { "name": "gateway-nature", "path": "tilesets/gateway-nature.png" }
+  ],
+  "rooms": [
+    {
+      "roomId": "room-memory",
+      "tilesetLayers": ["gateway-interior", "gateway-furniture"],
+      "spriteOverlays": [
+        { "spriteKey": "bookshelf", "x": 16, "y": 16, "frame": 0 },
+        { "spriteKey": "scroll-rack", "x": 80, "y": 32, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "sparkle", "x": 64, "y": 48, "frameStart": 0, "frameEnd": 5, "frameRate": 6 }
+      ]
+    },
+    {
+      "roomId": "room-agents",
+      "tilesetLayers": ["gateway-interior", "gateway-tech"],
+      "spriteOverlays": [
+        { "spriteKey": "terminal", "x": 176, "y": 24, "frame": 0 },
+        { "spriteKey": "antenna", "x": 240, "y": 16, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "screen-flicker", "x": 192, "y": 32, "frameStart": 0, "frameEnd": 3, "frameRate": 4 }
+      ]
+    },
+    {
+      "roomId": "room-tasks",
+      "tilesetLayers": ["gateway-interior", "gateway-furniture"],
+      "spriteOverlays": [
+        { "spriteKey": "kanban-board", "x": 336, "y": 16, "frame": 0 },
+        { "spriteKey": "desk-lamp", "x": 400, "y": 48, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "pin-bounce", "x": 368, "y": 24, "frameStart": 0, "frameEnd": 7, "frameRate": 8 }
+      ]
+    },
+    {
+      "roomId": "room-health",
+      "tilesetLayers": ["gateway-interior", "gateway-nature"],
+      "spriteOverlays": [
+        { "spriteKey": "heart-monitor", "x": 496, "y": 24, "frame": 0 },
+        { "spriteKey": "plant-pot", "x": 560, "y": 80, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "pulse-wave", "x": 528, "y": 32, "frameStart": 0, "frameEnd": 11, "frameRate": 12 }
+      ]
+    },
+    {
+      "roomId": "room-obsidian",
+      "tilesetLayers": ["gateway-interior", "gateway-tech"],
+      "spriteOverlays": [
+        { "spriteKey": "vault-door", "x": 16, "y": 176, "frame": 0 },
+        { "spriteKey": "obsidian-crystal", "x": 80, "y": 200, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "sync-arrows", "x": 48, "y": 192, "frameStart": 0, "frameEnd": 5, "frameRate": 6 }
+      ]
+    },
+    {
+      "roomId": "room-hub",
+      "tilesetLayers": ["gateway-interior", "gateway-furniture", "gateway-tech"],
+      "spriteOverlays": [
+        { "spriteKey": "gateway-portal", "x": 192, "y": 176, "frame": 0, "scale": 1.5 },
+        { "spriteKey": "compass-rose", "x": 224, "y": 240, "frame": 0 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "portal-glow", "x": 208, "y": 192, "frameStart": 0, "frameEnd": 9, "frameRate": 10 },
+        { "spriteKey": "dust-motes", "x": 176, "y": 176, "frameStart": 0, "frameEnd": 15, "frameRate": 4 }
+      ]
+    },
+    {
+      "roomId": "room-lcm",
+      "tilesetLayers": ["gateway-interior", "gateway-tech"],
+      "spriteOverlays": [
+        { "spriteKey": "dag-display", "x": 336, "y": 176, "frame": 0 },
+        { "spriteKey": "server-rack", "x": 400, "y": 208, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "data-stream", "x": 368, "y": 192, "frameStart": 0, "frameEnd": 7, "frameRate": 8 }
+      ]
+    },
+    {
+      "roomId": "room-costs",
+      "tilesetLayers": ["gateway-interior", "gateway-furniture"],
+      "spriteOverlays": [
+        { "spriteKey": "coin-stack", "x": 496, "y": 176, "frame": 0 },
+        { "spriteKey": "ledger", "x": 560, "y": 224, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "coin-glint", "x": 512, "y": 184, "frameStart": 0, "frameEnd": 3, "frameRate": 4 }
+      ]
+    },
+    {
+      "roomId": "room-lifeforce",
+      "tilesetLayers": ["gateway-interior", "gateway-nature"],
+      "spriteOverlays": [
+        { "spriteKey": "tree-of-life", "x": 32, "y": 336, "frame": 0, "scale": 1.25 },
+        { "spriteKey": "fountain", "x": 80, "y": 400, "frame": 0 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "leaf-fall", "x": 48, "y": 344, "frameStart": 0, "frameEnd": 11, "frameRate": 6 }
+      ]
+    },
+    {
+      "roomId": "room-industry",
+      "tilesetLayers": ["gateway-interior", "gateway-tech"],
+      "spriteOverlays": [
+        { "spriteKey": "anvil", "x": 176, "y": 336, "frame": 0 },
+        { "spriteKey": "gear-wall", "x": 240, "y": 352, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "steam-puff", "x": 208, "y": 340, "frameStart": 0, "frameEnd": 7, "frameRate": 8 }
+      ]
+    },
+    {
+      "roomId": "room-fellowship",
+      "tilesetLayers": ["gateway-interior", "gateway-furniture", "gateway-nature"],
+      "spriteOverlays": [
+        { "spriteKey": "round-table", "x": 336, "y": 352, "frame": 0 },
+        { "spriteKey": "banner", "x": 400, "y": 336, "frame": 0, "scale": 1 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "candle-flicker", "x": 368, "y": 360, "frameStart": 0, "frameEnd": 5, "frameRate": 6 }
+      ]
+    },
+    {
+      "roomId": "room-essence",
+      "tilesetLayers": ["gateway-interior", "gateway-nature"],
+      "spriteOverlays": [
+        { "spriteKey": "crystal-orb", "x": 496, "y": 336, "frame": 0, "scale": 1.25 },
+        { "spriteKey": "rune-circle", "x": 544, "y": 400, "frame": 0 }
+      ],
+      "ambientAnimations": [
+        { "spriteKey": "orb-pulse", "x": 512, "y": 344, "frameStart": 0, "frameEnd": 9, "frameRate": 5 }
+      ]
+    }
+  ]
+}

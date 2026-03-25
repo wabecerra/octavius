@@ -33,6 +33,7 @@ The setup script will:
 - Create `.env.local` with sensible defaults
 - Set up the SQLite data directory
 - Detect if an OpenClaw gateway is running
+- Install lossless-claw plugin if a gateway is detected
 - Install dependencies if needed
 
 ### 2. Start the dashboard
@@ -87,6 +88,26 @@ openclaw gateway restart
 
 Your agent now has tools like `octavius_task_create`, `octavius_checkin`, `octavius_journal`, etc. See [extensions/openclaw-octavius/README.md](extensions/openclaw-octavius/README.md) for the full tool list.
 
+#### Persistent conversation memory (lossless-claw)
+
+The setup script automatically installs [lossless-claw](https://github.com/Martian-Engineering/lossless-claw) when a gateway is detected. This gives all Octavius agents persistent conversation memory — they never lose context, even in long conversations.
+
+If it wasn't auto-installed, add it manually:
+
+```bash
+openclaw plugins install @martian-engineering/lossless-claw
+```
+
+When you click "Provision Agents" in Settings, the OpenClaw config is automatically generated with optimal lossless-claw settings:
+- `freshTailCount: 32` — protects the last 32 messages from compaction
+- `incrementalMaxDepth: -1` — unlimited DAG condensation depth
+- `contextThreshold: 0.75` — triggers compaction at 75% of context window
+- Cron sessions are excluded from LCM storage (noise reduction)
+- Sub-agent sessions are stateless (read-only access to LCM)
+- Session idle timeout set to 7 days (LCM handles context persistence)
+
+The Memory tab in the dashboard shows LCM status, conversation count, summary DAG depth, and lets you browse stored conversations.
+
 Optionally, connect the dashboard UI to the gateway:
 1. Go to Settings → Gateway Connection
 2. Enter `localhost` and port `18789`
@@ -135,6 +156,24 @@ Optionally, connect the dashboard UI to the gateway:
 - Scheduled jobs and heartbeat actions
 - Memory configuration
 
+### Lossless Context (LCM)
+- Persistent conversation memory across all agent sessions via [lossless-claw](https://github.com/Martian-Engineering/lossless-claw)
+- DAG-based summarization — nothing is ever lost from conversations
+- Auto-configured during agent provisioning (zero manual setup)
+- LCM status panel in Memory tab (conversations, summary DAG depth, DB size)
+- Cross-search LCM conversation history from the dashboard
+- Evolution job feeds from LCM summaries to learn behavioral patterns
+- Agents get `lcm_grep`, `lcm_describe`, `lcm_expand_query` tools automatically
+
+### Obsidian Integration
+- Two-way sync between Octavius memory and your Obsidian vault
+- Memory items exported as markdown with YAML frontmatter
+- Notes created in Obsidian auto-imported as memory items
+- Vault knowledge graph visualization with wikilink parsing
+- Synced/unsynced/phantom node color coding
+- Configurable sync direction (bidirectional, push-only, pull-only)
+- Works with the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin
+
 ## Architecture
 
 ```
@@ -146,12 +185,16 @@ octavius/
 │   │       ├── health/import/          # CSV upload endpoint
 │   │       ├── health/ingest/          # Health data ingest (dedup + store)
 │   │       ├── memory/                 # Memory Service API
+│   │       ├── lcm/                    # LCM bridge (status, search, conversations)
+│   │       ├── obsidian/               # Obsidian sync, status, vault graph
 │   │       └── gateway/                # Gateway integration
 │   ├── components/
 │   │   └── health/                     # Biometric charts, CSV upload
 │   ├── lib/
 │   │   ├── health/                     # Types, normalizer, CSV parser, dedup
 │   │   ├── memory/                     # SQLite Memory Service, sync layer, evolution
+│   │   ├── lcm/                        # Read-only bridge to lossless-claw SQLite DB
+│   │   ├── obsidian/                   # Obsidian REST API client, sync engine
 │   │   └── gateway/                    # Client, provisioner, orchestrator, dispatcher
 │   ├── store/                          # Zustand (localStorage + Memory Service sync)
 │   └── types/                          # TypeScript definitions
@@ -168,6 +211,7 @@ octavius/
 | Health biometrics | SQLite `.data/memory.sqlite` | Server-side, `source_type = 'device_sync'` |
 | Agent memories | SQLite `.data/memory.sqlite` | Server-side, various source types |
 | LLM cost logs, budgets, alerts | SQLite `.data/memory.sqlite` | Server-side |
+| Conversation history (LCM) | SQLite `~/.openclaw/lcm.db` | Persistent, DAG-summarized |
 | Agent workspace files | `~/.openclaw/workspace-octavius-*/` | Filesystem |
 | Agent file version history | SQLite `agent_context_versions` | Server-side audit trail |
 | Browser UI state | Browser localStorage | Per-browser (ephemeral, syncs to SQLite) |
@@ -243,7 +287,34 @@ Each agent has Markdown files that define its behavior:
 
 Files live at `~/.openclaw/workspace-octavius-*/`. Edit them from the dashboard (Agents tab) or directly on disk.
 
-The Evolution Job runs nightly at 4 AM and appends learned behavioral patterns and preferences to AGENTS.md and USER.md. Previous versions are backed up in SQLite.
+The Evolution Job runs nightly at 4 AM and appends learned behavioral patterns and preferences to AGENTS.md and USER.md. Previous versions are backed up in SQLite. When lossless-claw is installed, the Evolution Job also scans recent LCM conversation summaries for patterns, giving agents richer self-improvement signals.
+
+## Obsidian Integration
+
+Octavius can sync its memory system with an [Obsidian](https://obsidian.md/) vault, giving you a polished markdown editor for browsing and creating memories while Octavius handles the intelligence layer (decay, consolidation, embeddings, agent provenance).
+
+### Setup
+
+1. Install the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) community plugin in Obsidian
+2. Enable it in Settings → Community Plugins
+3. Copy the API key from Settings → Local REST API
+4. In the Octavius dashboard, go to Memory → Obsidian Integration
+5. Enable the toggle, paste the API key, and click Test Connection
+6. Click Sync Now
+
+### How it works
+
+- **Push (Memory → Vault):** Each memory item becomes a `.md` file in your vault's `octavius/` folder with YAML frontmatter containing `memory_id`, `type`, `layer`, `tags`, `confidence`, and `importance`.
+- **Pull (Vault → Memory):** New notes you create in the `octavius/` folder (without a `memory_id` in frontmatter) are imported as memory items. After import, the note is stamped with the assigned `memory_id` to prevent duplicates.
+- **Vault Graph:** The Obsidian Vault tab in the Knowledge Graph section visualizes your vault's `[[wikilink]]` structure as a force-directed graph, with nodes color-coded by sync status.
+
+### Sync direction
+
+| Mode | Behavior |
+|------|----------|
+| Bidirectional | Push new memories to vault + pull new vault notes to memory |
+| Push only | Memory → Vault only (read-only vault) |
+| Pull only | Vault → Memory only (Obsidian as primary editor) |
 
 ## Development
 
@@ -266,6 +337,7 @@ npm run lint          # Lint
 - Zustand (state management)
 - better-sqlite3 (Memory Service)
 - OpenClaw (AI agent gateway)
+- lossless-claw (persistent conversation memory)
 
 ## License
 

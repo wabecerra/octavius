@@ -101,6 +101,33 @@ if (gatewayFound) {
   console.log('○ No OpenClaw gateway detected on localhost:18789 (optional)')
 }
 
+// Step 4b: Check/install lossless-claw plugin
+let lcmInstalled = false
+if (gatewayFound) {
+  try {
+    const { stdout } = execSync('openclaw plugins list --json 2>/dev/null', { encoding: 'utf8' })
+    lcmInstalled = stdout.includes('lossless-claw')
+  } catch {
+    // plugins list not available or failed
+  }
+
+  if (lcmInstalled) {
+    console.log('✓ lossless-claw plugin already installed')
+  } else {
+    console.log('⏳ Installing lossless-claw (persistent conversation memory)...')
+    try {
+      execSync('openclaw plugins install @martian-engineering/lossless-claw', { cwd: ROOT, stdio: 'inherit' })
+      lcmInstalled = true
+      console.log('✓ lossless-claw installed — agents will never lose conversation context')
+    } catch {
+      console.log('○ Could not auto-install lossless-claw — install manually:')
+      console.log('  openclaw plugins install @martian-engineering/lossless-claw')
+    }
+  }
+} else {
+  console.log('○ Skipping lossless-claw install (no gateway detected)')
+}
+
 // Step 5: Check for OpenClaw config
 const openclawConfigPaths = [
   join(process.env.HOME ?? '', '.openclaw', 'openclaw.json'),
@@ -129,10 +156,17 @@ console.log('  3. Go to Settings → fill in your profile\n')
 
 if (gatewayFound) {
   console.log('  4. Go to Settings → Gateway Connection')
-  console.log('     Gateway detected — click "Connect" to link agents\n')
+  console.log('     Gateway detected — click "Connect" to link agents')
+  if (lcmInstalled) {
+    console.log('     ✓ lossless-claw active — conversation memory is persistent\n')
+  } else {
+    console.log('     ○ Run: openclaw plugins install @martian-engineering/lossless-claw')
+    console.log('       for persistent conversation memory\n')
+  }
 } else {
   console.log('  4. (Optional) Install OpenClaw for AI agents:')
-  console.log('     npm i -g openclaw && openclaw gateway run\n')
+  console.log('     npm i -g openclaw && openclaw gateway run')
+  console.log('     Then: openclaw plugins install @martian-engineering/lossless-claw\n')
 }
 
 console.log('📖 Full docs: https://github.com/wabecerra/octavius#readme\n')

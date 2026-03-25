@@ -1,0 +1,302 @@
+{
+  "meta": {
+    "version": "2.0.0",
+    "schema": "octavius/map.logic.v2",
+    "baseResolution": { "width": 1920, "height": 1080 }
+  },
+  "hubRoomId": "room-hub",
+  "rooms": [
+    {
+      "roomId": "room-vault",
+      "label": "Memory Vault",
+      "icon": "emote:star",
+      "bounds": [50, 80, 460, 380],
+      "labelAnchor": { "x": 340, "y": 130 },
+      "connections": ["room-hub", "room-forge"]
+    },
+    {
+      "roomId": "room-forge",
+      "label": "Skill Forge",
+      "icon": "emote:idea",
+      "bounds": [580, 50, 320, 240],
+      "labelAnchor": { "x": 710, "y": 60 },
+      "connections": ["room-vault", "room-hub", "room-bridge"]
+    },
+    {
+      "roomId": "room-bridge",
+      "label": "Bridge",
+      "icon": "emote:thinking",
+      "bounds": [960, 50, 240, 180],
+      "labelAnchor": { "x": 1080, "y": 60 },
+      "connections": ["room-forge", "room-watchtower"]
+    },
+    {
+      "roomId": "room-watchtower",
+      "label": "Watchtower",
+      "icon": "emote:device",
+      "bounds": [1280, 50, 280, 180],
+      "labelAnchor": { "x": 1420, "y": 60 },
+      "connections": ["room-bridge", "room-ledger"]
+    },
+    {
+      "roomId": "room-ledger",
+      "label": "Ledger",
+      "icon": "emote:exclaim",
+      "bounds": [1600, 50, 260, 180],
+      "labelAnchor": { "x": 1720, "y": 60 },
+      "connections": ["room-watchtower", "room-dispatch"]
+    },
+    {
+      "roomId": "room-hub",
+      "label": "Hub",
+      "icon": "emote:star",
+      "bounds": [660, 320, 520, 320],
+      "labelAnchor": { "x": 920, "y": 400 },
+      "connections": ["room-vault", "room-forge", "room-dispatch", "room-quarters", "room-workshop"]
+    },
+    {
+      "roomId": "room-dispatch",
+      "label": "Dispatch",
+      "icon": "emote:exclaim",
+      "bounds": [1320, 300, 520, 280],
+      "labelAnchor": { "x": 1580, "y": 360 },
+      "connections": ["room-hub", "room-ledger", "room-quarters"]
+    },
+    {
+      "roomId": "room-workshop",
+      "label": "Workshop",
+      "icon": "emote:idea",
+      "bounds": [50, 540, 500, 340],
+      "labelAnchor": { "x": 300, "y": 580 },
+      "connections": ["room-hub", "room-quarters"]
+    },
+    {
+      "roomId": "room-quarters",
+      "label": "Quarters",
+      "icon": "emote:sleep",
+      "bounds": [1350, 700, 480, 280],
+      "labelAnchor": { "x": 1590, "y": 720 },
+      "connections": ["room-hub", "room-dispatch", "room-workshop"]
+    }
+  ],
+  "walkGraph": {
+    "nodes": [
+      { "id": "VA1", "x": 280, "y": 300, "roomId": "room-vault" },
+      { "id": "FO1", "x": 740, "y": 200, "roomId": "room-forge" },
+      { "id": "BR1", "x": 1080, "y": 150, "roomId": "room-bridge" },
+      { "id": "WT1", "x": 1420, "y": 150, "roomId": "room-watchtower" },
+      { "id": "LE1", "x": 1730, "y": 150, "roomId": "room-ledger" },
+      { "id": "HU1", "x": 920, "y": 480, "roomId": "room-hub" },
+      { "id": "DI1", "x": 1580, "y": 440, "roomId": "room-dispatch" },
+      { "id": "WK1", "x": 300, "y": 700, "roomId": "room-workshop" },
+      { "id": "QU1", "x": 1590, "y": 840, "roomId": "room-quarters" },
+      { "id": "H1", "x": 500, "y": 350, "roomId": "room-vault" },
+      { "id": "H2", "x": 740, "y": 350, "roomId": "room-forge" },
+      { "id": "H3", "x": 1100, "y": 350, "roomId": "room-bridge" },
+      { "id": "H4", "x": 1400, "y": 350, "roomId": "room-dispatch" },
+      { "id": "V1", "x": 580, "y": 550, "roomId": "room-workshop" },
+      { "id": "V2", "x": 920, "y": 650, "roomId": "room-hub" },
+      { "id": "V3", "x": 1350, "y": 650, "roomId": "room-dispatch" }
+    ],
+    "edges": [
+      ["VA1", "H1"],
+      ["FO1", "H2"],
+      ["BR1", "H3"],
+      ["WT1", "BR1"],
+      ["WT1", "LE1"],
+      ["LE1", "H4"],
+      ["H1", "H2"],
+      ["H2", "H3"],
+      ["H3", "H4"],
+      ["H2", "HU1"],
+      ["HU1", "H3"],
+      ["H4", "DI1"],
+      ["DI1", "V3"],
+      ["V3", "QU1"],
+      ["H1", "V1"],
+      ["V1", "WK1"],
+      ["V1", "V2"],
+      ["V2", "HU1"],
+      ["V2", "V3"]
+    ]
+  },
+  "walkableZones": [
+    {
+      "id": "vault-room",
+      "points": [
+        { "x": 80, "y": 140 },
+        { "x": 480, "y": 140 },
+        { "x": 520, "y": 220 },
+        { "x": 520, "y": 400 },
+        { "x": 440, "y": 450 },
+        { "x": 80, "y": 450 },
+        { "x": 60, "y": 380 },
+        { "x": 60, "y": 200 }
+      ]
+    },
+    {
+      "id": "north-spine",
+      "points": [
+        { "x": 600, "y": 100 },
+        { "x": 1840, "y": 100 },
+        { "x": 1860, "y": 160 },
+        { "x": 1840, "y": 240 },
+        { "x": 1320, "y": 240 },
+        { "x": 1260, "y": 300 },
+        { "x": 960, "y": 300 },
+        { "x": 900, "y": 320 },
+        { "x": 680, "y": 320 },
+        { "x": 600, "y": 260 }
+      ]
+    },
+    {
+      "id": "center-hall",
+      "points": [
+        { "x": 480, "y": 320 },
+        { "x": 1400, "y": 320 },
+        { "x": 1480, "y": 400 },
+        { "x": 1400, "y": 500 },
+        { "x": 680, "y": 500 },
+        { "x": 580, "y": 440 },
+        { "x": 480, "y": 440 }
+      ]
+    },
+    {
+      "id": "dispatch-wing",
+      "points": [
+        { "x": 1340, "y": 310 },
+        { "x": 1820, "y": 310 },
+        { "x": 1860, "y": 360 },
+        { "x": 1860, "y": 560 },
+        { "x": 1340, "y": 560 },
+        { "x": 1300, "y": 480 }
+      ]
+    },
+    {
+      "id": "left-corridor",
+      "points": [
+        { "x": 440, "y": 380 },
+        { "x": 620, "y": 380 },
+        { "x": 620, "y": 760 },
+        { "x": 440, "y": 760 }
+      ]
+    },
+    {
+      "id": "lower-main",
+      "points": [
+        { "x": 70, "y": 560 },
+        { "x": 1260, "y": 560 },
+        { "x": 1300, "y": 640 },
+        { "x": 1300, "y": 900 },
+        { "x": 520, "y": 900 },
+        { "x": 60, "y": 860 },
+        { "x": 60, "y": 620 }
+      ]
+    },
+    {
+      "id": "right-diagonal",
+      "points": [
+        { "x": 1280, "y": 580 },
+        { "x": 1420, "y": 580 },
+        { "x": 1600, "y": 740 },
+        { "x": 1560, "y": 800 },
+        { "x": 1380, "y": 800 },
+        { "x": 1280, "y": 680 }
+      ]
+    },
+    {
+      "id": "quarters-room",
+      "points": [
+        { "x": 1370, "y": 720 },
+        { "x": 1810, "y": 720 },
+        { "x": 1830, "y": 760 },
+        { "x": 1830, "y": 960 },
+        { "x": 1420, "y": 960 },
+        { "x": 1370, "y": 900 },
+        { "x": 1370, "y": 760 }
+      ]
+    }
+  ],
+  "workZones": [
+    {
+      "id": "room-vault",
+      "label": "Memory Vault",
+      "roomId": "room-vault",
+      "type": "memory",
+      "anchor": { "x": 280, "y": 300 },
+      "radius": 32
+    },
+    {
+      "id": "room-forge",
+      "label": "Skill Forge",
+      "roomId": "room-forge",
+      "type": "skills",
+      "anchor": { "x": 740, "y": 200 },
+      "radius": 28
+    },
+    {
+      "id": "room-bridge",
+      "label": "Bridge",
+      "roomId": "room-bridge",
+      "type": "bridge",
+      "anchor": { "x": 1080, "y": 150 },
+      "radius": 24
+    },
+    {
+      "id": "room-watchtower",
+      "label": "Watchtower",
+      "roomId": "room-watchtower",
+      "type": "monitoring",
+      "anchor": { "x": 1420, "y": 150 },
+      "radius": 24
+    },
+    {
+      "id": "room-ledger",
+      "label": "Ledger",
+      "roomId": "room-ledger",
+      "type": "ledger",
+      "anchor": { "x": 1730, "y": 150 },
+      "radius": 24
+    },
+    {
+      "id": "room-hub",
+      "label": "Hub",
+      "roomId": "room-hub",
+      "type": "hub",
+      "anchor": { "x": 920, "y": 480 },
+      "radius": 36
+    },
+    {
+      "id": "room-dispatch",
+      "label": "Dispatch",
+      "roomId": "room-dispatch",
+      "type": "dispatch",
+      "anchor": { "x": 1580, "y": 440 },
+      "radius": 28
+    },
+    {
+      "id": "room-workshop",
+      "label": "Workshop",
+      "roomId": "room-workshop",
+      "type": "workshop",
+      "anchor": { "x": 300, "y": 700 },
+      "radius": 32
+    },
+    {
+      "id": "room-quarters",
+      "label": "Quarters",
+      "roomId": "room-quarters",
+      "type": "quarters",
+      "anchor": { "x": 1590, "y": 840 },
+      "radius": 32
+    }
+  ],
+  "occluders": [
+    { "id": "vault-shelf-front", "x": 100, "y": 420, "width": 200, "height": 20 },
+    { "id": "hub-desk-front", "x": 800, "y": 580, "width": 240, "height": 22 },
+    { "id": "dispatch-board-front", "x": 1450, "y": 540, "width": 200, "height": 20 },
+    { "id": "quarters-bar-front", "x": 1450, "y": 920, "width": 200, "height": 22 }
+  ],
+  "collisionPolygons": [],
+  "waypoints": []
+}

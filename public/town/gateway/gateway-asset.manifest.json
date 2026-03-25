@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "rooms": [
+    {
+      "roomId": "room-memory",
+      "apiEndpoint": "/api/memory/items",
+      "columns": [
+        { "field": "text", "label": "Text", "width": 35, "truncate": 80 },
+        { "field": "type", "label": "Type", "width": 12 },
+        { "field": "layer", "label": "Layer", "width": 14 },
+        { "field": "confidence", "label": "Confidence", "width": 12 },
+        { "field": "importance", "label": "Importance", "width": 12 },
+        { "field": "created_at", "label": "Created", "width": 15 }
+      ],
+      "filters": [
+        { "field": "type", "label": "Type", "type": "enum", "options": ["episodic", "semantic", "procedural", "entity_profile"] },
+        { "field": "layer", "label": "Layer", "type": "enum", "options": ["life_directory", "daily_notes", "tacit_knowledge"] },
+        { "field": "text", "label": "Search", "type": "text" }
+      ],
+      "sorts": [
+        { "field": "created_at", "label": "Created", "defaultDirection": "desc" },
+        { "field": "importance", "label": "Importance", "defaultDirection": "desc" },
+        { "field": "confidence", "label": "Confidence", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "memory-item"
+    },
+    {
+      "roomId": "room-agents",
+      "apiEndpoint": "/api/agents/config",
+      "columns": [
+        { "field": "agentId", "label": "Agent ID", "width": 25 },
+        { "field": "provider", "label": "Provider", "width": 20 },
+        { "field": "model", "label": "Model", "width": 35 },
+        { "field": "updatedAt", "label": "Updated", "width": 20 }
+      ],
+      "filters": [
+        { "field": "provider", "label": "Provider", "type": "enum", "options": ["openrouter", "openai", "anthropic"] }
+      ],
+      "sorts": [
+        { "field": "agentId", "label": "Agent ID", "defaultDirection": "asc" },
+        { "field": "updatedAt", "label": "Updated", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "agent-card"
+    },
+    {
+      "roomId": "room-tasks",
+      "apiEndpoint": "/api/dashboard/tasks",
+      "columns": [
+        { "field": "title", "label": "Title", "width": 40, "truncate": 60 },
+        { "field": "status", "label": "Status", "width": 15 },
+        { "field": "priority", "label": "Priority", "width": 15 },
+        { "field": "createdAt", "label": "Created", "width": 20 }
+      ],
+      "filters": [
+        { "field": "status", "label": "Status", "type": "enum", "options": ["backlog", "todo", "in-progress", "done"] },
+        { "field": "priority", "label": "Priority", "type": "enum", "options": ["low", "medium", "high", "urgent"] }
+      ],
+      "sorts": [
+        { "field": "createdAt", "label": "Created", "defaultDirection": "desc" },
+        { "field": "priority", "label": "Priority", "defaultDirection": "desc" },
+        { "field": "status", "label": "Status" }
+      ],
+      "previewTemplate": "task-card"
+    },
+    {
+      "roomId": "room-health",
+      "apiEndpoint": "/api/dashboard/checkins",
+      "columns": [
+        { "field": "timestamp", "label": "Timestamp", "width": 30 },
+        { "field": "mood", "label": "Mood", "width": 20 },
+        { "field": "energy", "label": "Energy", "width": 20 },
+        { "field": "stress", "label": "Stress", "width": 20 }
+      ],
+      "filters": [
+        { "field": "timestamp", "label": "Since", "type": "date-range" }
+      ],
+      "sorts": [
+        { "field": "timestamp", "label": "Timestamp", "defaultDirection": "desc" },
+        { "field": "mood", "label": "Mood", "defaultDirection": "desc" },
+        { "field": "energy", "label": "Energy", "defaultDirection": "desc" },
+        { "field": "stress", "label": "Stress", "defaultDirection": "asc" }
+      ],
+      "previewTemplate": "checkin-card"
+    },
+    {
+      "roomId": "room-obsidian",
+      "apiEndpoint": "/api/obsidian/status",
+      "columns": [
+        { "field": "connected", "label": "Connected", "width": 20 },
+        { "field": "api_url", "label": "API URL", "width": 30 },
+        { "field": "vault_folder", "label": "Vault Folder", "width": 25 },
+        { "field": "sync_direction", "label": "Sync Direction", "width": 25 }
+      ],
+      "filters": [],
+      "sorts": [],
+      "previewTemplate": "obsidian-status"
+    },
+    {
+      "roomId": "room-lcm",
+      "apiEndpoint": "/api/lcm/status",
+      "columns": [
+        { "field": "available", "label": "Available", "width": 15 },
+        { "field": "conversations", "label": "Conversations", "width": 20 },
+        { "field": "totalMessages", "label": "Messages", "width": 20 },
+        { "field": "summaryStats.maxDepth", "label": "Max DAG Depth", "width": 20 },
+        { "field": "dbSizeBytes", "label": "DB Size", "width": 20 }
+      ],
+      "filters": [],
+      "sorts": [],
+      "previewTemplate": "lcm-status"
+    },
+    {
+      "roomId": "room-costs",
+      "apiEndpoint": "/api/llm-cost/stats",
+      "columns": [
+        { "field": "model", "label": "Model", "width": 30 },
+        { "field": "totalCost", "label": "Total Cost", "width": 20 },
+        { "field": "requestCount", "label": "Requests", "width": 20 },
+        { "field": "period", "label": "Period", "width": 20 }
+      ],
+      "filters": [
+        { "field": "model", "label": "Model", "type": "text" }
+      ],
+      "sorts": [
+        { "field": "totalCost", "label": "Total Cost", "defaultDirection": "desc" },
+        { "field": "requestCount", "label": "Requests", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "cost-stats"
+    },
+    {
+      "roomId": "room-lifeforce",
+      "apiEndpoint": "/api/dashboard/tasks?quadrant=lifeforce",
+      "columns": [
+        { "field": "title", "label": "Title", "width": 40, "truncate": 60 },
+        { "field": "status", "label": "Status", "width": 20 },
+        { "field": "priority", "label": "Priority", "width": 20 },
+        { "field": "createdAt", "label": "Created", "width": 20 }
+      ],
+      "filters": [
+        { "field": "status", "label": "Status", "type": "enum", "options": ["backlog", "todo", "in-progress", "done"] },
+        { "field": "priority", "label": "Priority", "type": "enum", "options": ["low", "medium", "high", "urgent"] }
+      ],
+      "sorts": [
+        { "field": "createdAt", "label": "Created", "defaultDirection": "desc" },
+        { "field": "priority", "label": "Priority", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "quadrant-task"
+    },
+    {
+      "roomId": "room-industry",
+      "apiEndpoint": "/api/dashboard/tasks?quadrant=industry",
+      "columns": [
+        { "field": "title", "label": "Title", "width": 40, "truncate": 60 },
+        { "field": "status", "label": "Status", "width": 20 },
+        { "field": "priority", "label": "Priority", "width": 20 },
+        { "field": "createdAt", "label": "Created", "width": 20 }
+      ],
+      "filters": [
+        { "field": "status", "label": "Status", "type": "enum", "options": ["backlog", "todo", "in-progress", "done"] },
+        { "field": "priority", "label": "Priority", "type": "enum", "options": ["low", "medium", "high", "urgent"] }
+      ],
+      "sorts": [
+        { "field": "createdAt", "label": "Created", "defaultDirection": "desc" },
+        { "field": "priority", "label": "Priority", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "quadrant-task"
+    },
+    {
+      "roomId": "room-fellowship",
+      "apiEndpoint": "/api/dashboard/tasks?quadrant=fellowship",
+      "columns": [
+        { "field": "title", "label": "Title", "width": 40, "truncate": 60 },
+        { "field": "status", "label": "Status", "width": 20 },
+        { "field": "priority", "label": "Priority", "width": 20 },
+        { "field": "createdAt", "label": "Created", "width": 20 }
+      ],
+      "filters": [
+        { "field": "status", "label": "Status", "type": "enum", "options": ["backlog", "todo", "in-progress", "done"] },
+        { "field": "priority", "label": "Priority", "type": "enum", "options": ["low", "medium", "high", "urgent"] }
+      ],
+      "sorts": [
+        { "field": "createdAt", "label": "Created", "defaultDirection": "desc" },
+        { "field": "priority", "label": "Priority", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "quadrant-task"
+    },
+    {
+      "roomId": "room-essence",
+      "apiEndpoint": "/api/dashboard/tasks?quadrant=essence",
+      "columns": [
+        { "field": "title", "label": "Title", "width": 40, "truncate": 60 },
+        { "field": "status", "label": "Status", "width": 20 },
+        { "field": "priority", "label": "Priority", "width": 20 },
+        { "field": "createdAt", "label": "Created", "width": 20 }
+      ],
+      "filters": [
+        { "field": "status", "label": "Status", "type": "enum", "options": ["backlog", "todo", "in-progress", "done"] },
+        { "field": "priority", "label": "Priority", "type": "enum", "options": ["low", "medium", "high", "urgent"] }
+      ],
+      "sorts": [
+        { "field": "createdAt", "label": "Created", "defaultDirection": "desc" },
+        { "field": "priority", "label": "Priority", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "quadrant-task"
+    },
+    {
+      "roomId": "room-hub",
+      "apiEndpoint": "/api/dashboard/tasks",
+      "columns": [
+        { "field": "title", "label": "Title", "width": 40, "truncate": 60 },
+        { "field": "status", "label": "Status", "width": 20 },
+        { "field": "priority", "label": "Priority", "width": 20 },
+        { "field": "createdAt", "label": "Created", "width": 20 }
+      ],
+      "filters": [
+        { "field": "status", "label": "Status", "type": "enum", "options": ["backlog", "todo", "in-progress", "done"] }
+      ],
+      "sorts": [
+        { "field": "createdAt", "label": "Created", "defaultDirection": "desc" }
+      ],
+      "previewTemplate": "task-card"
+    }
+  ]
+}
