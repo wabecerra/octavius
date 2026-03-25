@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { townEvents, type SeatStatus } from '@/lib/town/events'
-import { useFleet, useFleetConfigSync } from '@/lib/town/use-fleet'
+import { useFleet, useFleetConfigSync, useFleetActivitySync } from '@/lib/town/use-fleet'
 import { getFleetStore, type FleetAgent } from '@/lib/town/fleet-store'
 
 // ── Constants ──
@@ -154,6 +154,7 @@ function TaskAssignModal({ agentId, agents, onClose }: { agentId: string; agents
 export function NerveCenterView() {
   const { agents, activity } = useFleet()
   useFleetConfigSync()
+  useFleetActivitySync()
 
   const [gatewayOk, setGatewayOk] = useState(false)
   const [taskModalAgent, setTaskModalAgent] = useState<string | null>(null)

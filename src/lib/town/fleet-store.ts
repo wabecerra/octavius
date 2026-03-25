@@ -219,6 +219,32 @@ class FleetStore {
     }, 4000)
   }
 
+  /** Add activity from backend polling (used by useFleetActivitySync) */
+  addBackendActivity(
+    id: string,
+    agentId: string,
+    emoji: string,
+    message: string,
+    type: ActivityEntry['type'],
+    timestamp: string,
+  ) {
+    // Don't duplicate
+    if (this.snapshot.activity.some(a => a.id === id)) return
+    this.snapshot = {
+      ...this.snapshot,
+      activity: [{
+        id,
+        ts: timestamp,
+        agentId,
+        emoji,
+        message,
+        type,
+      }, ...this.snapshot.activity].slice(0, MAX_ACTIVITY),
+    }
+    this.persist()
+    this.notify()
+  }
+
   // ── Internal ──
 
   private updateAgent(agentId: string, patch: Partial<FleetAgent>) {
