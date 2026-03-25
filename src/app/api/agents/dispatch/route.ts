@@ -66,6 +66,8 @@ export async function POST(request: Request) {
     const { stdout, stderr } = await execAsync(command, {
       timeout: 130_000,
       encoding: 'utf8',
+      env: { ...process.env, HOME: process.env.HOME || '/home/wabo' },
+      maxBuffer: 1024 * 1024,
     })
 
     if (stderr) {
