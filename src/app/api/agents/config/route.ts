@@ -12,16 +12,16 @@ export interface AgentModelConfig {
 }
 
 const DEFAULT_CONFIGS: Array<{ agent_id: string; provider: string; model: string }> = [
-  { agent_id: 'gen-lifeforce', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'gen-industry', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'gen-fellowship', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'gen-essence', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'specialist-research', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'specialist-engineering', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'specialist-marketing', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'specialist-video', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'specialist-image', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
-  { agent_id: 'specialist-writing', provider: 'openrouter', model: 'qwen/qwen3-235b-a22b-2507' },
+  { agent_id: 'gen-lifeforce', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'gen-industry', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'gen-fellowship', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'gen-essence', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'specialist-research', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'specialist-engineering', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'specialist-marketing', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'specialist-video', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'specialist-image', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
+  { agent_id: 'specialist-writing', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
 ]
 
 function ensureDefaults(db: ReturnType<typeof getDatabase>) {
