@@ -1,10 +1,36 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { useTasks, Task, Quadrant } from '@/hooks'
+import { useTasks, useActiveAgents, Task, Quadrant } from '@/hooks'
 import type { Sprint } from '@/lib/sprint'
 import { KanbanBoard } from '@/components/ui/KanbanBoard'
+
+// ─── Subtask types ───
+
+interface Subtask {
+  id: string
+  parentTaskId: string
+  title: string
+  description: string
+  status: string
+  stepOrder: number
+  agentId: string | null
+  requiresApproval: boolean
+  approvedAt: string | null
+  output: string
+  createdAt: string
+  updatedAt: string
+}
+
+const SUBTASK_STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]',
+  awaiting_approval: 'bg-[color-mix(in_srgb,var(--color-warning)_15%,transparent)] text-[var(--color-warning)]',
+  approved: 'bg-[color-mix(in_srgb,var(--color-info)_15%,transparent)] text-[var(--color-info)]',
+  completed: 'bg-[color-mix(in_srgb,var(--color-success)_15%,transparent)] text-[var(--color-success)]',
+  failed: 'bg-[color-mix(in_srgb,var(--color-error)_15%,transparent)] text-[var(--color-error)]',
+  skipped: 'bg-[var(--bg-tertiary)] text-[var(--text-disabled)] line-through',
+}
 
 // ─── Shared Constants ───
 
@@ -265,6 +291,177 @@ function DeleteConfirmModal({
   )
 }
 
+// ─── Task Detail Modal (with subtask approval) ───
+
+function TaskDetailModal({
+  open,
+  onOpenChange,
+  task,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  task: Task | null
+}) {
+  const [subtasks, setSubtasks] = useState<Subtask[]>([])
+  const [loading, setLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  const fetchSubtasks = useCallback(async (taskId: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/dashboard/subtasks?taskId=${taskId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSubtasks(data.subtasks || [])
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open && task) {
+      fetchSubtasks(task.id)
+    } else {
+      setSubtasks([])
+    }
+  }, [open, task, fetchSubtasks])
+
+  const handleAction = async (subtaskId: string, action: 'approve' | 'skip') => {
+    setActionLoading(subtaskId)
+    try {
+      const res = await fetch('/api/dashboard/subtasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtaskId, action }),
+      })
+      if (res.ok) {
+        // Refresh subtasks
+        if (task) await fetchSubtasks(task.id)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  if (!task) return null
+
+  const awaitingApproval = subtasks.filter(s => s.status === 'awaiting_approval')
+
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 shadow-xl max-h-[80vh] overflow-y-auto">
+          <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
+            {task.title}
+          </Dialog.Title>
+          <Dialog.Description className="sr-only">Task details and subtask management</Dialog.Description>
+
+          {/* Task info */}
+          <div className="space-y-2">
+            {task.description && (
+              <p className="text-sm text-[var(--text-secondary)]">{task.description}</p>
+            )}
+            <div className="flex gap-2 text-xs">
+              <span className={`px-2 py-0.5 rounded border ${PRIORITY_COLORS[task.priority]}`}>{task.priority}</span>
+              <span className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{task.status}</span>
+            </div>
+          </div>
+
+          {/* Subtasks */}
+          <div className="border-t border-[var(--border-primary)] pt-4">
+            <h4 className="text-sm font-medium text-[var(--text-primary)] mb-3">
+              Subtasks
+              {awaitingApproval.length > 0 && (
+                <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--color-warning)_15%,transparent)] text-[var(--color-warning)]">
+                  {awaitingApproval.length} awaiting approval
+                </span>
+              )}
+            </h4>
+
+            {loading ? (
+              <p className="text-xs text-[var(--text-tertiary)]">Loading subtasks...</p>
+            ) : subtasks.length === 0 ? (
+              <p className="text-xs text-[var(--text-tertiary)]">No subtasks</p>
+            ) : (
+              <div className="space-y-2">
+                {subtasks.map((st) => (
+                  <div
+                    key={st.id}
+                    className="border border-[var(--border-primary)] rounded-lg p-3 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[var(--text-primary)]">{st.title}</p>
+                        {st.description && (
+                          <p className="text-xs text-[var(--text-tertiary)] mt-0.5 line-clamp-3">{st.description}</p>
+                        )}
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${SUBTASK_STATUS_STYLES[st.status] || SUBTASK_STATUS_STYLES.pending}`}>
+                        {st.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    {st.agentId && (
+                      <p className="text-[10px] text-[var(--color-info)]">Agent: {st.agentId}</p>
+                    )}
+
+                    {st.output && (
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
+                          Output
+                        </summary>
+                        <pre className="mt-1 p-2 bg-[var(--bg-tertiary)] rounded text-[var(--text-secondary)] overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap text-[10px]">
+                          {st.output}
+                        </pre>
+                      </details>
+                    )}
+
+                    {/* Approval actions */}
+                    {st.status === 'awaiting_approval' && (
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={actionLoading === st.id}
+                          onClick={() => handleAction(st.id, 'approve')}
+                          className="px-3 py-1 rounded-lg text-xs font-medium bg-[color-mix(in_srgb,var(--color-success)_15%,transparent)] text-[var(--color-success)] hover:bg-[color-mix(in_srgb,var(--color-success)_25%,transparent)] transition-colors duration-150 disabled:opacity-50"
+                        >
+                          {actionLoading === st.id ? 'Approving...' : 'Approve'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionLoading === st.id}
+                          onClick={() => handleAction(st.id, 'skip')}
+                          className="px-3 py-1 rounded-lg text-xs font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors duration-150 disabled:opacity-50"
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Dialog.Close asChild>
+              <button type="button" className="px-4 py-2 rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors duration-150">
+                Close
+              </button>
+            </Dialog.Close>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
 // ─── Exported Task Board Section ───
 
 export function TaskBoardSection({ sprint }: { sprint: Sprint }) {
@@ -273,10 +470,21 @@ export function TaskBoardSection({ sprint }: { sprint: Sprint }) {
     until: sprint.endDate,
     includeOpen: true,
   })
+  const { agentByTaskId } = useActiveAgents()
+
+  // Build map of taskId → agentId for active agent indicators
+  const activeAgentMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const [taskId, agent] of agentByTaskId) {
+      map.set(taskId, agent.agentId)
+    }
+    return map
+  }, [agentByTaskId])
 
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
+  const [detailTask, setDetailTask] = useState<Task | null>(null)
 
   // Count carried-over tasks (open tasks created before this sprint)
   const carriedOverCount = useMemo(
@@ -335,9 +543,11 @@ export function TaskBoardSection({ sprint }: { sprint: Sprint }) {
         <KanbanBoard
           tasks={visibleTasks}
           sprintStart={sprint.startDate}
+          activeAgentMap={activeAgentMap}
           onMoveTask={handleMoveTask}
           onEdit={openEdit}
           onDelete={(task) => setDeleteTarget(task)}
+          onView={(task) => setDetailTask(task)}
         />
       </div>
 
@@ -357,6 +567,11 @@ export function TaskBoardSection({ sprint }: { sprint: Sprint }) {
           }
         }}
         taskTitle={deleteTarget?.title ?? ''}
+      />
+      <TaskDetailModal
+        open={!!detailTask}
+        onOpenChange={(open) => { if (!open) setDetailTask(null) }}
+        task={detailTask}
       />
     </>
   )

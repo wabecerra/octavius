@@ -50,11 +50,13 @@ const QUADRANT_META: Record<string, { label: string; color: string; bg: string }
 interface SortableTaskCardProps {
   task: Task
   isCarriedOver?: boolean
+  activeAgentId?: string
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
+  onView?: (task: Task) => void
 }
 
-function SortableTaskCard({ task, isCarriedOver, onEdit, onDelete }: SortableTaskCardProps) {
+function SortableTaskCard({ task, isCarriedOver, activeAgentId, onEdit, onDelete, onView }: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -120,11 +122,28 @@ function SortableTaskCard({ task, isCarriedOver, onEdit, onDelete }: SortableTas
                 ↻ carried over
               </span>
             )}
+            {activeAgentId && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight bg-[color-mix(in_srgb,var(--color-info)_10%,transparent)] text-[var(--color-info)] border border-[color-mix(in_srgb,var(--color-info)_25%,transparent)] animate-pulse">
+                ⚡ {activeAgentId}
+              </span>
+            )}
           </div>
           {task.dueDate && (
             <p className="text-xs text-[var(--text-tertiary)] mt-1">{task.dueDate}</p>
           )}
           <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onView && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onView(task)}
+                  className="text-xs text-[var(--accent)] hover:text-[var(--text-primary)] transition-colors duration-150"
+                >
+                  View
+                </button>
+                <span className="text-[var(--text-disabled)]">·</span>
+              </>
+            )}
             <button
               type="button"
               onClick={() => onEdit(task)}
@@ -187,12 +206,15 @@ interface KanbanBoardProps {
   tasks: Task[]
   /** Sprint start date (YYYY-MM-DD) — tasks created before this are "carried over" */
   sprintStart?: string
+  /** Map of taskId → agentId for tasks with active agents */
+  activeAgentMap?: Map<string, string>
   onMoveTask: (taskId: string, newStatus: KanbanColumn) => Promise<void>
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
+  onView?: (task: Task) => void
 }
 
-export function KanbanBoard({ tasks, sprintStart, onMoveTask, onEdit, onDelete }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, sprintStart, activeAgentMap, onMoveTask, onEdit, onDelete, onView }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
 
   const sensors = useSensors(
@@ -201,7 +223,13 @@ export function KanbanBoard({ tasks, sprintStart, onMoveTask, onEdit, onDelete }
   )
 
   const getColumnTasks = (col: KanbanColumn) =>
-    tasks.filter((t) => t.status === col)
+    tasks.filter((t) => {
+      // Map non-standard statuses to the closest column
+      const status = t.status as string
+      if (status === col) return true
+      if (col === 'in-progress' && status === 'awaiting-approval') return true
+      return false
+    })
 
   const findColumnForTask = (taskId: string): KanbanColumn | null => {
     const task = tasks.find((t) => t.id === taskId)
@@ -280,8 +308,10 @@ export function KanbanBoard({ tasks, sprintStart, onMoveTask, onEdit, onDelete }
                       key={task.id}
                       task={task}
                       isCarriedOver={!!sprintStart && task.createdAt < sprintStart}
+                      activeAgentId={activeAgentMap?.get(task.id)}
                       onEdit={onEdit}
                       onDelete={onDelete}
+                      onView={onView}
                     />
                   ))}
                 </div>
