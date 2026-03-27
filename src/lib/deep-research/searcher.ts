@@ -1,3 +1,4 @@
+import { getProviderKey } from '@/lib/provider-keys'
 import type { SearchResult, ResearchConfig } from './types'
 
 export async function executeSearches(
@@ -35,10 +36,14 @@ async function searchSingle(
   config: ResearchConfig,
 ): Promise<SearchResult[]> {
   const searchUrl = `https://api.${config.searchProvider}.ai/v1/search`
+  const apiKey = config.searchApiKey || getProviderKey(config.searchProvider)
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
 
   const res = await fetch(searchUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ query }),
   })
 

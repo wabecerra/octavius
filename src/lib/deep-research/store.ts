@@ -1,11 +1,16 @@
 /**
  * Shared in-memory store for active research tasks.
- * Lives outside app/ so both the POST route and SSE stream route
- * can import the same singleton Map.
+ * Uses globalThis to survive Next.js dev server module hot-reloading
+ * and route isolation across different webpack contexts.
  */
 import type { ResearchState } from './types'
 
-export const researchTasks = new Map<string, ResearchState>()
+const GLOBAL_KEY = '__octavius_research_tasks__' as const
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const g = globalThis as any
+if (!g[GLOBAL_KEY]) g[GLOBAL_KEY] = new Map<string, ResearchState>()
+export const researchTasks: Map<string, ResearchState> = g[GLOBAL_KEY]
 
 const MAX_TASKS = 100
 const STALE_MS = 30 * 60 * 1000 // 30 minutes
