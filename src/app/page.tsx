@@ -128,10 +128,6 @@ export default function Dashboard() {
     }
   }, [chatMessages])
 
-  const addChatMessage = useCallback((message: ChatMessage) => {
-    setChatMessages(prev => [...prev, message])
-  }, [])
-
   // Track active SSE connection for cleanup on unmount
   const progressSourceRef = useRef<EventSource | null>(null)
   const msgCounterRef = useRef(0)
