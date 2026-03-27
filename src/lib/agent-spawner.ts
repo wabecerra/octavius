@@ -308,6 +308,11 @@ export async function spawnAgent(request: SpawnRequest): Promise<SpawnResult> {
     'UPDATE dashboard_tasks SET status = ?, description = ?, updated_at = ? WHERE id = ?',
   ).run(newStatus, updatedDesc, now, request.taskId)
 
+  // Sync output to memory/KB for future context retrieval
+  import('./agents/output-sync').then(({ syncAgentOutput }) => {
+    syncAgentOutput(request.taskId, agentId, agentOutput, quadrant).catch(() => {})
+  })
+
   // Log activity
   db.prepare(
     `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
