@@ -22,6 +22,8 @@ export interface OpenRouterOptions {
   temperature?: number
   /** Restrict auto-router to these model patterns. */
   allowedModels?: string[]
+  /** OpenAI-compatible tool definitions for function calling */
+  tools?: Array<{ type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }>
 }
 
 export interface OpenRouterUsage {
@@ -40,7 +42,15 @@ export interface OpenRouterResponse {
   id: string
   model: string
   choices: {
-    message: { role: string; content: string }
+    message: {
+      role: string
+      content: string | null
+      tool_calls?: Array<{
+        id: string
+        type: 'function'
+        function: { name: string; arguments: string }
+      }>
+    }
     finish_reason: string
   }[]
   usage: OpenRouterUsage
@@ -85,6 +95,7 @@ export async function chatCompletion(
   if (opts.allowedModels) {
     body.plugins = [{ id: 'auto-router', allowed_models: opts.allowedModels }]
   }
+  if (opts.tools && opts.tools.length > 0) body.tools = opts.tools
 
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
@@ -185,7 +196,13 @@ export function toCostLogEntry(
 export async function callAndLog(
   messages: OpenRouterMessage[],
   opts: OpenRouterOptions & { label?: string; quadrant?: string } = {},
-): Promise<{ text: string; model: string; usage: OpenRouterUsage; costUsd: number }> {
+): Promise<{
+  text: string
+  model: string
+  usage: OpenRouterUsage
+  costUsd: number
+  toolCalls?: Array<{ function: { name: string; arguments: string } }>
+}> {
   const start = Date.now()
   const response = await chatCompletion(messages, opts)
   const durationMs = Date.now() - start
@@ -201,11 +218,17 @@ export async function callAndLog(
     console.error('[openrouter] Failed to log cost:', err),
   )
 
+  const choice = response.choices[0]
+  const toolCalls = choice?.message?.tool_calls?.map(tc => ({
+    function: tc.function,
+  }))
+
   return {
-    text: response.choices[0]?.message?.content ?? '',
+    text: choice?.message?.content ?? '',
     model: response.model,
     usage: response.usage,
     costUsd: entry.cost_total_usd,
+    ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
   }
 }
 

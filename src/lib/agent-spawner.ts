@@ -12,6 +12,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { getDatabase } from './memory/db'
+import { getSpecialistTools, parseToolCalls } from './agents/specialist-tools'
 
 // ─── Types ───
 
@@ -48,12 +49,14 @@ const AGENT_WORKSPACE_MAP: Record<string, string> = {
   'gen-lifeforce': 'workspace-octavius-lifeforce',
   'gen-fellowship': 'workspace-octavius-fellowship',
   'gen-essence': 'workspace-octavius-essence',
+  'specialist-architect': 'workspace-octavius-architect',
+  'specialist-coder': 'workspace-octavius-coder',
   'specialist-research': 'workspace-octavius-research',
-  'specialist-engineering': 'workspace-octavius-engineering',
   'specialist-marketing': 'workspace-octavius-marketing',
+  'specialist-writing': 'workspace-octavius-writing',
   'specialist-video': 'workspace-octavius-video',
   'specialist-image': 'workspace-octavius-image',
-  'specialist-writing': 'workspace-octavius-writing',
+  'specialist-n8n': 'workspace-octavius-n8n',
 }
 
 const OCTAVIUS_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
@@ -118,18 +121,32 @@ function getAgentConfig(agentId: string): { provider: string; model: string } {
   const row = db.prepare(
     'SELECT provider, model FROM agent_model_config WHERE agent_id = ?',
   ).get(agentId) as { provider: string; model: string } | undefined
-  return row || { provider: 'bedrock', model: 'amazon-bedrock/global.anthropic.claude-opus-4-6-v1' }
+  if (row) return row
+  // Fallback defaults per agent role (openrouter)
+  const FALLBACK_MODELS: Record<string, string> = {
+    'specialist-architect': 'anthropic/claude-opus-4.6',
+    'specialist-coder': 'openai/gpt-5.3-codex-20260224',
+    'specialist-research': 'google/gemini-2.5-flash',
+    'specialist-video': 'google/gemini-3.1-flash-image-preview-20260226',
+    'specialist-image': 'google/gemini-3.1-flash-image-preview-20260226',
+    'specialist-n8n': 'anthropic/claude-sonnet-4.6',
+  }
+  return {
+    provider: 'openrouter',
+    model: FALLBACK_MODELS[agentId] || 'qwen/qwen3.5-plus-02-15',
+  }
 }
 
 // ─── Build Agent Task Prompt ───
 
 function buildAgentPrompt(opts: {
+  agentId: string
   task: Record<string, unknown>
   workspaceFiles: Record<string, string>
   kbContext: string
   instruction?: string
 }): string {
-  const { task, workspaceFiles, kbContext, instruction } = opts
+  const { agentId, task, workspaceFiles, kbContext, instruction } = opts
 
   const sections: string[] = []
 
@@ -138,7 +155,6 @@ function buildAgentPrompt(opts: {
     sections.push(`## Your Instructions\n\n${workspaceFiles['AGENTS.md']}`)
   }
 
-  // Tools available
   sections.push(`## Available Tools
 
 You can interact with the Octavius system via these HTTP APIs:
@@ -146,23 +162,34 @@ You can interact with the Octavius system via these HTTP APIs:
 ### Knowledge Base (Memory)
 - \`POST ${OCTAVIUS_BASE_URL}/api/memory/search\` — Search KB: {"text": "query", "limit": 10}
 - \`POST ${OCTAVIUS_BASE_URL}/api/memory/context\` — Get context: {"query": "...", "quadrant": "industry", "top_n": 5}
-- \`POST ${OCTAVIUS_BASE_URL}/api/memory/items\` — Store to KB: {"text": "...", "type": "semantic", "layer": "daily_notes", "tags": ["quadrant:industry"], "importance": 0.7, "confidence": 0.8, "provenance": {"source_type": "agent_output", "agent_id": "your-agent-id"}}
+- \`POST ${OCTAVIUS_BASE_URL}/api/memory/items\` — Store to KB: {"text": "...", "type": "semantic", "layer": "daily_notes", "tags": [...], "importance": 0.7}
 
 ### Task Management
-- \`PATCH ${OCTAVIUS_BASE_URL}/api/dashboard/tasks/${task.id}\` — Update this task: {"status": "in-progress|done", "description": "..."}
+- \`PATCH ${OCTAVIUS_BASE_URL}/api/dashboard/tasks/${task.id}\` — Update this task
 
-### Sub-Agent Spawning
-If you need specialized help (research, engineering, writing), you can request it by including in your output:
-\`\`\`
-SPAWN_SPECIALIST: specialist-research
-INSTRUCTION: Research the latest anxiety management SaaS competitors
-\`\`\`
+### Specialist Agents (via function calling)
+You have access to \`spawn_specialist\` and \`discover_specialists\` function tools.
+Use them to delegate sub-tasks that need domain expertise. The LLM runtime will
+execute these tool calls automatically — do NOT include text-based spawn commands.
 
 ### Important
 - When you complete your deliverable, include it in your response
 - If the task is fully complete, end your response with: TASK_COMPLETE
-- Store important findings/decisions in the KB for future reference
-- Keep your output focused and actionable`)
+- Store important findings/decisions in the KB for future reference`)
+
+  // N8N-specific tools (only for specialist-n8n)
+  if (agentId === 'specialist-n8n') {
+    sections.push(`## N8N Automation Tools
+
+You have access to the N8N workflow automation platform via MCP. Use these capabilities to:
+- Create and manage automated workflows
+- Connect external services (email, Slack, Google Sheets, webhooks, etc.)
+- Set up triggers and scheduled automations
+- Monitor workflow execution status
+
+When creating workflows, describe them in detail so they can be set up in N8N.
+Include: trigger type, actions, data transformations, and error handling.`)
+  }
 
   // Task context
   const taskContext = [
@@ -234,6 +261,7 @@ export async function spawnAgent(request: SpawnRequest): Promise<SpawnResult> {
 
   // Build prompt
   const prompt = buildAgentPrompt({
+    agentId,
     task,
     workspaceFiles,
     kbContext,
@@ -258,6 +286,7 @@ export async function spawnAgent(request: SpawnRequest): Promise<SpawnResult> {
       temperature: 0.4,
       label: `spawn-${agentId}`,
       quadrant,
+      tools: getSpecialistTools(),
     },
   )
 
@@ -285,24 +314,34 @@ export async function spawnAgent(request: SpawnRequest): Promise<SpawnResult> {
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(request.taskId, agentId, action, agentOutput.slice(0, 500), result.model, result.costUsd, now)
 
-  // Check for SPAWN_SPECIALIST requests in output — auto-cascade to specialist
-  const spawnMatch = agentOutput.match(/SPAWN_SPECIALIST:\s*(\S+)\nINSTRUCTION:\s*(.+)/m)
-  if (spawnMatch) {
-    const [, specialistId, specialistInstruction] = spawnMatch
-    db.prepare(
-      `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(request.taskId, agentId, 'spawn_requested', `Requested ${specialistId}: ${specialistInstruction}`, null, 0, now)
-
-    // Automatically spawn the specialist (fire-and-forget, don't block return)
-    if (AGENT_WORKSPACE_MAP[specialistId]) {
-      spawnSpecialistCascade(request.taskId, agentId, specialistId, specialistInstruction).catch(err => {
-        console.error(`[agent-spawner] Specialist cascade failed for ${specialistId}:`, err)
+  // Check for tool_calls in LLM response (if provider supports function calling)
+  if (result.toolCalls && result.toolCalls.length > 0) {
+    const spawnRequests = parseToolCalls(result.toolCalls)
+    for (const req of spawnRequests) {
+      if (AGENT_WORKSPACE_MAP[req.specialistId]) {
         db.prepare(
           `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ).run(request.taskId, specialistId, 'spawn_failed', String(err), null, 0, new Date().toISOString())
-      })
+        ).run(request.taskId, agentId, 'spawn_requested',
+          `Requested ${req.specialistId}: ${req.instruction}`, null, 0, now)
+
+        spawnSpecialistCascade(request.taskId, agentId, req.specialistId, req.instruction)
+          .catch(err => {
+            console.error(`[agent-spawner] Specialist cascade failed for ${req.specialistId}:`, err)
+          })
+      }
+    }
+  }
+
+  // Legacy fallback: still check for text-based pattern (for models without tool calling)
+  if (!result.toolCalls || result.toolCalls.length === 0) {
+    const spawnMatch = agentOutput.match(/SPAWN_SPECIALIST:\s*(\S+)\nINSTRUCTION:\s*(.+)/m)
+    if (spawnMatch) {
+      const [, specialistId, specialistInstruction] = spawnMatch
+      if (AGENT_WORKSPACE_MAP[specialistId]) {
+        spawnSpecialistCascade(request.taskId, agentId, specialistId, specialistInstruction)
+          .catch(err => console.error(`[agent-spawner] Legacy cascade failed:`, err))
+      }
     }
   }
 
@@ -319,13 +358,124 @@ export async function spawnAgent(request: SpawnRequest): Promise<SpawnResult> {
   }
 }
 
+// ─── Architect → Coder Pipeline ───
+
+/**
+ * Special cascade for engineering tasks:
+ * 1. Architect (Opus 4.6) produces spec + implementation plan
+ * 2. Creates subtasks from plan steps, each requiring approval
+ * 3. After approval, coder (Codex 5.3) executes each step
+ */
+async function spawnArchitectPipeline(
+  taskId: string,
+  requestingAgentId: string,
+  instruction: string,
+): Promise<void> {
+  const db = getDatabase()
+  const now = new Date().toISOString()
+
+  console.log(`[agent-spawner] Starting architect pipeline for task ${taskId}`)
+
+  // Step 1: Spawn architect to produce the plan
+  const architectResult = await spawnAgent({
+    taskId,
+    agentId: 'specialist-architect',
+    instruction: `You were called by ${requestingAgentId} to architect a solution.
+
+**Requirement:**
+${instruction}
+
+**Your job:**
+1. Analyze the requirement thoroughly
+2. Produce a detailed implementation spec
+3. Break the implementation into numbered steps (3-8 steps max)
+4. Each step must be self-contained and executable by a coding agent
+
+**Output format — you MUST follow this exactly:**
+
+## Spec
+(Your analysis, architecture decisions, constraints)
+
+## Implementation Plan
+STEP 1: [title]
+[Detailed instructions for the coder — exact files to create/modify, function signatures, logic]
+
+STEP 2: [title]
+[Detailed instructions]
+
+(continue for all steps)
+
+Do NOT mark the task as TASK_COMPLETE — the coder will handle implementation.`,
+  })
+
+  // Step 2: Parse the plan into steps
+  const planText = architectResult.output
+  const stepPattern = /STEP\s+(\d+):\s*([\s\S]+?)(?=\nSTEP\s+\d+:|\n## |$)/g
+  const steps: Array<{ title: string; description: string }> = []
+
+  let match
+  while ((match = stepPattern.exec(planText)) !== null) {
+    steps.push({
+      title: match[2].split('\n')[0].trim(),
+      description: match[2].trim(),
+    })
+  }
+
+  if (steps.length === 0) {
+    // Fallback: treat entire output as a single step
+    steps.push({ title: 'Execute implementation', description: planText })
+  }
+
+  // Step 3: Create subtasks with approval gates
+  const { nanoid } = await import('nanoid')
+  const insertSubtask = db.prepare(`
+    INSERT INTO subtasks (id, parent_task_id, title, description, status, step_order, agent_id, requires_approval, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  // First subtask: the spec itself, requires user approval before coding begins
+  const specSubtaskId = nanoid()
+  insertSubtask.run(
+    specSubtaskId, taskId,
+    'Review implementation plan',
+    `The architect (${architectResult.model}) produced the following plan:\n\n${planText}`,
+    'awaiting_approval', 0, 'specialist-architect', 1, now, now,
+  )
+
+  // Remaining subtasks: one per implementation step, assigned to coder
+  for (let i = 0; i < steps.length; i++) {
+    insertSubtask.run(
+      nanoid(), taskId,
+      steps[i].title,
+      steps[i].description,
+      'pending', i + 1, 'specialist-coder', 0, now, now,
+    )
+  }
+
+  // Update parent task status
+  db.prepare('UPDATE dashboard_tasks SET status = ?, updated_at = ? WHERE id = ?')
+    .run('in-progress', now, taskId)
+
+  // Log
+  db.prepare(
+    `INSERT INTO task_activity_log (task_id, agent_id, action, details, model, cost_usd, timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(taskId, 'specialist-architect', 'plan_created',
+    `Created ${steps.length + 1} subtasks (1 spec review + ${steps.length} implementation steps). Awaiting user approval.`,
+    architectResult.model, architectResult.costUsd, now)
+
+  console.log(`[agent-spawner] Architect pipeline created ${steps.length + 1} subtasks for task ${taskId}, awaiting approval`)
+}
+
 // ─── Specialist Cascade ───
 
 /**
  * Spawns a specialist agent when a generalist requests one.
- * The specialist works on the same task with restricted context (only the
- * generalist's instruction + task details). Its output is appended to the
- * task description so the generalist can reference it on next invocation.
+ *
+ * Special handling:
+ * - specialist-architect: triggers the architect→coder pipeline with subtasks
+ * - specialist-engineering: redirected to architect pipeline (backwards compat)
+ * - All others: direct spawn with restricted context
  */
 async function spawnSpecialistCascade(
   taskId: string,
@@ -334,6 +484,11 @@ async function spawnSpecialistCascade(
   instruction: string,
 ): Promise<void> {
   console.log(`[agent-spawner] Cascading to specialist ${specialistId} for task ${taskId} (requested by ${requestingAgentId})`)
+
+  // Route engineering tasks through the architect→coder pipeline
+  if (specialistId === 'specialist-architect' || specialistId === 'specialist-engineering') {
+    return spawnArchitectPipeline(taskId, requestingAgentId, instruction)
+  }
 
   const specialistResult = await spawnAgent({
     taskId,
