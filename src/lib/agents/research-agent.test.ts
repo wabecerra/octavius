@@ -2,6 +2,13 @@ import { describe, it, expect, vi } from 'vitest'
 import { executeResearchTask } from './research-agent'
 import type { AgentTask, ModelRouterConfig } from '@/types'
 
+vi.mock('@/lib/deep-research', () => ({
+  deepResearch: vi.fn().mockRejectedValue(new Error('Not configured in test')),
+}))
+vi.mock('./output-sync', () => ({
+  syncAgentOutput: vi.fn().mockResolvedValue(undefined),
+}))
+
 const baseConfig: ModelRouterConfig = {
   localEndpoint: 'http://localhost:11434',
   localModelName: 'llama3.2',

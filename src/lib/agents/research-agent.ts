@@ -1,5 +1,7 @@
 import type { AgentTask, ModelRouterConfig } from '@/types'
 import { executeTask, type FetchFn, type ExecuteTaskResult } from '../agent-adapter'
+import { deepResearch } from '@/lib/deep-research'
+import { syncAgentOutput } from './output-sync'
 
 /** Result from the research agent, extending base execution with search data */
 export interface ResearchTaskResult {
@@ -69,15 +71,50 @@ export async function executeResearchTask(
   let sourceUrls: string[] = []
   let isVerified = true
 
-  // For complex tasks, invoke search provider first
+  // For complex tasks, try deep research first, then fall back to single search
   if (task.complexityScore >= SEARCH_COMPLEXITY_THRESHOLD) {
-    const urls = await callSearchProvider(task.description, config, fetchFn)
-    if (urls !== null) {
-      sourceUrls = urls
-      isVerified = true
-    } else {
-      // Search failed — mark as unverified
-      isVerified = false
+    let deepResearchSucceeded = false
+    try {
+      const state = await deepResearch(task.description, {
+        maxDepth: task.complexityScore >= 8 ? 3 : 2,
+        maxBreadth: task.complexityScore >= 8 ? 4 : 3,
+        tokenBudget: 500_000,
+        maxSearches: 50,
+        model: config.tier2Model || 'qwen/qwen3.5-plus-20260216',
+        searchProvider: (config.researchProvider || 'kimi') as 'kimi',
+      })
+
+      if (state.report) {
+        sourceUrls = state.visitedUrls
+        isVerified = true
+        deepResearchSucceeded = true
+
+        // Sync report to KB
+        await syncAgentOutput(
+          task.id, 'specialist-research', state.report, 'industry',
+        ).catch(() => {})
+
+        return {
+          result: state.report,
+          sourceUrls,
+          isVerified,
+          baseResult: { result: state.report, routing: { tier: 2, model: config.tier2Model, endpoint: '', isLocal: false } },
+        }
+      }
+    } catch (err) {
+      console.warn('[research-agent] Deep research failed, falling back to single search:', err instanceof Error ? err.message : String(err))
+    }
+
+    // Fall back to single search if deep research failed or returned no report
+    if (!deepResearchSucceeded) {
+      const urls = await callSearchProvider(task.description, config, fetchFn)
+      if (urls !== null) {
+        sourceUrls = urls
+        isVerified = true
+      } else {
+        // Search failed — mark as unverified
+        isVerified = false
+      }
     }
   }
 
