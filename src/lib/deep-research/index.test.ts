@@ -135,4 +135,20 @@ describe('deepResearch', () => {
     expect(state.gaps).toContain('What are the pricing models for anxiety apps?')
     expect(state.tokenUsage).toBeGreaterThan(0) // Token usage should be tracked
   })
+
+  it('sets error status when a sub-module throws', async () => {
+    const { callLLM } = await import('@/lib/llm-caller')
+    const mockCallLLM = vi.mocked(callLLM)
+    mockCallLLM.mockClear()
+    mockCallLLM.mockRejectedValueOnce(new Error('LLM service unavailable'))
+
+    const state = await deepResearch(
+      'test query',
+      { maxDepth: 1, maxBreadth: 2, tokenBudget: 500_000, maxSearches: 10, model: 'test', searchProvider: 'kimi' },
+    )
+
+    expect(state.status).toBe('error')
+    expect(state.error).toBe('LLM service unavailable')
+    expect(state.completedAt).toBeDefined()
+  })
 })

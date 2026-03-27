@@ -75,7 +75,7 @@ export async function deepResearch(
     onProgress?.(state)
   } catch (err) {
     state.status = 'error'
-    state.error = (err as Error).message
+    state.error = err instanceof Error ? err.message : String(err)
     state.completedAt = Date.now()
     onProgress?.(state)
   }
@@ -129,14 +129,11 @@ async function researchRecursive(
     const nextBreadth = Math.max(1, Math.floor(breadth / 2))
     const branches = extraction.followUpQuestions.slice(0, breadth)
 
-    const CONCURRENCY = 2
-    for (let i = 0; i < branches.length; i += CONCURRENCY) {
-      const batch = branches.slice(i, i + CONCURRENCY)
-      await Promise.all(
-        batch.map(subQuery =>
-          researchRecursive(subQuery, nextBreadth, depth - 1, allLearnings, state, config, onProgress),
-        ),
-      )
+    // Serialize branches to prevent concurrent state mutation
+    for (const subQuery of branches) {
+      // Re-check budget before each branch
+      if (state.tokenUsage >= config.tokenBudget || state.totalSearches >= config.maxSearches) break
+      await researchRecursive(subQuery, nextBreadth, depth - 1, allLearnings, state, config, onProgress)
     }
   }
 }
