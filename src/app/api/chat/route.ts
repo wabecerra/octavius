@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { logGatewayChat } from '@/lib/llm-cost/tracker'
-import { callLLM } from '@/lib/llm-caller'
 import { getDatabase } from '@/lib/memory/db'
 
 const execAsync = promisify(exec)
@@ -26,14 +25,6 @@ function getChatModelConfig(): { provider: string; model: string } {
     return { provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' }
   }
 }
-
-const CHAT_SYSTEM_PROMPT = `You are Octavius, a Life OS assistant. You help the user manage their life across four quadrants:
-- **Lifeforce**: Health, fitness, nutrition, sleep, energy
-- **Industry**: Work, career, projects, productivity
-- **Fellowship**: Relationships, social connections, community
-- **Essence**: Purpose, values, creativity, personal growth
-
-Be concise, helpful, and actionable. You can discuss tasks, habits, goals, and general life management.`
 
 /**
  * POST /api/chat — Send a message through the OpenClaw agent via CLI.
@@ -123,49 +114,64 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fallback: call LLM directly
-    console.log('[Chat API] Falling back to embedded LLM call')
+    // Fallback: use intent classifier → task bridge pipeline
+    console.log('[Chat API] Falling back to intent classifier')
     try {
-      const config = getChatModelConfig()
-      const result = await callLLM(
-        [
-          { role: 'system', content: CHAT_SYSTEM_PROMPT },
-          { role: 'user', content: message },
-        ],
-        {
-          model: config.model,
-          provider: config.provider,
-          maxTokens: 2048,
-          temperature: 0.5,
-          label: 'octavius-chat',
-        },
-      )
+      const { classifyIntent } = await import('@/lib/chat/intent-classifier')
+      const { bridgeTaskToAgent } = await import('@/lib/chat/task-bridge')
 
+      // Parse conversation history from request (if provided)
+      const history = body.history as Array<{ role: 'user' | 'assistant'; content: string }> | undefined
+
+      // Reuse getChatModelConfig for intent classification
+      const config = getChatModelConfig()
+      const intent = await classifyIntent(message, history, config)
       const durationMs = Date.now() - startTime
 
+      if (intent.intent === 'create_task' && intent.task) {
+        // Actionable request → create task + dispatch agent
+        const bridge = await bridgeTaskToAgent(intent.task)
+
+        logGatewayChat({
+          model: 'intent-classifier',
+          durationMs,
+          sessionId: 'octavius-chat',
+          agentId: bridge.agentId || 'octavius-orchestrator',
+          status: bridge.success ? 'success' : 'error',
+        })
+
+        return NextResponse.json({
+          response: bridge.message,
+          source: 'orchestrator',
+          action: {
+            type: 'task_created',
+            taskId: bridge.taskId,
+            agentId: bridge.agentId,
+            dispatched: bridge.dispatched,
+            title: intent.task.title,
+            quadrant: intent.task.quadrant,
+          },
+          meta: { durationMs },
+        })
+      }
+
+      // Conversational response
       logGatewayChat({
-        model: result.model,
-        provider: config.provider,
+        model: 'intent-classifier',
         durationMs,
-        usage: result.usage,
         sessionId: 'octavius-chat',
         agentId: 'octavius-embedded',
         status: 'success',
       })
 
       return NextResponse.json({
-        response: result.text,
+        response: intent.response || 'I\'m not sure how to help with that.',
         source: 'embedded',
-        meta: {
-          model: result.model,
-          provider: config.provider,
-          durationMs,
-          usage: result.usage,
-        },
+        meta: { durationMs },
       })
     } catch (fallbackErr: unknown) {
       const fbError = fallbackErr as Error
-      console.error('[Chat API] Embedded fallback also failed:', fbError.message)
+      console.error('[Chat API] Intent classifier failed:', fbError.message)
       const durationMs = Date.now() - startTime
 
       logGatewayChat({
@@ -178,7 +184,7 @@ export async function POST(request: Request) {
       })
 
       return NextResponse.json({
-        response: `Sorry, I couldn't process your message right now. Please try again later.`,
+        response: 'Sorry, I couldn\'t process your message right now. Please try again later.',
         source: 'error',
       }, { status: 500 })
     }
