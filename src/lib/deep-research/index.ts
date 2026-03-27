@@ -7,6 +7,13 @@ import type { ResearchConfig, ResearchState, Learning } from './types'
 
 export type { ResearchConfig, ResearchState } from './types'
 
+/**
+ * Estimate tokens from text length (rough approximation: 1 token ≈ 4 chars)
+ */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4)
+}
+
 export async function deepResearch(
   query: string,
   config: ResearchConfig,
@@ -37,6 +44,14 @@ export async function deepResearch(
       const evaluation = await evaluateCompleteness(
         query, state.learnings, state.gaps, state.tokenUsage, config,
       )
+      // Estimate tokens for evaluation call (~100 tokens)
+      state.tokenUsage += 100
+
+      // Update gaps with new gaps from evaluation
+      if (evaluation.newGaps.length > 0) {
+        state.gaps = evaluation.newGaps
+      }
+
       if (!evaluation.sufficient && state.totalSearches < config.maxSearches) {
         // Do one more targeted round on gaps
         const gapQueries = evaluation.newGaps.length > 0 ? evaluation.newGaps : state.gaps
@@ -52,6 +67,9 @@ export async function deepResearch(
     onProgress?.(state)
 
     state.report = await generateReport(query, state.learnings, state.visitedUrls, config)
+    // Estimate tokens for report generation (~2000 tokens based on typical report length)
+    state.tokenUsage += estimateTokens(state.report)
+
     state.status = 'complete'
     state.completedAt = Date.now()
     onProgress?.(state)
@@ -82,6 +100,8 @@ async function researchRecursive(
 
   // Step 1: Generate queries
   const queries = await generateQueries(query, breadth, priorLearnings, config)
+  // Estimate tokens for query generation (~200 tokens)
+  state.tokenUsage += 200
   addProgress(state, 'plan', `Generated ${queries.length} queries at depth ${state.currentDepth}`)
   onProgress?.(state)
 
@@ -97,6 +117,9 @@ async function researchRecursive(
   // Step 3: Extract learnings
   const extraction = await extractLearnings(query, results, priorLearnings, config)
   state.learnings.push(...extraction.learnings)
+  // Estimate tokens for extraction based on results content
+  const contentLength = results.reduce((sum, r) => sum + r.content.length, 0)
+  state.tokenUsage += estimateTokens(JSON.stringify(extraction)) + Math.ceil(contentLength / 4)
   addProgress(state, 'extract', `Extracted ${extraction.learnings.length} learnings, ${extraction.followUpQuestions.length} follow-ups`)
   onProgress?.(state)
 
