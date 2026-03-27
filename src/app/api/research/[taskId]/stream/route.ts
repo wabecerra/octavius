@@ -6,19 +6,20 @@ export async function GET(
 ) {
   const { taskId: researchId } = await params
   const encoder = new TextEncoder()
+  let intervalId: ReturnType<typeof setInterval> | null = null
 
   const stream = new ReadableStream({
     async start(controller) {
       let lastProgressLength = 0
       let attempts = 0
 
-      const interval = setInterval(() => {
+      intervalId = setInterval(() => {
         const state = researchTasks.get(researchId)
         if (!state) {
           attempts++
           if (attempts > 60) { // 30 seconds timeout
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', detail: 'Research task not found' })}\n\n`))
-            clearInterval(interval)
+            if (intervalId) clearInterval(intervalId)
             controller.close()
           }
           return
@@ -46,13 +47,16 @@ export async function GET(
               visitedUrls: state.visitedUrls.length,
             },
           })}\n\n`))
-          clearInterval(interval)
+          if (intervalId) clearInterval(intervalId)
           controller.close()
 
           // Clean up after 5 minutes
           scheduleCleanup(researchId)
         }
       }, 500)
+    },
+    cancel() {
+      if (intervalId) clearInterval(intervalId)
     },
   })
 

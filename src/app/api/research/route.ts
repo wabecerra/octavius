@@ -37,7 +37,16 @@ export async function POST(request: Request) {
     if (state.report && taskId) {
       await syncAgentOutput(taskId, 'specialist-research', state.report, quadrant || 'industry')
     }
-  }).catch(console.error)
+  }).catch((err) => {
+    const state = researchTasks.get(researchId)
+    if (state && state.status !== 'complete' && state.status !== 'error') {
+      state.status = 'error'
+      state.error = err instanceof Error ? err.message : String(err)
+      state.completedAt = Date.now()
+      researchTasks.set(researchId, state)
+    }
+    console.error('[research] Background research failed:', err)
+  })
 
   // Return immediately with the pre-registered ID
   return NextResponse.json({

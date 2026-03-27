@@ -7,11 +7,24 @@ import type { ResearchState } from './types'
 
 export const researchTasks = new Map<string, ResearchState>()
 
+const MAX_TASKS = 100
+const STALE_MS = 30 * 60 * 1000 // 30 minutes
+
 /**
  * Register a research task before starting deepResearch().
  * This ensures the ID is available immediately for the response.
  */
 export function registerResearch(id: string, query: string): ResearchState {
+  // Evict stale entries before adding new ones
+  if (researchTasks.size >= MAX_TASKS) {
+    const now = Date.now()
+    for (const [key, state] of researchTasks) {
+      if (now - state.startedAt > STALE_MS || state.status === 'complete' || state.status === 'error') {
+        researchTasks.delete(key)
+      }
+    }
+  }
+
   const state: ResearchState = {
     id,
     query,
