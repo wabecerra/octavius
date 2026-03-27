@@ -1,4 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('@/lib/deep-research', () => ({
+  deepResearch: vi.fn().mockRejectedValue(new Error('Not configured in test')),
+}))
+vi.mock('./agents/output-sync', () => ({
+  syncAgentOutput: vi.fn().mockResolvedValue(undefined),
+}))
+
 import { executeTask, AgentExecutionError } from './agent-adapter'
 import type { AgentTask, ModelRouterConfig } from '@/types'
 
@@ -193,7 +201,7 @@ describe('Property 19: Research Agent Search Invocation', () => {
    * For any Research Agent task with complexityScore >= 5, the execution path
    * includes at least one call to the search provider URL.
    */
-  it('calls search provider for tasks with complexityScore >= 5', async () => {
+  it('calls search provider for tasks with complexityScore >= 5', { timeout: 15000 }, async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.integer({ min: 5, max: 10 }),

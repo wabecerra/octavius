@@ -23,7 +23,7 @@ export async function getServerGatewayClient(): Promise<GatewayClient | null> {
     const token = process.env.OPENCLAW_TOKEN || 'openclaw-local-dev'
     _client.setToken(token)
 
-    _connectPromise = _client.connect().catch(() => {})
+    _connectPromise = _client.connect().then(() => {}).catch(() => {})
   }
 
   if (_connectPromise) await _connectPromise
