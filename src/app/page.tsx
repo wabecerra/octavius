@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Shell } from '@/components/layout/Shell'
 import { NAV_ITEMS, type ViewKey } from '@/components/layout/types'
 import { CommandPalette, type CommandPaletteItem } from '@/components/CommandPalette'
 import { ChatPanel } from '@/components/ChatPanel'
+import { OnboardingWizard } from '@/components/OnboardingWizard'
 import { DashboardView } from '@/components/views/DashboardView'
 import { LifeforceView } from '@/components/views/LifeforceView'
 import { IndustryView } from '@/components/views/IndustryView'
@@ -89,7 +90,8 @@ export default function Dashboard() {
   const { sprint, isCurrent: isCurrentSprintActive, goBack, goForward, goToday } = useSprint()
 
   // API hooks — scoped to active sprint
-  const { profile } = useProfile()
+  const { profile, refetch: refetchProfile } = useProfile()
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const { checkins } = useCheckins({ since: sprint.startDate, until: sprint.endDate })
   const { tasks } = useTasks({ since: sprint.startDate, until: sprint.endDate, includeOpen: true })
   const { goals } = useFocusGoals()
@@ -126,46 +128,120 @@ export default function Dashboard() {
     }
   }, [chatMessages])
 
-  const addChatMessage = (message: ChatMessage) => {
+  const addChatMessage = useCallback((message: ChatMessage) => {
     setChatMessages(prev => [...prev, message])
-  }
+  }, [])
+
+  // Track active SSE connection for cleanup on unmount
+  const progressSourceRef = useRef<EventSource | null>(null)
+  const msgCounterRef = useRef(0)
+  const nextMsgId = (suffix: string) => `msg-${Date.now()}-${++msgCounterRef.current}-${suffix}`
+
+  // Cleanup SSE on unmount
+  useEffect(() => {
+    return () => {
+      progressSourceRef.current?.close()
+    }
+  }, [])
+
+  /** Listen for agent progress via SSE and inject system messages into chat */
+  const listenForProgress = useCallback((taskId: string) => {
+    // Close any existing connection
+    progressSourceRef.current?.close()
+
+    const eventSource = new EventSource(`/api/chat/${taskId}/progress`)
+    progressSourceRef.current = eventSource
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+
+        if (data.type === 'activity') {
+          // Show meaningful progress (started, progressed, spawn_requested, completed)
+          if (['started', 'progressed', 'spawn_requested', 'completed'].includes(data.action)) {
+            setChatMessages(prev => [...prev, {
+              id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-progress`,
+              role: 'system',
+              content: `${data.action === 'completed' ? '✅' : data.action === 'spawn_requested' ? '🔄' : '⚡'} **${data.agentId}** — ${data.action}: ${data.details?.slice(0, 200) || ''}`,
+              timestamp: data.timestamp,
+            }])
+          }
+        }
+
+        if (data.type === 'complete') {
+          setChatMessages(prev => [...prev, {
+            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-done`,
+            role: 'system',
+            content: '✅ Task completed! Check the Kanban board for results.',
+            timestamp: new Date().toISOString(),
+          }])
+          eventSource.close()
+          progressSourceRef.current = null
+        }
+
+        if (data.type === 'timeout') {
+          eventSource.close()
+          progressSourceRef.current = null
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    eventSource.onerror = () => {
+      eventSource.close()
+      progressSourceRef.current = null
+    }
+  }, [])
 
   const handleSendMessage = useCallback(async (content: string) => {
     const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: nextMsgId('user'),
       role: 'user',
       content,
       timestamp: new Date().toISOString(),
     }
-    addChatMessage(userMsg)
+    setChatMessages(prev => [...prev, userMsg])
     setChatLoading(true)
+
+    // Build conversation history (last 10 messages for context)
+    const history = chatMessages.slice(-10).map(m => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    })).filter(m => m.role === 'user' || m.role === 'assistant')
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify({ message: content, history }),
       })
       const data = await res.json()
 
-      addChatMessage({
-        id: `msg-${Date.now()}-resp`,
-        role: 'assistant',
+      // Add the main response
+      setChatMessages(prev => [...prev, {
+        id: nextMsgId('resp'),
+        role: 'assistant' as const,
         content: data.response || data.error || 'No response',
-        agentId: data.source === 'gateway' ? 'octavius-orchestrator' : undefined,
+        agentId: data.action?.agentId || (data.source === 'gateway' ? 'octavius-orchestrator' : undefined),
         timestamp: new Date().toISOString(),
-      })
+      }])
+
+      // If a task was created, start listening for agent progress
+      if (data.action?.type === 'task_created' && data.action.taskId && data.action.dispatched) {
+        listenForProgress(data.action.taskId)
+      }
     } catch {
-      addChatMessage({
-        id: `msg-${Date.now()}-err`,
-        role: 'system',
+      setChatMessages(prev => [...prev, {
+        id: nextMsgId('err'),
+        role: 'system' as const,
         content: 'Failed to get a response. Please try again.',
         timestamp: new Date().toISOString(),
-      })
+      }])
     } finally {
       setChatLoading(false)
     }
-  }, [])
+  }, [chatMessages, listenForProgress])
 
   // Clock
   useEffect(() => {
@@ -280,6 +356,19 @@ export default function Dashboard() {
       default:
         return null
     }
+  }
+
+  // Show onboarding wizard for first-time users
+  const showOnboarding = !authLoading && user && !profile.onboardingComplete && !onboardingDismissed
+  if (showOnboarding) {
+    return (
+      <OnboardingWizard
+        onComplete={() => {
+          setOnboardingDismissed(true)
+          refetchProfile()
+        }}
+      />
+    )
   }
 
   // Show nothing while checking auth (prevents flash)
