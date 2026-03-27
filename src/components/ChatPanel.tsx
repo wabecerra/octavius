@@ -142,9 +142,28 @@ export function ChatPanel({ messages, onSendMessage, isLoading, gatewayStatus }:
   )
 }
 
+/** Render bold markdown (**text**) safely without dangerouslySetInnerHTML */
+function renderBoldText(text: string) {
+  const parts = text.split(/\*\*(.*?)\*\*/g)
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+  )
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
+
+  // System messages render as compact status lines (agent progress, task confirmations)
+  if (isSystem) {
+    return (
+      <div className="px-1 py-0.5">
+        <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
+          {renderBoldText(message.content)}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
@@ -158,9 +177,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
           isUser
             ? 'bg-[var(--accent-muted)] text-[var(--text-primary)]'
-            : isSystem
-              ? 'bg-[color-mix(in_srgb,var(--color-info)_10%,transparent)] text-[var(--color-info)] italic'
-              : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
+            : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
         }`}
       >
         {message.content}
