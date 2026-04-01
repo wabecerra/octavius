@@ -94,7 +94,7 @@ export function useFleetActivitySync() {
 
           const actTime = new Date(latest.timestamp).getTime()
 
-          if (latest.action === 'started' || latest.action === 'progressed') {
+          if (latest.action === 'started' || latest.action === 'progressed' || latest.action === 'subtask_dispatched') {
             // Agent was recently active — mark as running if currently idle
             if (actTime > fiveMinAgo && agent.status === 'empty') {
               store.assignTask(agentId, latest.taskId, latest.details?.slice(0, 60) || 'Working...')
@@ -104,7 +104,7 @@ export function useFleetActivitySync() {
             if (agent.status === 'running' && agent.currentTaskId === latest.taskId) {
               store.completeTask(agentId)
             }
-          } else if (latest.action === 'spawn_failed') {
+          } else if (latest.action === 'spawn_failed' || latest.action === 'dispatch_failed') {
             if (agent.status === 'running') {
               store.failTask(agentId)
             }
@@ -123,6 +123,9 @@ export function useFleetActivitySync() {
             act.action === 'progressed' ? 'Progress' :
             act.action === 'completed' ? 'Completed' :
             act.action === 'spawn_requested' ? 'Spawning specialist' :
+            act.action === 'subtask_dispatched' ? 'Dispatched' :
+            act.action === 'subtask_approved' ? 'Approved' :
+            act.action === 'dispatch_failed' ? 'Dispatch failed' :
             act.action
           store.addBackendActivity(
             feedId,
@@ -143,3 +146,6 @@ export function useFleetActivitySync() {
     return () => clearInterval(iv)
   }, [])
 }
+
+// Re-export SSE hook for convenience
+export { useFleetSSE } from './use-fleet-sse'
