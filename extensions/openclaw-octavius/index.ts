@@ -710,7 +710,7 @@ const TOOL_REGISTRY: ToolDef[] = [
         agentId: {
           type: "string",
           enum: [
-            "agent-lifeforce", "agent-industry", "agent-fellowship", "agent-essence",
+            "gen-lifeforce", "gen-industry", "gen-fellowship", "gen-essence",
             "specialist-research", "specialist-engineering", "specialist-marketing",
             "specialist-video", "specialist-image", "specialist-writing",
           ],
@@ -724,8 +724,8 @@ const TOOL_REGISTRY: ToolDef[] = [
     execute: async (api, _id, params) => {
       // Create the task in memory + dashboard, tagged for the target agent
       const quadrantMap: Record<string, string> = {
-        "agent-lifeforce": "quadrant:lifeforce", "agent-industry": "quadrant:industry",
-        "agent-fellowship": "quadrant:fellowship", "agent-essence": "quadrant:essence",
+        "gen-lifeforce": "quadrant:lifeforce", "gen-industry": "quadrant:industry",
+        "gen-fellowship": "quadrant:fellowship", "gen-essence": "quadrant:essence",
       };
       const tag = quadrantMap[params.agentId] || `agent:${params.agentId}`;
       const memResult = await octFetch(api, "/api/memory/items", {
@@ -795,6 +795,14 @@ const TOOL_REGISTRY: ToolDef[] = [
         return txt("Gateway: disconnected or unreachable");
       }
     },
+  },
+  {
+    name: "octavius_active_jobs",
+    category: "system",
+    description: "Query active agent jobs and pending specialist spawns. Shows what agents are currently working on and what specialists are queued for spawning.",
+    keywords: ["active", "jobs", "running", "queue", "specialist", "spawn", "agents", "tasks", "current"],
+    parameters: { type: "object", properties: {} },
+    execute: async (api) => json(await octFetch(api, "/api/agents/active")),
   },
   {
     name: "octavius_jobs_list",
@@ -869,6 +877,114 @@ const TOOL_REGISTRY: ToolDef[] = [
         }),
       });
       return txt(`Weekly review saved: ${data.memory_id}`);
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 6. AGENT COMMUNICATION & STATUS
+  // ─────────────────────────────────────────────────────────────
+
+  {
+    name: "octavius_chat_reply",
+    category: "agents",
+    description: "Post a message or question back to the Octavius ChatPanel. Used by agents to ask clarifying questions or report progress.",
+    keywords: ["chat", "reply", "question", "message", "approval", "clarify"],
+    parameters: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "The message or question to show in chat" },
+        taskId: { type: "string", description: "Related task ID (optional)" },
+        sessionKey: { type: "string", description: "Session key of the calling agent" },
+      },
+      required: ["message"],
+    },
+    execute: async (api, _id, params) => {
+      const data = await octFetch(api, "/api/chat/agent-reply", {
+        method: "POST",
+        body: JSON.stringify(params),
+      });
+      return txt(data.reply ? `User replied: ${data.reply}` : "Message posted to chat.");
+    },
+  },
+  {
+    name: "octavius_agent_status",
+    category: "agents",
+    description: "Query live fleet agent state — running, idle, and failed counts with per-agent details.",
+    keywords: ["agents", "fleet", "status", "running", "idle", "active"],
+    parameters: { type: "object", properties: {} },
+    execute: async (api, _id, _params) => {
+      return json(await octFetch(api, "/api/agents/fleet-status"));
+    },
+  },
+  {
+    name: "octavius_cost_summary",
+    category: "system",
+    description: "Query LLM spending for a time period. Returns total cost, per-model breakdown, and per-agent breakdown.",
+    keywords: ["cost", "spending", "llm", "budget", "money", "tokens"],
+    parameters: {
+      type: "object",
+      properties: {
+        period: { type: "string", enum: ["today", "week", "month", "all"], description: "Time period (default: today)" },
+      },
+    },
+    execute: async (api, _id, params) => {
+      const period = params.period || "today";
+      return json(await octFetch(api, `/api/llm-costs/summary?period=${period}`));
+    },
+  },
+  {
+    name: "octavius_task_dispatch",
+    category: "dashboard",
+    description: "Create a new task and immediately dispatch an agent to work on it.",
+    keywords: ["task", "dispatch", "create", "agent", "spawn", "assign"],
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Task title" },
+        description: { type: "string", description: "Task description/instruction" },
+        quadrant: { type: "string", enum: ["lifeforce", "industry", "fellowship", "essence"] },
+        priority: { type: "string", enum: ["low", "medium", "high", "urgent"] },
+        agentId: { type: "string", description: "Specific agent (optional, defaults to quadrant generalist)" },
+      },
+      required: ["title", "quadrant"],
+    },
+    execute: async (api, _id, params) => {
+      // Create task
+      const task = await octFetch(api, "/api/dashboard/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: params.title,
+          description: params.description,
+          quadrant: params.quadrant,
+          priority: params.priority || "medium",
+          status: "backlog",
+        }),
+      });
+      // Dispatch
+      const dispatch = await octFetch(api, "/api/agents/dispatch", {
+        method: "POST",
+        body: JSON.stringify({ taskId: task.id, agentId: params.agentId, instruction: params.description }),
+      });
+      return json({ taskId: task.id, ...dispatch });
+    },
+  },
+  {
+    name: "octavius_approval_check",
+    category: "agents",
+    description: "Check if a subtask needs or has user approval. Returns approval status and any user feedback.",
+    keywords: ["approval", "approve", "reject", "gate", "subtask", "review"],
+    parameters: {
+      type: "object",
+      properties: {
+        subtaskId: { type: "string", description: "Subtask ID to check" },
+        taskId: { type: "string", description: "Parent task ID (returns all subtask approvals)" },
+      },
+    },
+    execute: async (api, _id, params) => {
+      const query = params.subtaskId
+        ? `?subtaskId=${params.subtaskId}`
+        : params.taskId ? `?taskId=${params.taskId}` : "";
+      return json(await octFetch(api, `/api/dashboard/subtasks${query}`));
     },
   },
 ];
