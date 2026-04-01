@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { ChatMessage, GatewayStatus } from '@/lib/gateway/types'
+import { isSlashCommand } from '@/lib/chat/commands'
 
 export interface ChatPanelProps {
   messages: ChatMessage[]
@@ -28,6 +29,7 @@ export function ChatPanel({ messages, onSendMessage, isLoading, gatewayStatus }:
   const [input, setInput] = useState('')
   const [collapsed, setCollapsed] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const inputIsCommand = isSlashCommand(input)
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -103,8 +105,8 @@ export function ChatPanel({ messages, onSendMessage, isLoading, gatewayStatus }:
                 Send a message to start a conversation with Octavius
               </p>
             )}
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+            {messages.map((msg, index) => (
+              <MessageBubble key={msg.id} message={msg} isLatest={index === messages.length - 1} isLoading={isLoading} onSendMessage={onSendMessage} />
             ))}
             {isLoading && (
               <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
@@ -125,6 +127,7 @@ export function ChatPanel({ messages, onSendMessage, isLoading, gatewayStatus }:
                 placeholder="Type a message…"
                 disabled={isLoading}
                 className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] disabled:opacity-50 transition-colors duration-150"
+                style={inputIsCommand ? { fontFamily: 'monospace', color: 'var(--color-info, #60a5fa)' } : {}}
               />
               <button
                 type="button"
@@ -150,7 +153,12 @@ function renderBoldText(text: string) {
   )
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, isLatest, isLoading, onSendMessage }: {
+  message: ChatMessage
+  isLatest: boolean
+  isLoading: boolean
+  onSendMessage: (content: string) => void
+}) {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
 
@@ -181,7 +189,37 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         }`}
       >
         {message.content}
+        {isLoading && isLatest && message.role === 'assistant' && (
+          <span style={{ animation: 'pulse 1s infinite', opacity: 0.6, marginLeft: '2px' }}>▊</span>
+        )}
       </div>
+      {message.approvalNeeded && (
+        <div style={{
+          padding: '8px 12px',
+          background: 'rgba(251, 191, 36, 0.1)',
+          border: '1px solid rgba(251, 191, 36, 0.3)',
+          borderRadius: 8,
+          marginTop: 4,
+          fontSize: 13,
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Approval needed</div>
+          <div style={{ marginBottom: 8, opacity: 0.9 }}>{message.approvalNeeded.question}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => onSendMessage(`/approve ${message.approvalNeeded!.subtaskId}`)}
+              style={{ padding: '4px 12px', borderRadius: 4, background: 'var(--color-success, #34d399)', color: '#fff', border: 'none', cursor: 'pointer' }}
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => onSendMessage(`/reject ${message.approvalNeeded!.subtaskId}`)}
+              style={{ padding: '4px 12px', borderRadius: 4, background: 'var(--color-error, #f87171)', color: '#fff', border: 'none', cursor: 'pointer' }}
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

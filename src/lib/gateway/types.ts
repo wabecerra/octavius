@@ -98,6 +98,7 @@ export interface ChatMessage {
   content: string
   agentId?: string
   timestamp: string
+  approvalNeeded?: { question: string; subtaskId: string }
 }
 
 /** A user-defined recurring agent task persisted in SQLite */
