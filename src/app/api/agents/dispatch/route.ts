@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { spawnAgent } from '@/lib/agent-spawner'
-import { getServerGatewayClient } from '@/lib/gateway/server-client'
+import { getGatewayBridge } from '@/lib/gateway/bridge'
 import { syncAgentOutput } from '@/lib/agents/output-sync'
 import { logGatewayChat } from '@/lib/llm-cost/tracker'
 
@@ -40,30 +40,34 @@ export async function POST(request: Request) {
     || `[${quadrant.toUpperCase()} TASK] ${taskTitle}\n\n${taskDescription}`
   const sessionId = `octavius-task-${taskId}`
 
-  // ── Primary path: OpenClaw gateway ──
-  const client = await getServerGatewayClient()
+  // ── Log "started" so Nerve Center shows agent as active immediately ──
+  db.prepare(
+    `INSERT INTO task_activity_log (task_id, agent_id, action, details, timestamp)
+     VALUES (?, ?, 'started', ?, ?)`,
+  ).run(taskId, resolvedAgentId, `Dispatching: ${taskTitle}`.slice(0, 500), new Date().toISOString())
 
-  if (client) {
+  // Update task status to in-progress
+  db.prepare('UPDATE dashboard_tasks SET status = ?, updated_at = ? WHERE id = ?')
+    .run('in-progress', new Date().toISOString(), taskId)
+
+  // ── Primary path: OpenClaw gateway via Bridge ──
+  const bridge = getGatewayBridge()
+
+  if (bridge.status === 'CONNECTED') {
     try {
-      const res = await client.request('/api/sessions/spawn', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent_id: resolvedAgentId,
-          message,
-          context: { task_id: taskId, quadrant, priority: task.priority },
-        }),
+      const res = await bridge.sendAgent({
+        message,
+        sessionKey: `subagent:${resolvedAgentId}`,
+        timeout: 300_000,
       })
 
-      if (!res.ok) throw new Error(`Gateway returned ${res.status}`)
-      const data = await res.json() as { session_id: string }
-
-      console.log(`[dispatch] Spawned gateway session: ${data.session_id} for task=${taskId}`)
+      const payload = res.payload as Record<string, unknown>
+      console.log(`[dispatch] Bridge agent call complete for task=${taskId}`)
 
       logGatewayChat({
-        model: 'unknown',
+        model: 'orchestrator',
         durationMs: Date.now() - startTime,
-        sessionId: data.session_id,
+        sessionId: sessionId,
         agentId: resolvedAgentId,
         status: 'success',
       })
@@ -71,12 +75,13 @@ export async function POST(request: Request) {
       return NextResponse.json({
         taskId,
         agentId: resolvedAgentId,
-        sessionId: data.session_id,
+        output: payload?.summary ?? '',
+        sessionId,
         status: 'dispatched',
         source: 'gateway',
       })
     } catch (err) {
-      console.warn(`[dispatch] Gateway dispatch failed, falling back:`, (err as Error).message)
+      console.warn(`[dispatch] Bridge dispatch failed, falling back:`, (err as Error).message)
     }
   }
 
