@@ -10,6 +10,7 @@
 import type { QuadrantId } from '@/lib/memory/models'
 import type { SeatStatus } from './events'
 import { townEvents } from './events'
+import type { FleetAgentState } from '@/lib/gateway/bridge-events'
 
 // ── Types ──
 
@@ -42,6 +43,26 @@ export interface FleetSnapshot {
   activity: ActivityEntry[]
 }
 
+// ── Agent templates ──
+
+interface AgentTemplate {
+  type: string
+  icon: string
+  room: string
+  maxInstances: number
+}
+
+const AGENT_TEMPLATES: AgentTemplate[] = [
+  { type: 'specialist-architect', icon: '📐', room: 'command-center', maxInstances: 4 },
+  { type: 'specialist-coder', icon: '💻', room: 'workshop', maxInstances: 4 },
+  { type: 'specialist-research', icon: '🔬', room: 'library', maxInstances: 4 },
+  { type: 'specialist-marketing', icon: '📣', room: 'outpost', maxInstances: 4 },
+  { type: 'specialist-writing', icon: '✍️', room: 'library', maxInstances: 4 },
+  { type: 'specialist-video', icon: '🎬', room: 'workshop', maxInstances: 4 },
+  { type: 'specialist-image', icon: '🎨', room: 'workshop', maxInstances: 4 },
+  { type: 'specialist-n8n', icon: '⚡', room: 'workshop', maxInstances: 4 },
+]
+
 // ── Default fleet ──
 
 const DEFAULT_AGENTS: FleetAgent[] = [
@@ -49,6 +70,8 @@ const DEFAULT_AGENTS: FleetAgent[] = [
   { id: 'gen-industry', role: 'generalist', quadrant: 'industry', label: 'Industry', emoji: '💼', status: 'empty', tasksCompleted: 0 },
   { id: 'gen-fellowship', role: 'generalist', quadrant: 'fellowship', label: 'Fellowship', emoji: '🤝', status: 'empty', tasksCompleted: 0 },
   { id: 'gen-essence', role: 'generalist', quadrant: 'essence', label: 'Essence', emoji: '🧘', status: 'empty', tasksCompleted: 0 },
+  { id: 'specialist-architect', role: 'specialist', label: 'Architect', emoji: '📐', status: 'empty', tasksCompleted: 0 },
+  { id: 'specialist-coder', role: 'specialist', label: 'Coder', emoji: '💻', status: 'empty', tasksCompleted: 0 },
   { id: 'specialist-research', role: 'specialist', label: 'Research', emoji: '🔍', status: 'empty', tasksCompleted: 0 },
   { id: 'specialist-engineering', role: 'specialist', label: 'Engineering', emoji: '⚙️', status: 'empty', tasksCompleted: 0 },
   { id: 'specialist-marketing', role: 'specialist', label: 'Marketing', emoji: '📣', status: 'empty', tasksCompleted: 0 },
@@ -240,6 +263,49 @@ class FleetStore {
         message,
         type,
       }, ...this.snapshot.activity].slice(0, MAX_ACTIVITY),
+    }
+    this.persist()
+    this.notify()
+  }
+
+  /** Sync server-authoritative agent state from the gateway bridge */
+  applyServerState(serverAgents: FleetAgentState[]): void {
+    // Update existing agents' status from server
+    for (const sa of serverAgents) {
+      const existing = this.snapshot.agents.find(a => a.id === sa.id)
+      if (existing) {
+        // Map 'idle' to 'empty' for compatibility with SeatStatus
+        const status = sa.status === 'idle' ? 'empty' : sa.status
+        existing.status = status as SeatStatus
+        existing.currentTask = sa.currentTask
+        existing.currentTaskId = sa.currentTaskId
+      } else if (sa.id.startsWith('specialist-')) {
+        // Dynamic specialist instance — add it
+        const typeName = sa.id.split(':')[0]
+        const template = AGENT_TEMPLATES.find(t => t.type === typeName)
+        if (template) {
+          const status = sa.status === 'idle' ? 'empty' : sa.status
+          this.snapshot.agents.push({
+            id: sa.id,
+            role: 'specialist',
+            label: sa.id,
+            emoji: template.icon,
+            status: status as SeatStatus,
+            currentTask: sa.currentTask,
+            currentTaskId: sa.currentTaskId,
+            tasksCompleted: 0,
+            lastActivityAt: sa.spawnedAt,
+          })
+        }
+      }
+    }
+    // Remove specialist instances not in server state
+    const serverIds = new Set(serverAgents.map(a => a.id))
+    this.snapshot = {
+      ...this.snapshot,
+      agents: this.snapshot.agents.filter(a =>
+        a.role !== 'specialist' || serverIds.has(a.id)
+      ),
     }
     this.persist()
     this.notify()
