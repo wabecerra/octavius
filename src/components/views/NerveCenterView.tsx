@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { townEvents, type SeatStatus } from '@/lib/town/events'
 import { useFleet, useFleetConfigSync, useFleetActivitySync } from '@/lib/town/use-fleet'
+import { useFleetSSE } from '@/lib/town/use-fleet-sse'
 import { getFleetStore, type FleetAgent } from '@/lib/town/fleet-store'
 
 // ── Constants ──
@@ -34,20 +35,41 @@ interface Room {
   rowSpan?: number
   color: string
   agents: string[]
+  specialistTypes?: string[]
 }
 
 const ROOMS: Room[] = [
   { id: 'hub', label: 'Command Hub', icon: '⚡', row: 1, col: 1, colSpan: 2, color: '#ff5c5c', agents: [] },
   { id: 'vault', label: 'Memory Vault', icon: '🧠', row: 0, col: 0, color: '#34d399', agents: ['gen-lifeforce'] },
-  { id: 'forge', label: 'Task Forge', icon: '🔨', row: 0, col: 1, color: '#60a5fa', agents: ['gen-industry'] },
-  { id: 'library', label: 'Writing Room', icon: '✍️', row: 0, col: 2, color: '#a78bfa', agents: ['specialist-writing', 'specialist-marketing'] },
-  { id: 'lab', label: 'Research Lab', icon: '🔬', row: 0, col: 3, color: '#818cf8', agents: ['specialist-research'] },
+  { id: 'forge', label: 'Task Forge', icon: '🔨', row: 0, col: 1, color: '#60a5fa', agents: ['gen-industry'], specialistTypes: ['specialist-architect', 'specialist-coder'] },
+  { id: 'library', label: 'Writing Room', icon: '✍️', row: 0, col: 2, color: '#a78bfa', agents: [], specialistTypes: ['specialist-writing', 'specialist-marketing'] },
+  { id: 'lab', label: 'Research Lab', icon: '🔬', row: 0, col: 3, color: '#818cf8', agents: [], specialistTypes: ['specialist-research'] },
   { id: 'dispatch', label: 'Dispatch Bay', icon: '📡', row: 1, col: 0, color: '#f87171', agents: ['gen-fellowship'] },
-  { id: 'engine', label: 'Engine Room', icon: '⚙️', row: 1, col: 3, color: '#fb923c', agents: ['specialist-engineering'] },
+  { id: 'engine', label: 'Engine Room', icon: '⚙️', row: 1, col: 3, color: '#fb923c', agents: [], specialistTypes: ['specialist-engineering'] },
   { id: 'workshop', label: 'Soul Workshop', icon: '🧘', row: 2, col: 0, color: '#c084fc', agents: ['gen-essence'] },
-  { id: 'studio', label: 'Media Studio', icon: '🎬', row: 2, col: 1, colSpan: 2, color: '#f472b6', agents: ['specialist-video', 'specialist-image'] },
+  { id: 'studio', label: 'Media Studio', icon: '🎬', row: 2, col: 1, colSpan: 2, color: '#f472b6', agents: [], specialistTypes: ['specialist-video', 'specialist-image', 'specialist-n8n'] },
   { id: 'breakroom', label: 'Break Room', icon: '☕', row: 2, col: 3, color: '#a3a3a3', agents: [] },
 ]
+
+// ── Stats Bar ──
+
+function StatsBar({ agents }: { agents: Array<{ status: string }> }) {
+  const active = agents.filter(a => a.status === 'running').length
+  const idle = agents.filter(a => a.status === 'idle' || a.status === 'empty').length
+  const done = agents.filter(a => a.status === 'done').length
+  return (
+    <div style={{
+      display: 'flex', gap: 16, padding: '8px 16px',
+      fontSize: 13, opacity: 0.85, borderBottom: '1px solid var(--border-primary, #333)',
+    }}>
+      <span style={{ color: 'var(--color-success, #34d399)' }}>{active} active</span>
+      <span style={{ opacity: 0.4 }}>·</span>
+      <span style={{ opacity: 0.6 }}>{idle} idle</span>
+      <span style={{ opacity: 0.4 }}>·</span>
+      <span style={{ opacity: 0.6 }}>{done} completed</span>
+    </div>
+  )
+}
 
 // ── Task Assignment Modal ──
 
@@ -117,10 +139,10 @@ function TaskAssignModal({ agentId, agents, onClose }: { agentId: string; agents
     <div className="nc-modal-overlay" onClick={onClose}>
       <div className="nc-modal" onClick={e => e.stopPropagation()}>
         <div className="nc-modal-head">
-          <span style={{ fontSize: 28 }}>{agent.emoji}</span>
+          <div className="nc-modal-emoji">{agent.emoji}</div>
           <div>
-            <div className="nc-modal-title">Assign task to {agent.label}</div>
-            <div className="nc-modal-sub">{agentId}</div>
+            <div className="nc-modal-title">Assign task to <strong>{agent.label}</strong></div>
+            <div className="nc-modal-sub"><code>{agentId}</code></div>
           </div>
         </div>
         <textarea
@@ -134,7 +156,7 @@ function TaskAssignModal({ agentId, agents, onClose }: { agentId: string; agents
         />
         {error && <div className="nc-modal-error">{error}</div>}
         <div className="nc-modal-foot">
-          <span className="nc-hint">Enter to send</span>
+          <span className="nc-hint"><kbd>Enter</kbd> to send</span>
           <button
             onClick={handleSubmit}
             disabled={!message.trim() || sending}
@@ -155,6 +177,7 @@ export function NerveCenterView() {
   const { agents, activity } = useFleet()
   useFleetConfigSync()
   useFleetActivitySync()
+  useFleetSSE() // Subscribe to real-time agent events via SSE
 
   const [gatewayOk, setGatewayOk] = useState(false)
   const [taskModalAgent, setTaskModalAgent] = useState<string | null>(null)
@@ -177,13 +200,25 @@ export function NerveCenterView() {
 
   return (
     <div className="nc-root">
+      {/* ── Stats Bar ── */}
+      <StatsBar agents={agents} />
+
       {/* ── Layout: Map + Sidebar ── */}
       <div className="nc-layout">
         {/* ── Room Map ── */}
         <div className="nc-map">
           <div className="nc-map-grid">
             {ROOMS.map(room => {
-              const roomAgents = agents.filter(a => room.agents.includes(a.id))
+              const roomAgents = agents.filter(a => {
+                // Match explicit agent IDs
+                if (room.agents.includes(a.id)) return true
+                // Match specialist types dynamically
+                if (a.role === 'specialist' && room.specialistTypes) {
+                  const specialistType = a.id.split(':')[0]
+                  return room.specialistTypes.includes(specialistType)
+                }
+                return false
+              })
               const anyRunning = roomAgents.some(a => a.status === 'running')
               return (
                 <div
@@ -254,7 +289,16 @@ export function NerveCenterView() {
           <div className="nc-sidebar-section">
             <div className="nc-sidebar-title">ROOM ROUTING</div>
             {ROOMS.map(room => {
-              const roomAgents = agents.filter(a => room.agents.includes(a.id))
+              const roomAgents = agents.filter(a => {
+                // Match explicit agent IDs
+                if (room.agents.includes(a.id)) return true
+                // Match specialist types dynamically
+                if (a.role === 'specialist' && room.specialistTypes) {
+                  const specialistType = a.id.split(':')[0]
+                  return room.specialistTypes.includes(specialistType)
+                }
+                return false
+              })
               const anyRunning = roomAgents.some(a => a.status === 'running')
               const agentCount = roomAgents.length
               return (
@@ -637,17 +681,41 @@ export function NerveCenterView() {
         .nc-modal-head {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 14px;
           margin-bottom: 16px;
         }
+        .nc-modal-emoji {
+          font-size: 32px;
+          line-height: 1;
+          width: 44px;
+          height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255,255,255,0.04);
+          border-radius: 10px;
+          flex-shrink: 0;
+        }
         .nc-modal-title {
-          font-size: 15px;
-          font-weight: 700;
+          font-size: 14px;
+          font-weight: 500;
           color: #e2e8f0;
         }
+        .nc-modal-title strong {
+          font-weight: 700;
+        }
         .nc-modal-sub {
-          font-size: 10px;
+          font-size: 11px;
           color: #6b7280;
+          margin-top: 2px;
+        }
+        .nc-modal-sub code {
+          font-family: 'SF Mono', 'Fira Code', monospace;
+          font-size: 10px;
+          background: rgba(255,255,255,0.06);
+          padding: 1px 5px;
+          border-radius: 4px;
+          color: #9ca3af;
         }
         .nc-modal-input {
           width: 100%;
@@ -680,8 +748,22 @@ export function NerveCenterView() {
           margin-top: 12px;
         }
         .nc-hint {
+          font-size: 11px;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .nc-hint kbd {
+          display: inline-block;
+          font-family: 'SF Mono', 'Fira Code', monospace;
           font-size: 10px;
-          color: #4a5568;
+          padding: 1px 5px;
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 4px;
+          color: #a0aec0;
+          line-height: 1.4;
         }
         .nc-modal-btn {
           padding: 7px 18px;
