@@ -3,9 +3,13 @@ import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { logGatewayChat } from '@/lib/llm-cost/tracker'
 import { getDatabase } from '@/lib/memory/db'
+import { getGatewayBridge } from '@/lib/gateway/bridge'
+import { isSlashCommand, parseCommand } from '@/lib/chat/commands'
+import type { AgentEvent } from '@/lib/gateway/bridge-events'
 
 const execAsync = promisify(exec)
 const OPENCLAW_PATH = process.env.OPENCLAW_PATH || 'openclaw'
+const ENABLE_WS_BRIDGE = process.env.ENABLE_WS_BRIDGE !== 'false' // default true
 
 /** Strip ANSI escape codes from CLI output */
 function stripAnsi(str: string): string {
@@ -39,6 +43,93 @@ export async function POST(request: Request) {
   }
 
   const startTime = Date.now()
+
+  // ── Slash command handling ──
+  if (isSlashCommand(message)) {
+    const cmd = parseCommand(message)
+    if (cmd) {
+      try {
+        const bridge = getGatewayBridge()
+        // For now, handle simple commands inline since executeCommand is a TODO stub
+        let response = `Command /${cmd.name} received.`
+        if (cmd.name === 'status') {
+          const fleet = bridge.getFleetSnapshot()
+          const running = fleet.filter(a => a.status === 'running').length
+          response = `Bridge: ${bridge.status} | Agents: ${running} active | Queue: ${bridge.queueLength}`
+        } else if (cmd.name === 'agents') {
+          const fleet = bridge.getFleetSnapshot()
+          response = fleet.map(a => `${a.id}: ${a.status}`).join('\n') || 'No agents tracked.'
+        }
+        return NextResponse.json({
+          response,
+          source: 'command',
+          meta: { durationMs: Date.now() - startTime },
+        })
+      } catch (err) {
+        return NextResponse.json({
+          response: `Command failed: ${(err as Error).message}`,
+          source: 'command',
+          meta: { durationMs: Date.now() - startTime },
+        })
+      }
+    }
+  }
+
+  // ── Primary: WebSocket streaming via GatewayBridge ──
+  if (ENABLE_WS_BRIDGE) {
+    const bridge = getGatewayBridge()
+    if (bridge.status === 'CONNECTED') {
+      try {
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream({
+          async start(controller) {
+            function send(event: string, data: unknown) {
+              controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+            }
+
+            function onAgentEvent(event: AgentEvent) {
+              try { send(event.type, event) } catch { /* stream closed */ }
+            }
+            bridge.on('agent-event', onAgentEvent)
+
+            try {
+              const result = await bridge.sendAgent({ message, sessionKey: 'agent:main' })
+              const payload = result.payload as Record<string, unknown>
+              send('done', {
+                response: payload?.summary ?? '',
+                source: 'gateway',
+                meta: { durationMs: Date.now() - startTime },
+              })
+
+              logGatewayChat({
+                model: 'orchestrator',
+                durationMs: Date.now() - startTime,
+                sessionId: 'octavius-chat',
+                agentId: 'orchestrator',
+                status: 'success',
+              })
+            } catch (err) {
+              send('error', { error: (err as Error).message })
+            } finally {
+              bridge.removeListener('agent-event', onAgentEvent)
+              controller.close()
+            }
+          },
+        })
+
+        return new Response(stream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache, no-transform',
+            'Connection': 'keep-alive',
+          },
+        })
+      } catch (err) {
+        console.warn('[chat] Bridge streaming failed, falling back to CLI:', (err as Error).message)
+        // Fall through to existing CLI path below
+      }
+    }
+  }
 
   try {
     // Use openclaw CLI agent command
