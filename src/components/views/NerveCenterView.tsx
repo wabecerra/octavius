@@ -6,6 +6,8 @@ import { townEvents, type SeatStatus } from '@/lib/town/events'
 import { useFleet, useFleetConfigSync, useFleetActivitySync } from '@/lib/town/use-fleet'
 import { useFleetSSE } from '@/lib/town/use-fleet-sse'
 import { getFleetStore, type FleetAgent } from '@/lib/town/fleet-store'
+import { gatewayEvents } from '@/lib/gateway-view/events'
+import { ROOM_COLORS, AGENT_HOME_ROOM } from '@/components/town/game/scenes/room-id-map'
 
 const PhaserGame = dynamic(() => import('@/components/town/game/PhaserGame'), { ssr: false })
 
@@ -145,6 +147,137 @@ function TaskAssignModal({ agentId, agents, onClose }: { agentId: string; agents
   )
 }
 
+// ── Room Detail Panel ──
+
+const ROOM_LABELS: Record<string, string> = {
+  'vitality-lab': 'Vitality Lab', 'task-forge': 'Task Forge', 'writing-room': 'Writing Room',
+  'research-lab': 'Research Lab', 'commons': 'Commons', 'media-studio': 'Media Studio',
+  'command-hub': 'Command Hub', 'automations': 'Automations Bay', 'soul-workshop': 'Soul Workshop',
+  'break-room': 'Break Room',
+}
+
+function RoomDetailPanel({ roomId, agents, onClose }: { roomId: string; agents: FleetAgent[]; onClose: () => void }) {
+  const color = ROOM_COLORS[roomId] || '#6b7280'
+  const label = ROOM_LABELS[roomId] || roomId
+
+  // Find agents assigned to this room
+  const roomAgents = agents.filter(a => AGENT_HOME_ROOM[a.id] === roomId)
+  const activeAgents = roomAgents.filter(a => a.status === 'running')
+  const completedTasks = roomAgents.reduce((sum, a) => sum + a.tasksCompleted, 0)
+
+  return (
+    <div style={{
+      position: 'absolute', top: 0, right: 0, bottom: 44, width: 300, zIndex: 20,
+      background: 'rgba(15, 17, 23, 0.95)', backdropFilter: 'blur(12px)',
+      borderLeft: `2px solid ${color}`, display: 'flex', flexDirection: 'column',
+      fontFamily: "'SF Mono', 'Fira Code', monospace",
+    }}>
+      {/* Header */}
+      <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {label}
+          </span>
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 6,
+            padding: '4px 8px', color: '#6b7280', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+          }}>ESC</button>
+        </div>
+        <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 10, color: '#6b7280' }}>
+          <span><strong style={{ color: '#e2e8f0', fontSize: 16 }}>{roomAgents.length}</strong> agents</span>
+          <span><strong style={{ color: '#22c55e', fontSize: 16 }}>{activeAgents.length}</strong> active</span>
+          <span><strong style={{ color: '#e2e8f0', fontSize: 16 }}>{completedTasks}</strong> done</span>
+        </div>
+      </div>
+
+      {/* Agent list */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#6b7280', marginBottom: 8 }}>ASSIGNED AGENTS</div>
+        {roomAgents.length === 0 ? (
+          <div style={{ fontSize: 10, color: '#4a5568', fontStyle: 'italic', padding: '12px 0' }}>No agents assigned</div>
+        ) : roomAgents.map(agent => {
+          const cfg = STATUS_CONFIG[agent.status]
+          return (
+            <div key={agent.id} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 6px',
+              borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 11,
+            }}>
+              <span style={{ fontSize: 16 }}>{agent.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#e2e8f0', fontWeight: 500 }}>{agent.label}</div>
+                {agent.currentTask && (
+                  <div style={{ fontSize: 9, color: '#6b7280', marginTop: 2, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {agent.currentTask}
+                  </div>
+                )}
+              </div>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', background: cfg.color, flexShrink: 0,
+                animation: cfg.pulse ? 'ncPulse 2s ease-in-out infinite' : 'none',
+              }} />
+              <span style={{ fontSize: 9, color: cfg.color }}>{cfg.label}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Room stats footer */}
+      <div style={{
+        padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.08)',
+        fontSize: 10, color: '#4a5568',
+      }}>
+        Room ID: <code style={{ fontSize: 9, background: 'rgba(255,255,255,0.06)', padding: '1px 4px', borderRadius: 3, color: '#8a91a0' }}>{roomId}</code>
+      </div>
+    </div>
+  )
+}
+
+// ── Context Menu ──
+
+function RoomContextMenu({ roomId, x, y, onAction, onClose }: {
+  roomId: string; x: number; y: number; onAction: (action: string) => void; onClose: () => void
+}) {
+  const label = ROOM_LABELS[roomId] || roomId
+  const color = ROOM_COLORS[roomId] || '#6b7280'
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={onClose}>
+      <div
+        style={{
+          position: 'absolute', left: x, top: y, minWidth: 160,
+          background: '#1a1d27', border: '1px solid #252a3a', borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px 0',
+          fontFamily: "'SF Mono', 'Fira Code', monospace",
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ padding: '6px 12px', fontSize: 10, color: '#6b7280', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <span style={{ color }}>{label}</span>
+        </div>
+        {[
+          { key: 'assign', label: 'Assign Task', icon: '+' },
+          { key: 'detail', label: 'View Details', icon: '>' },
+        ].map(item => (
+          <button
+            key={item.key}
+            onClick={() => onAction(item.key)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',
+              background: 'none', border: 'none', color: '#e2e8f0', fontSize: 11,
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'none')}
+          >
+            <span style={{ color: '#6b7280', fontSize: 12, width: 16, textAlign: 'center' }}>{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Main View ──
 
 export function NerveCenterView() {
@@ -156,6 +289,8 @@ export function NerveCenterView() {
   const [gatewayOk, setGatewayOk] = useState(false)
   const [taskModalAgent, setTaskModalAgent] = useState<string | null>(null)
   const [feedOpen, setFeedOpen] = useState(false)
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ roomId: string; x: number; y: number } | null>(null)
 
   useEffect(() => {
     const check = async () => {
@@ -171,6 +306,31 @@ export function NerveCenterView() {
     return townEvents.on('open-terminal', (seatId?: string) => {
       if (seatId) setTaskModalAgent(seatId)
     })
+  }, [])
+
+  // Bridge: scene emits room-clicked → React shows room detail panel
+  useEffect(() => {
+    const unsub1 = gatewayEvents.on('room-clicked', (roomId: string) => {
+      setSelectedRoom(prev => prev === roomId ? null : roomId)
+      setContextMenu(null)
+    })
+    const unsub2 = gatewayEvents.on('room-context-menu', (roomId: string, _wx: number, _wy: number) => {
+      // Convert world coords to approximate screen position
+      setContextMenu({ roomId, x: Math.min(window.innerWidth - 200, window.innerWidth / 2), y: Math.min(window.innerHeight - 120, window.innerHeight / 2) })
+    })
+    return () => { unsub1(); unsub2() }
+  }, [])
+
+  // ESC key closes panels
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedRoom(null)
+        setContextMenu(null)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
   }, [])
 
   const openTerminal = useCallback((agentId: string) => {
@@ -233,12 +393,40 @@ export function NerveCenterView() {
         </div>
       )}
 
+      {/* Room detail panel (slide-in from right) */}
+      {selectedRoom && (
+        <RoomDetailPanel
+          roomId={selectedRoom}
+          agents={agents}
+          onClose={() => setSelectedRoom(null)}
+        />
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <RoomContextMenu
+          roomId={contextMenu.roomId}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onAction={(action) => {
+            if (action === 'detail') setSelectedRoom(contextMenu.roomId)
+            if (action === 'assign') {
+              // Find first agent in this room to assign
+              const roomAgent = agents.find(a => AGENT_HOME_ROOM[a.id] === contextMenu.roomId)
+              if (roomAgent) setTaskModalAgent(roomAgent.id)
+            }
+            setContextMenu(null)
+          }}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
       {/* Task assign modal */}
       {taskModalAgent && (
         <TaskAssignModal
           agentId={taskModalAgent}
           agents={agents}
-          onClose={() => setTaskModalAgent(null)}
+          onClose={() => { setTaskModalAgent(null); townEvents.emit('terminal-closed') }}
         />
       )}
 
