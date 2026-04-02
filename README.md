@@ -1,6 +1,6 @@
-# Octavius — Personal Life Operating System
+# Octavius -- Personal Life Operating System
 
-A self-hosted dashboard that orchestrates four life quadrants through AI agents. Built with Next.js, SQLite, and [OpenClaw](https://github.com/openclaw/openclaw).
+A self-hosted dashboard that orchestrates four life quadrants through AI agents, with a virtual Nerve Center for real-time agent observability. Built with Next.js 14, SQLite, Phaser 3, and [OpenClaw](https://github.com/openclaw/openclaw).
 
 ## What is Octavius?
 
@@ -13,7 +13,7 @@ Octavius splits your life into four quadrants, each managed by a dedicated AI ag
 | Fellowship | agent-fellowship | Relationships, social connections, contact tracking |
 | Essence | agent-essence | Journaling, gratitude, reflection, meaning |
 
-An orchestrator agent (`octavius-orchestrator`) routes your messages to the right quadrant agent or specialist (research, engineering, marketing, video, image, writing).
+An orchestrator agent (`octavius-orchestrator`) routes your messages to the right quadrant agent or specialist (architect, coder, engineering, research, marketing, writing, video, image, n8n).
 
 ## Quick Start
 
@@ -90,7 +90,7 @@ Your agent now has tools like `octavius_task_create`, `octavius_checkin`, `octav
 
 #### Persistent conversation memory (lossless-claw)
 
-The setup script automatically installs [lossless-claw](https://github.com/Martian-Engineering/lossless-claw) when a gateway is detected. This gives all Octavius agents persistent conversation memory — they never lose context, even in long conversations.
+The setup script automatically installs [lossless-claw](https://github.com/Martian-Engineering/lossless-claw) when a gateway is detected. This gives all Octavius agents persistent conversation memory -- they never lose context, even in long conversations.
 
 If it wasn't auto-installed, add it manually:
 
@@ -99,9 +99,9 @@ openclaw plugins install @martian-engineering/lossless-claw
 ```
 
 When you click "Provision Agents" in Settings, the OpenClaw config is automatically generated with optimal lossless-claw settings:
-- `freshTailCount: 32` — protects the last 32 messages from compaction
-- `incrementalMaxDepth: -1` — unlimited DAG condensation depth
-- `contextThreshold: 0.75` — triggers compaction at 75% of context window
+- `freshTailCount: 32` -- protects the last 32 messages from compaction
+- `incrementalMaxDepth: -1` -- unlimited DAG condensation depth
+- `contextThreshold: 0.75` -- triggers compaction at 75% of context window
 - Cron sessions are excluded from LCM storage (noise reduction)
 - Sub-agent sessions are stateless (read-only access to LCM)
 - Session idle timeout set to 7 days (LCM handles context persistence)
@@ -109,17 +109,33 @@ When you click "Provision Agents" in Settings, the OpenClaw config is automatica
 The Memory tab in the dashboard shows LCM status, conversation count, summary DAG depth, and lets you browse stored conversations.
 
 Optionally, connect the dashboard UI to the gateway:
-1. Go to Settings → Gateway Connection
+1. Go to Settings -> Gateway Connection
 2. Enter `localhost` and port `18789`
-3. Click "Provision Agents" — this writes agent workspace files to `~/.openclaw/`
-4. Go to Agents tab → Agent Workspace Files → edit the Markdown files with your personal info
+3. Click "Provision Agents" -- this writes agent workspace files to `~/.openclaw/`
+4. Go to Agents tab -> Agent Workspace Files -> edit the Markdown files with your personal info
 
 ## Features
 
 ### Dashboard
 - Quadrant balance radar chart
 - Weekly review prompts
-- Compound loop phase tracking (Plan → Work → Review → Compound)
+- Compound loop phase tracking (Plan -> Work -> Review -> Compound)
+- Sprint navigation (weekly cycles)
+- Daily standup view (yesterday's done, today's in-progress, focus goals)
+
+### Nerve Center (Virtual Town)
+- Phaser 3 pixel-art visualization of the agent fleet
+- 10 rooms: Vitality Lab, Task Forge, Writing Room, Research Lab, Commons, Media Studio, Command Hub, Automations Bay, Soul Workshop, Break Room
+- 4 generalist agents + 9 specialist agents as animated sprites
+- BFS pathfinding on a walk graph for agent navigation
+- Real-time agent status sync from FleetStore
+- Drag-and-drop agent reassignment between rooms
+- Day/night ambient tinting based on system clock
+- Agent mood system (neutral, happy, stressed, sleeping) with visual effects
+- Dynamic room furniture reacting to workload
+- Room-aware idle animations with emote cycling and speech bubbles
+- Player character with WASD movement and E-key interaction
+- Agent position persistence across tab switches via sessionStorage
 
 ### Lifeforce (Health)
 - RingConn smart ring CSV import (drag-and-drop)
@@ -128,9 +144,10 @@ Optionally, connect the dashboard UI to the gateway:
 - Automated sync via ROOK SDK (Android) or Health Auto Export (iOS) webhooks
 
 ### Industry (Career)
-- Kanban task board (backlog → in progress → done)
+- Kanban task board (backlog -> in progress -> done)
 - Daily focus goals (max 3)
 - Daily schedule planner
+- Task delegation to agents with approval gates
 
 ### Fellowship (Relationships)
 - Connection tracking with contact frequency
@@ -143,22 +160,43 @@ Optionally, connect the dashboard UI to the gateway:
 - Mood trend charts
 
 ### Agents
-- Agent fleet overview (generalists + specialists)
-- Task delegation and tracking
+- Agent fleet overview (4 generalists + 9 specialists)
+- Task delegation and tracking with subtask approval gates
 - Agent workspace file editor (SOUL.md, AGENTS.md, USER.md, TOOLS.md)
 - Nightly Evolution Job updates agent files with learned patterns
+- Fleet SSE (Server-Sent Events) for real-time status updates
+
+### Memory
+- Hybrid search: BM25 full-text + vector similarity + reranking
+- Memory types: episodic, semantic, procedural, entity_profile
+- Knowledge graph with edges (related_to, inspired_by, etc.)
+- LCM conversation history browser
+- Obsidian vault integration (bidirectional sync)
+- Spaced repetition decay scheduler
+- Memory consolidation job (merge related items)
+- Novelty detection for interesting content
+
+### LLM Costs
+- Per-model cost tracking and timeseries analysis
+- Budget management with alerts
+- Model pricing catalog (auto-synced from OpenRouter)
+
+### Chat
+- Direct conversation with Octavius orchestrator
+- Agent task delegation from chat
+- Session persistence via sessionStorage
 
 ### Settings
 - Profile and preferences
-- Model router configuration (local + cloud tiers)
-- Cost tracking and budget
+- Model router configuration (OpenRouter default -> Bedrock fallback)
+- API key management (AES-encrypted storage)
 - Gateway connection management
 - Scheduled jobs and heartbeat actions
 - Memory configuration
 
 ### Lossless Context (LCM)
 - Persistent conversation memory across all agent sessions via [lossless-claw](https://github.com/Martian-Engineering/lossless-claw)
-- DAG-based summarization — nothing is ever lost from conversations
+- DAG-based summarization -- nothing is ever lost from conversations
 - Auto-configured during agent provisioning (zero manual setup)
 - LCM status panel in Memory tab (conversations, summary DAG depth, DB size)
 - Cross-search LCM conversation history from the dashboard
@@ -180,26 +218,125 @@ Optionally, connect the dashboard UI to the gateway:
 octavius/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                    # Dashboard UI
-│   │   └── api/
-│   │       ├── health/import/          # CSV upload endpoint
-│   │       ├── health/ingest/          # Health data ingest (dedup + store)
-│   │       ├── memory/                 # Memory Service API
-│   │       ├── lcm/                    # LCM bridge (status, search, conversations)
-│   │       ├── obsidian/               # Obsidian sync, status, vault graph
-│   │       └── gateway/                # Gateway integration
+│   │   ├── page.tsx                        # Main dashboard (view switcher)
+│   │   ├── login/                          # Authentication pages
+│   │   ├── landing/                        # Marketing landing page
+│   │   └── api/                            # ~83 API routes
+│   │       ├── auth/                       # Login, register, device approval
+│   │       ├── dashboard/                  # Tasks, checkins, journal, connections, goals, profile
+│   │       ├── agents/                     # Spawn, active, fleet-status, dispatch, config
+│   │       ├── memory/                     # Items, search, graph, annotations, jobs, stats
+│   │       ├── lcm/                        # LCM bridge (status, search, conversations)
+│   │       ├── obsidian/                   # Sync, status, vault graph
+│   │       ├── gateway/                    # Health, provision, tools, workspace-files
+│   │       ├── harness/                    # Sessions, traces, policies, evolve, hooks
+│   │       ├── health/                     # CSV import, data ingest
+│   │       ├── llm-cost/                   # Costs, budgets, alerts, models, timeseries
+│   │       ├── chat/                       # Chat, agent-reply, progress
+│   │       ├── research/                   # Deep research streaming
+│   │       ├── heartbeat/                  # Proactive health checks
+│   │       ├── cron/                       # Stale task cleanup
+│   │       ├── events/                     # SSE event stream
+│   │       ├── models/                     # Available LLM models
+│   │       └── settings/                   # Provider API keys
 │   ├── components/
-│   │   └── health/                     # Biometric charts, CSV upload
+│   │   ├── views/                          # 12 view components (one per tab)
+│   │   │   ├── DashboardView.tsx           # Balance radar, standup, sprint nav
+│   │   │   ├── LifeforceView.tsx           # Health biometrics & charts
+│   │   │   ├── IndustryView.tsx            # Kanban board, focus goals, schedule
+│   │   │   ├── FellowshipView.tsx          # Connections, overdue alerts
+│   │   │   ├── EssenceView.tsx             # Journaling, gratitude
+│   │   │   ├── NerveCenterView.tsx         # Agent town (Phaser wrapper + fleet panel)
+│   │   │   ├── AgentsView.tsx              # Fleet management, workspace editor
+│   │   │   ├── MemoryView.tsx              # Memory browser, LCM, vault graph
+│   │   │   ├── CostsView.tsx               # LLM cost tracking
+│   │   │   ├── SettingsView.tsx            # System config
+│   │   │   ├── ChatView.tsx                # Agent chat
+│   │   │   └── GatewayView.tsx             # OpenClaw gateway panel
+│   │   ├── layout/                         # Shell, Sidebar, Topbar, types
+│   │   ├── town/                           # Phaser game integration
+│   │   │   ├── game/
+│   │   │   │   ├── PhaserGame.tsx          # React wrapper (dynamic import, SSR disabled)
+│   │   │   │   ├── config.ts               # Phaser game config
+│   │   │   │   ├── scenes/
+│   │   │   │   │   ├── NerveCenterScene.ts # Main scene: rooms, agents, events, camera
+│   │   │   │   │   └── room-id-map.ts      # Agent home rooms, room colors
+│   │   │   │   ├── entities/
+│   │   │   │   │   ├── Agent.ts            # Agent entity: pathfinding, mood, emotes, bubbles
+│   │   │   │   │   └── Player.ts           # Player character (WASD movement)
+│   │   │   │   ├── config/
+│   │   │   │   │   ├── animations.ts       # Spritesheet animation definitions
+│   │   │   │   │   ├── emotes.ts           # Emote spritesheet frames
+│   │   │   │   │   ├── room-behaviors.ts   # Per-room idle behavior configs
+│   │   │   │   │   └── mood.ts             # Mood visual effects (tint, bounce, speed)
+│   │   │   │   └── utils/
+│   │   │   │       └── MapHelpers.ts       # Sprite frame building
+│   │   │   └── hud/
+│   │   │       └── TownHud.tsx             # HUD overlay
+│   │   ├── health/                         # Biometric charts, CSV upload
+│   │   ├── gateway/                        # Gateway connection UI
+│   │   └── ui/                             # Shared primitives (buttons, cards, modals)
+│   ├── hooks/                              # 13+ custom React hooks
+│   │   ├── use-api.ts                      # Data fetching with optimistic updates
+│   │   ├── use-auth.ts                     # Session management
+│   │   ├── use-active-agents.ts            # Active agent tracking
+│   │   ├── use-tasks.ts                    # Task CRUD (Kanban state)
+│   │   ├── use-checkins.ts                 # Mood/energy/stress
+│   │   ├── use-journal.ts                  # Journal entries
+│   │   ├── use-connections.ts              # Relationship tracking
+│   │   ├── use-profile.ts                  # User preferences
+│   │   ├── use-goals.ts                    # Quadrant goals
+│   │   ├── use-focus-goals.ts              # Daily focus (max 3)
+│   │   ├── use-gratitude.ts                # Gratitude practice
+│   │   ├── use-schedule.ts                 # Daily schedule
+│   │   └── use-sprint.ts                   # Sprint/weekly cycle
 │   ├── lib/
-│   │   ├── health/                     # Types, normalizer, CSV parser, dedup
-│   │   ├── memory/                     # SQLite Memory Service, sync layer, evolution
-│   │   ├── lcm/                        # Read-only bridge to lossless-claw SQLite DB
-│   │   ├── obsidian/                   # Obsidian REST API client, sync engine
-│   │   └── gateway/                    # Client, provisioner, orchestrator, dispatcher
-│   ├── store/                          # Zustand (localStorage + Memory Service sync)
-│   └── types/                          # TypeScript definitions
+│   │   ├── memory/                         # Memory Service (SQLite, search, graph, decay)
+│   │   │   ├── db.ts                       # Schema, migrations, 25+ tables
+│   │   │   ├── service.ts                  # Main CRUD + search API
+│   │   │   ├── hybrid-search.ts            # BM25 + vector similarity
+│   │   │   ├── embeddings.ts               # Vector embedding generation
+│   │   │   ├── graph.ts                    # Knowledge graph operations
+│   │   │   ├── decay.ts                    # Spaced repetition scheduler
+│   │   │   ├── consolidation.ts            # Memory merge jobs
+│   │   │   ├── evolution.ts                # Nightly agent file updates
+│   │   │   └── agent-workspace.ts          # SOUL.md, AGENTS.md management
+│   │   ├── auth/auth.ts                    # JWT sessions (jose), scrypt, device fingerprinting
+│   │   ├── gateway/                        # OpenClaw client, provisioner, orchestrator
+│   │   ├── town/                           # Phaser game state
+│   │   │   ├── fleet-store.ts              # Singleton FleetStore (sessionStorage)
+│   │   │   ├── bot-state-store.ts          # Agent position persistence (sessionStorage)
+│   │   │   ├── events.ts                   # Town event bus
+│   │   │   ├── constants.ts                # Game physics, interaction distances
+│   │   │   ├── use-fleet.ts                # React hook for fleet state
+│   │   │   └── use-fleet-sse.ts            # SSE subscription for fleet updates
+│   │   ├── agent-spawner.ts                # Agent spawn with context injection
+│   │   ├── llm-caller.ts                   # LLM abstraction (OpenRouter -> Bedrock fallback)
+│   │   ├── model-catalog.ts                # Model registry and pricing
+│   │   ├── models.ts                       # Centralized model ID definitions
+│   │   ├── provider-keys.ts                # AES-encrypted API key storage
+│   │   ├── cost-tracker.ts                 # LLM cost estimation
+│   │   ├── cron-runner.ts                  # Cron jobs (stale recovery, model refresh)
+│   │   ├── harness/                        # Execution tracing, policies, tool scopes
+│   │   ├── health/                         # CSV parser, biometric normalization
+│   │   ├── lcm/                            # Lossless-claw bridge (read-only)
+│   │   ├── obsidian/                       # Obsidian vault sync engine
+│   │   ├── llm-cost/                       # Cost logs, budgets, alerts
+│   │   ├── deep-research/                  # Research agent workflow
+│   │   └── chat/                           # Conversation threading
+│   └── types/                              # Shared TypeScript definitions
+├── e2e/                                    # Playwright E2E tests
 ├── extensions/
-│   └── health-data/                    # OpenClaw plugin for health webhooks
+│   ├── openclaw-octavius/                  # OpenClaw plugin (dashboard tools)
+│   └── health-data/                        # OpenClaw plugin (health webhooks)
+├── public/
+│   └── town/                               # Phaser assets (spritesheets, tilesets, UI)
+│       ├── characters/                     # 48x96 character PNGs (Premade_Character_*)
+│       ├── sprites/                        # Arrow indicators, emote sheets
+│       ├── tilesets/                        # Room decoration tiles
+│       └── gateway/
+│           └── nerve-center-map.logic.json # Room layout manifest (v3)
+├── docs/                                   # Design specs, plans, research
 └── .env.example
 ```
 
@@ -214,9 +351,12 @@ octavius/
 | Conversation history (LCM) | SQLite `~/.openclaw/lcm.db` | Persistent, DAG-summarized |
 | Agent workspace files | `~/.openclaw/workspace-octavius-*/` | Filesystem |
 | Agent file version history | SQLite `agent_context_versions` | Server-side audit trail |
-| Browser UI state | Browser localStorage | Per-browser (ephemeral, syncs to SQLite) |
+| Execution traces | SQLite `execution_traces` | Server-side, per-agent |
+| Town agent positions | Browser `sessionStorage` | Per-session (BotStateStore) |
+| Fleet agent status | Browser `sessionStorage` | Per-session (FleetStore) |
+| Browser UI state | Browser `localStorage` | Per-browser (ephemeral, syncs to SQLite) |
 
-#### ⚠️ Data privacy: your personal data stays local
+#### Data privacy: your personal data stays local
 
 All personal data (tasks, journal, health, memories, costs) is stored in a **single SQLite file**:
 
@@ -224,18 +364,70 @@ All personal data (tasks, journal, health, memories, costs) is stored in a **sin
 octavius/.data/memory.sqlite
 ```
 
-This file is in `.gitignore` — it is **never committed to git** and never leaves your machine. The `.data/` directory is created automatically on first run.
+This file is in `.gitignore` -- it is **never committed to git** and never leaves your machine. The `.data/` directory is created automatically on first run.
 
 To back up your data, copy this file. To reset, delete it.
 
 To move the database elsewhere, set the `OCTAVIUS_DATA_DIR` environment variable or edit `src/lib/memory/db.ts`.
+
+### Authentication
+
+- Password hashing: scrypt (N=16384, r=8, p=1)
+- Sessions: JWT via `jose` library, 30-day expiry
+- Device fingerprinting: SHA-256 of (userAgent + IP + screen + timezone)
+- Device approval flow with TOTP codes
+- Auth is request-scoped in each API route (no global middleware)
+
+### Agent Architecture
+
+```
+User message
+    |
+    v
+Octavius Orchestrator
+    |
+    ├── Quadrant Agents (4 generalists)
+    │   ├── agent-lifeforce   → Vitality Lab
+    │   ├── agent-industry    → Task Forge
+    │   ├── agent-fellowship  → Commons
+    │   └── agent-essence     → Soul Workshop
+    |
+    └── Specialist Agents (9)
+        ├── specialist-architect    → Task Forge
+        ├── specialist-coder        → Task Forge
+        ├── specialist-engineering  → Task Forge
+        ├── specialist-research     → Research Lab
+        ├── specialist-writing      → Writing Room
+        ├── specialist-marketing    → Writing Room
+        ├── specialist-video        → Media Studio
+        ├── specialist-image        → Media Studio
+        └── specialist-n8n          → Automations Bay
+```
+
+LLM routing: OpenRouter (default) -> AWS Bedrock (fallback) -> OpenRouter free models (last resort).
+
+Provider API keys are AES-encrypted and stored in the `provider_keys` SQLite table, configurable from the Settings tab.
+
+### Nerve Center (Phaser Game Architecture)
+
+The Nerve Center is a pixel-art virtual office rendered with Phaser 3:
+
+- **Manifest-driven**: Room layout, seats, and walk graph defined in `nerve-center-map.logic.json`
+- **10 rooms** arranged in a 2-row grid (1280x720 canvas)
+- **Walk graph**: Nodes at room centers + corridor intersections, BFS pathfinding
+- **Agent lifecycle**: Spawn at seat position -> wander within room bounds -> navigate to task room -> complete/fail -> return home
+- **Mood system**: neutral/happy/stressed/sleeping with tint colors, bounce animations, and speed multipliers
+- **State persistence**: `BotStateStore` (positions) + `FleetStore` (status/tasks) both use `sessionStorage`
+- **Tab switch continuity**: Scene flushes positions to sessionStorage on shutdown, restores them on re-create
+- **Dynamic furniture**: Paper stacks appear in busy rooms, warning glow on overloaded rooms (5+ active agents)
+- **Day/night cycle**: Ambient tint overlay based on system clock (morning gold, midday clear, evening amber, night blue)
 
 ## Health Data Integration
 
 Three paths to get biometric data from a RingConn smart ring:
 
 ### Path 1: CSV Import (works today)
-1. Export CSV from the RingConn app (Me → Settings → Data Management → Data Export)
+1. Export CSV from the RingConn app (Me -> Settings -> Data Management -> Data Export)
 2. Drag-and-drop the file onto the Lifeforce tab
 3. Data is parsed, deduplicated, and stored immediately
 
@@ -296,16 +488,16 @@ Octavius can sync its memory system with an [Obsidian](https://obsidian.md/) vau
 ### Setup
 
 1. Install the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) community plugin in Obsidian
-2. Enable it in Settings → Community Plugins
-3. Copy the API key from Settings → Local REST API
-4. In the Octavius dashboard, go to Memory → Obsidian Integration
+2. Enable it in Settings -> Community Plugins
+3. Copy the API key from Settings -> Local REST API
+4. In the Octavius dashboard, go to Memory -> Obsidian Integration
 5. Enable the toggle, paste the API key, and click Test Connection
 6. Click Sync Now
 
 ### How it works
 
-- **Push (Memory → Vault):** Each memory item becomes a `.md` file in your vault's `octavius/` folder with YAML frontmatter containing `memory_id`, `type`, `layer`, `tags`, `confidence`, and `importance`.
-- **Pull (Vault → Memory):** New notes you create in the `octavius/` folder (without a `memory_id` in frontmatter) are imported as memory items. After import, the note is stamped with the assigned `memory_id` to prevent duplicates.
+- **Push (Memory -> Vault):** Each memory item becomes a `.md` file in your vault's `octavius/` folder with YAML frontmatter containing `memory_id`, `type`, `layer`, `tags`, `confidence`, and `importance`.
+- **Pull (Vault -> Memory):** New notes you create in the `octavius/` folder (without a `memory_id` in frontmatter) are imported as memory items. After import, the note is stamped with the assigned `memory_id` to prevent duplicates.
 - **Vault Graph:** The Obsidian Vault tab in the Knowledge Graph section visualizes your vault's `[[wikilink]]` structure as a force-directed graph, with nodes color-coded by sync status.
 
 ### Sync direction
@@ -313,8 +505,8 @@ Octavius can sync its memory system with an [Obsidian](https://obsidian.md/) vau
 | Mode | Behavior |
 |------|----------|
 | Bidirectional | Push new memories to vault + pull new vault notes to memory |
-| Push only | Memory → Vault only (read-only vault) |
-| Pull only | Vault → Memory only (Obsidian as primary editor) |
+| Push only | Memory -> Vault only (read-only vault) |
+| Pull only | Vault -> Memory only (Obsidian as primary editor) |
 
 ## Development
 
@@ -323,23 +515,66 @@ npm run setup         # First-time setup
 npm run dev           # Start dev server (http://localhost:3000)
 npm run build         # Production build
 npm start             # Start production server
-npm test              # Run tests
+npm test              # Run unit tests (Vitest)
 npm run lint          # Lint
+npx playwright test   # Run E2E tests (requires dev server)
 ```
+
+### E2E Tests
+
+Playwright tests live in `e2e/`:
+
+| Test | What it covers |
+|------|----------------|
+| `auth-flow.spec.ts` | Login redirect, registration, device approval |
+| `views-load.spec.ts` | Page loads, API health checks |
+| `onboarding.spec.ts` | Wizard steps for new users |
+| `landing.spec.ts` | Landing page rendering |
+| `approval-buttons.spec.ts` | Subtask approval gates |
+| `kanban-realtime.spec.ts` | Kanban board real-time updates |
+| `nerve-center-agents.spec.ts` | Agent initial positions, tab switch persistence |
+
+### Database Schema (25+ tables)
+
+Core tables in `.data/memory.sqlite`:
+- `memory_items` -- Main memory storage with FTS5 full-text search
+- `memory_edges` -- Knowledge graph relationships
+- `memory_embeddings` -- Vector embeddings (BLOB)
+- `dashboard_tasks`, `dashboard_checkins`, `dashboard_journal`, `dashboard_connections` -- Quadrant data
+- `dashboard_focus_goals`, `dashboard_goals`, `dashboard_gratitude`, `dashboard_schedule` -- Daily planning
+- `dashboard_profile` -- User preferences (KV store)
+- `agent_model_config` -- Agent -> model routing
+- `agent_context_versions` -- Evolution audit trail
+- `execution_traces` -- Agent execution logs (outcome, tokens, cost, tool calls)
+- `scheduled_agent_jobs` -- Cron job definitions
+- `heartbeat_actions`, `heartbeat_config`, `heartbeat_runs` -- Proactive checks
+- `provider_keys` -- AES-encrypted API keys
+- `gateway_tokens`, `gateway_events` -- Gateway session management
 
 ## Tech Stack
 
-- Next.js 14 (App Router)
-- TypeScript
-- Tailwind CSS
-- Radix UI (Tabs, Dialog)
-- Recharts (charts)
-- Zustand (state management)
-- better-sqlite3 (Memory Service)
-- OpenClaw (AI agent gateway)
-- lossless-claw (persistent conversation memory)
+| Category | Technology |
+|----------|-----------|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript (strict mode) |
+| Styling | Tailwind CSS 3.4 |
+| UI Components | Radix UI (Dialog, Tabs) |
+| Charts | Recharts 3.7 |
+| Animations | Framer Motion 12 |
+| Game Engine | Phaser 3.90 |
+| Database | better-sqlite3 (WAL mode) |
+| Auth | jose (JWT), scrypt |
+| Drag-and-Drop | @dnd-kit |
+| Knowledge Graph | react-force-graph-2d |
+| Command Palette | cmdk |
+| WebSocket | ws |
+| Cron | node-cron |
+| Testing (unit) | Vitest 4.0 |
+| Testing (E2E) | Playwright 1.58 |
+| AI Gateway | OpenClaw |
+| Conversation Memory | lossless-claw |
+| LLM Providers | OpenRouter, AWS Bedrock |
 
 ## License
 
 MIT
-# octavius
