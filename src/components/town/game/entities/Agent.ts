@@ -14,6 +14,7 @@ import {
 } from '@/lib/town/constants'
 import { WORK_STATE_EMOTES, IDLE_TIMEOUT_MS } from '@/lib/gateway-view/constants'
 import { ROOM_BEHAVIORS, DEFAULT_BEHAVIOR } from '../config/room-behaviors'
+import { MOOD_VISUALS, type AgentMood } from '../config/mood'
 import type { WorkState } from '@/lib/gateway-view/types'
 import type { SeatStatus } from '@/lib/town/events'
 
@@ -170,6 +171,12 @@ export class Agent {
   private taskReturnTimer: ReturnType<typeof setTimeout> | null = null
   private idleEmoteCycleTimer: ReturnType<typeof setInterval> | null = null
 
+  // Mood system (Tier C)
+  private mood: AgentMood = 'neutral'
+  private baseTint: number | undefined
+  private moodFrameCounter = 0
+  private bouncePhase = 0
+
   constructor(scene: Phaser.Scene, config: AgentConfig, walkGraph: WalkGraphData) {
     this.scene = scene
     this.config = config
@@ -204,6 +211,7 @@ export class Agent {
     body.setOffset(FRAME_WIDTH * BODY_OFFSET_RATIO_X, FRAME_HEIGHT * BODY_OFFSET_RATIO_Y)
 
     // Apply tint for specialists
+    this.baseTint = config.tint
     if (config.tint !== undefined) {
       this.sprite.setTint(config.tint)
     }
@@ -254,6 +262,7 @@ export class Agent {
     // Navigate to the target room
     this.currentRoomId = targetRoomId
     this.navigateToRoom(targetRoomId)
+    this.updateMood()
   }
 
   /** Show done emote, return home after 4s delay. */
@@ -263,6 +272,7 @@ export class Agent {
     this.clearEmote()
     this.showEmote('emote:star')
     this.showBubble('Done!', 3000)
+    this.updateMood()
 
     this.clearTaskReturnTimer()
     this.taskReturnTimer = setTimeout(() => {
@@ -273,6 +283,7 @@ export class Agent {
       this.navigateToRoom(this.config.homeRoomId)
       this.scheduleWander()
       this.scheduleIdleTimeout()
+      this.updateMood()
     }, 4000)
   }
 
@@ -283,6 +294,7 @@ export class Agent {
     this.clearEmote()
     this.showEmote('emote:angry')
     this.showBubble('Failed...', 3000)
+    this.updateMood()
 
     this.clearTaskReturnTimer()
     this.taskReturnTimer = setTimeout(() => {
@@ -293,6 +305,7 @@ export class Agent {
       this.navigateToRoom(this.config.homeRoomId)
       this.scheduleWander()
       this.scheduleIdleTimeout()
+      this.updateMood()
     }, 4000)
   }
 
@@ -307,8 +320,23 @@ export class Agent {
     }
   }
 
-  /** Called every frame: update overlay positions, follow path. */
+  /** Called every frame: update overlay positions, follow path, mood. */
   update(): void {
+    // Periodic mood update (every 60 frames ≈ 1s)
+    this.moodFrameCounter++
+    if (this.moodFrameCounter >= 60) {
+      this.moodFrameCounter = 0
+      this.updateMood()
+    }
+
+    // Happy bounce effect
+    const moodVisuals = MOOD_VISUALS[this.mood]
+    if (moodVisuals.bounceAmplitude > 0) {
+      this.bouncePhase += 0.1
+      const bounceY = Math.sin(this.bouncePhase) * moodVisuals.bounceAmplitude
+      this.sprite.y += bounceY
+    }
+
     // Keep overlays tracking sprite position
     if (this.emoteSprite) {
       this.emoteSprite.setPosition(this.sprite.x, this.sprite.y - FRAME_HEIGHT * EMOTE_Y_OFFSET)
@@ -350,7 +378,7 @@ export class Agent {
       return
     }
 
-    const speed = MOVE_SPEED * WORKER_SPEED_FACTOR
+    const speed = MOVE_SPEED * WORKER_SPEED_FACTOR * moodVisuals.speedMultiplier
     const vx = (dx / dist) * speed
     const vy = (dy / dist) * speed
     const body = this.sprite.body as Phaser.Physics.Arcade.Body
@@ -389,6 +417,41 @@ export class Agent {
     this.currentRoomId = 'break-room'
     this.navigateToRoom('break-room')
     this.startIdleEmoteCycle() // restart with break-room behavior
+    this.updateMood()
+  }
+
+  // ── Mood system (Tier C) ──
+
+  private updateMood(): void {
+    if (this.currentRoomId === 'break-room' && this.status === 'empty') {
+      this.setMood('sleeping')
+    } else if (this.status === 'done') {
+      this.setMood('happy')
+    } else if (this.status === 'failed') {
+      this.setMood('stressed')
+    } else {
+      this.setMood('neutral')
+    }
+  }
+
+  private setMood(mood: AgentMood): void {
+    if (this.mood === mood) return
+    this.mood = mood
+    const visuals = MOOD_VISUALS[mood]
+
+    // Apply mood tint (preserve base tint for specialists)
+    if (visuals.tintColor) {
+      this.sprite.setTint(visuals.tintColor)
+    } else if (this.baseTint !== undefined) {
+      this.sprite.setTint(this.baseTint)
+    } else {
+      this.sprite.clearTint()
+    }
+
+    // Show mood emote only when idle (don't override task emotes)
+    if (visuals.emote && this.workState === 'idle') {
+      this.showEmote(visuals.emote)
+    }
   }
 
   /** Cleanup all timers and game objects. */
