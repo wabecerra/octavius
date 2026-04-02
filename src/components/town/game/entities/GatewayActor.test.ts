@@ -105,6 +105,7 @@ function makeRoom(overrides: Partial<RoomDef> = {}): RoomDef {
     roomId: 'room-agents',
     label: 'Agents',
     icon: 'emote:exclaim',
+    bounds: [200, 200, 100, 100],
     x: 200,
     y: 200,
     width: 100,
@@ -360,10 +361,7 @@ describe('GatewayActor — idle timeout (Req 2.7)', () => {
   it('does not transition to idle while processing events', () => {
     const scene = makeScene()
     // Return a real path so the actor stays in "processing" state (navigating)
-    const pf = makePathfinder([
-      { x: 100, y: 100 },
-      { x: 300, y: 300 },
-    ])
+    const pf = makePathfinder('path')
     const actor = new GatewayActor(scene as never, 100, 100, pf as never)
 
     // Enqueue an event — actor starts navigating (processing = true)

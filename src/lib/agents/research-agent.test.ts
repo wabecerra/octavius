@@ -119,7 +119,7 @@ describe('executeResearchTask — search invocation for complex tasks', () => {
     expect(result.isVerified).toBe(true)
     // Should NOT have called search endpoint
     const searchCalls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls.filter(
-      ([url]: [string]) => url.includes('/v1/search'),
+      (args: any[]) => (args[0] as string).includes('/v1/search'),
     )
     expect(searchCalls).toHaveLength(0)
   })

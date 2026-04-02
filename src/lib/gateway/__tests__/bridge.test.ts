@@ -10,7 +10,7 @@ import { AgentEventType } from '../bridge-events'
 
 // Mock WebSocket
 vi.mock('ws', () => {
-  const MockWebSocket = vi.fn(function(this: any, url: string) {
+  const MockWebSocket: any = vi.fn(function(this: any, url: string) {
     this.url = url
     this.readyState = 1 // OPEN
     this.send = vi.fn()

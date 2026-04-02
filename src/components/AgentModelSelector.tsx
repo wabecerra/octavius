@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { UI_POPULAR_MODELS } from '@/lib/models'
 
 interface AgentModelConfig {
   agentId: string
@@ -12,23 +13,6 @@ const PROVIDER_OPTIONS = [
   { value: 'openrouter', label: 'OpenRouter' },
   { value: 'bedrock', label: 'Amazon Bedrock' },
 ]
-
-const POPULAR_MODELS: Record<string, string[]> = {
-  openrouter: [
-    'qwen/qwen3-235b-a22b-2507',
-    'qwen/qwen3-30b-a3b-instruct-2507',
-    'openrouter/auto',
-    'openrouter/free',
-    'anthropic/claude-sonnet-4',
-    'google/gemini-2.5-flash',
-  ],
-  bedrock: [
-    'anthropic.claude-sonnet-4-20250514-v1:0',
-    'anthropic.claude-haiku-4-20250514-v1:0',
-    'amazon.nova-pro-v1:0',
-    'amazon.nova-lite-v1:0',
-  ],
-}
 
 export function AgentModelSelector({
   agentId,
@@ -74,7 +58,7 @@ export function AgentModelSelector({
     )
   }
 
-  const popularModels = POPULAR_MODELS[provider] || []
+  const popularModels = UI_POPULAR_MODELS[provider] || []
   const isPopular = popularModels.includes(model)
 
   return (
@@ -84,7 +68,7 @@ export function AgentModelSelector({
         value={provider}
         onChange={(e) => {
           setProvider(e.target.value)
-          const defaults = POPULAR_MODELS[e.target.value]
+          const defaults = UI_POPULAR_MODELS[e.target.value]
           if (defaults?.[0]) {
             setModel(defaults[0])
             handleSave(e.target.value, defaults[0])

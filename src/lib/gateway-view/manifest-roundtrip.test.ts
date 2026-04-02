@@ -62,11 +62,12 @@ const arbRoomDef: fc.Arbitrary<RoomDef> = fc.record({
   roomId: safeString,
   label: safeString,
   icon: safeString,
+  bounds: fc.tuple(safeNumber, safeNumber, positiveNumber, positiveNumber),
+  connections: fc.array(safeString, { minLength: 0, maxLength: 5 }),
   x: safeNumber,
   y: safeNumber,
   width: positiveNumber,
   height: positiveNumber,
-  connections: fc.array(safeString, { minLength: 0, maxLength: 5 }),
 })
 
 const arbWaypointDef: fc.Arbitrary<WaypointDef> = fc.record({
