@@ -528,6 +528,8 @@ export class NerveCenterScene extends Phaser.Scene {
           agent.showBubble(fleetAgent.currentTask)
         }
       }
+      // Update dynamic furniture for server-side state changes (Tier C)
+      this.updateRoomWorkload()
     })
     this.eventCleanups.push(unsubStore)
 
@@ -707,8 +709,14 @@ export class NerveCenterScene extends Phaser.Scene {
         this.roomPapers.delete(room.id)
       }
 
+      // Signal overload to agents in this room (Tier C mood system)
+      const overloaded = activeCount >= 5
+      for (const agent of this.agents) {
+        if (agent.currentRoomId === room.id) agent.roomOverloaded = overloaded
+      }
+
       // Red warning glow for overloaded rooms (5+ active)
-      if (activeCount >= 5 && !this.roomWarning.has(room.id)) {
+      if (overloaded && !this.roomWarning.has(room.id)) {
         const gfx = this.add.graphics().setDepth(0.8)
         gfx.lineStyle(3, 0xff3333, 0.6)
         gfx.strokeRoundedRect(rx - 2, ry - 2, rw + 4, rh + 4, 14)
@@ -721,7 +729,7 @@ export class NerveCenterScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
         })
         this.roomWarning.set(room.id, { gfx, tween })
-      } else if (activeCount < 5 && this.roomWarning.has(room.id)) {
+      } else if (!overloaded && this.roomWarning.has(room.id)) {
         const w = this.roomWarning.get(room.id)!
         w.tween.stop()
         w.gfx.destroy()

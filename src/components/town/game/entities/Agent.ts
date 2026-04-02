@@ -176,6 +176,7 @@ export class Agent {
   private baseTint: number | undefined
   private moodFrameCounter = 0
   private bouncePhase = 0
+  private currentBounceOffset = 0
 
   constructor(scene: Phaser.Scene, config: AgentConfig, walkGraph: WalkGraphData) {
     this.scene = scene
@@ -329,12 +330,17 @@ export class Agent {
       this.updateMood()
     }
 
-    // Happy bounce effect
+    // Happy bounce effect (track offset to prevent Y drift)
     const moodVisuals = MOOD_VISUALS[this.mood]
     if (moodVisuals.bounceAmplitude > 0) {
       this.bouncePhase += 0.1
-      const bounceY = Math.sin(this.bouncePhase) * moodVisuals.bounceAmplitude
-      this.sprite.y += bounceY
+      const newOffset = Math.sin(this.bouncePhase) * moodVisuals.bounceAmplitude
+      this.sprite.y -= this.currentBounceOffset
+      this.sprite.y += newOffset
+      this.currentBounceOffset = newOffset
+    } else if (this.currentBounceOffset !== 0) {
+      this.sprite.y -= this.currentBounceOffset
+      this.currentBounceOffset = 0
     }
 
     // Keep overlays tracking sprite position
@@ -379,6 +385,7 @@ export class Agent {
     }
 
     const speed = MOVE_SPEED * WORKER_SPEED_FACTOR * moodVisuals.speedMultiplier
+    if (speed === 0) return // sleeping mood — don't move
     const vx = (dx / dist) * speed
     const vy = (dy / dist) * speed
     const body = this.sprite.body as Phaser.Physics.Arcade.Body
@@ -422,12 +429,15 @@ export class Agent {
 
   // ── Mood system (Tier C) ──
 
+  /** Set whether the agent's current room is overloaded (5+ active). */
+  roomOverloaded = false
+
   private updateMood(): void {
     if (this.currentRoomId === 'break-room' && this.status === 'empty') {
       this.setMood('sleeping')
     } else if (this.status === 'done') {
       this.setMood('happy')
-    } else if (this.status === 'failed') {
+    } else if (this.status === 'failed' || (this.status === 'running' && this.roomOverloaded)) {
       this.setMood('stressed')
     } else {
       this.setMood('neutral')
