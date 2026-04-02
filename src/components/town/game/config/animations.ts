@@ -38,6 +38,31 @@ export const WORKER_SPRITES: WorkerSpriteConfig[] = [
   { key: 'character_05', path: '/town/characters/Premade_Character_48x48_05.png', label: 'Essence' },
 ]
 
+/**
+ * Specialist agent sprite configs.
+ * Each reuses an existing character PNG; differentiated via Phaser setTint().
+ * Tint is the room's quadrant color.
+ */
+export interface SpecialistSpriteConfig {
+  agentId: string
+  key: string
+  sourcePath: string
+  label: string
+  tint: number
+}
+
+export const SPECIALIST_SPRITES: SpecialistSpriteConfig[] = [
+  { agentId: 'specialist-architect', key: 'char_architect', sourcePath: '/town/characters/Premade_Character_48x48_01.png', label: 'Architect', tint: 0x60a5fa },
+  { agentId: 'specialist-coder', key: 'char_coder', sourcePath: '/town/characters/Premade_Character_48x48_06.png', label: 'Coder', tint: 0x60a5fa },
+  { agentId: 'specialist-research', key: 'char_research', sourcePath: '/town/characters/Premade_Character_48x48_03.png', label: 'Research', tint: 0x818cf8 },
+  { agentId: 'specialist-marketing', key: 'char_marketing', sourcePath: '/town/characters/Premade_Character_48x48_04.png', label: 'Marketing', tint: 0xa78bfa },
+  { agentId: 'specialist-writing', key: 'char_writing', sourcePath: '/town/characters/Premade_Character_48x48_05.png', label: 'Writing', tint: 0xa78bfa },
+  { agentId: 'specialist-video', key: 'char_video', sourcePath: '/town/characters/Premade_Character_48x48_01.png', label: 'Video', tint: 0xf472b6 },
+  { agentId: 'specialist-image', key: 'char_image', sourcePath: '/town/characters/Premade_Character_48x48_02.png', label: 'Image', tint: 0xf472b6 },
+  { agentId: 'specialist-n8n', key: 'char_n8n', sourcePath: '/town/characters/Premade_Character_48x48_06.png', label: 'n8n', tint: 0xfb923c },
+  { agentId: 'specialist-engineering', key: 'char_engineering', sourcePath: '/town/characters/Premade_Character_48x48_01.png', label: 'Engineering', tint: 0x60a5fa },
+]
+
 const directions = ['right', 'up', 'left', 'down'] as const
 export type Direction = (typeof directions)[number]
 
