@@ -92,6 +92,15 @@ export class NerveCenterScene extends Phaser.Scene {
   private botStore = new BotStateStore()
   private saveTimer: ReturnType<typeof setInterval> | null = null
 
+  // Dynamic furniture (Tier C)
+  private roomDesks = new Map<string, Phaser.GameObjects.Graphics>()
+  private roomPapers = new Map<string, Phaser.GameObjects.Graphics>()
+  private roomWarning = new Map<string, { gfx: Phaser.GameObjects.Graphics; tween: Phaser.Tweens.Tween }>()
+
+  // Ambient overlay (Tier C)
+  private ambientOverlay: Phaser.GameObjects.Graphics | null = null
+  private ambientTimer: ReturnType<typeof setInterval> | null = null
+
   constructor() {
     super({ key: 'NerveCenterScene' })
   }
@@ -329,6 +338,18 @@ export class NerveCenterScene extends Phaser.Scene {
         fontStyle: 'bold',
         color: room.color,
       }).setOrigin(0.5, 0.5).setDepth(2)
+
+      // Desks at seat positions (Tier C — dynamic furniture)
+      if (room.seats.length > 0) {
+        const deskGfx = this.add.graphics().setDepth(2)
+        for (const seat of room.seats) {
+          deskGfx.fillStyle(colorHex, 0.25)
+          deskGfx.fillRoundedRect(seat.x - 12, seat.y + 24, 24, 10, 2)
+          deskGfx.lineStyle(1, colorHex, 0.35)
+          deskGfx.strokeRoundedRect(seat.x - 12, seat.y + 24, 24, 10, 2)
+        }
+        this.roomDesks.set(room.id, deskGfx)
+      }
     }
   }
 
@@ -430,6 +451,7 @@ export class NerveCenterScene extends Phaser.Scene {
         if (!agent) return
         const homeRoom = AGENT_HOME_ROOM[agent.agentId]
         agent.assignTask(homeRoom ?? 'command-hub', message)
+        this.updateRoomWorkload()
       }),
     )
 
@@ -438,6 +460,7 @@ export class NerveCenterScene extends Phaser.Scene {
         const agent = this.resolveAgent(seatId)
         if (!agent) return
         agent.completeTask()
+        this.updateRoomWorkload()
       }),
     )
 
@@ -446,6 +469,7 @@ export class NerveCenterScene extends Phaser.Scene {
         const agent = this.resolveAgent(seatId)
         if (!agent) return
         agent.failTask()
+        this.updateRoomWorkload()
       }),
     )
 
@@ -624,6 +648,57 @@ export class NerveCenterScene extends Phaser.Scene {
     }
   }
 
+  // ── updateRoomWorkload (Tier C — dynamic furniture) ─────────────────────
+
+  private updateRoomWorkload(): void {
+    for (const room of this.manifest.rooms) {
+      if (room.seats.length === 0) continue
+
+      const activeCount = this.agents.filter(
+        a => a.sprite.visible && a.currentRoomId === room.id && a.status === 'running',
+      ).length
+
+      const colorHex = parseInt(room.color.replace('#', ''), 16)
+      const [rx, ry, rw, rh] = room.bounds
+
+      // Paper stacks for busy rooms (2+ active)
+      if (activeCount >= 2 && !this.roomPapers.has(room.id)) {
+        const papers = this.add.graphics().setDepth(3)
+        for (const seat of room.seats) {
+          // Small paper rectangles on desk
+          papers.fillStyle(0xf5f5dc, 0.5)
+          papers.fillRect(seat.x - 6, seat.y + 20, 8, 5)
+          papers.fillRect(seat.x + 2, seat.y + 18, 7, 6)
+        }
+        this.roomPapers.set(room.id, papers)
+      } else if (activeCount < 2 && this.roomPapers.has(room.id)) {
+        this.roomPapers.get(room.id)!.destroy()
+        this.roomPapers.delete(room.id)
+      }
+
+      // Red warning glow for overloaded rooms (5+ active)
+      if (activeCount >= 5 && !this.roomWarning.has(room.id)) {
+        const gfx = this.add.graphics().setDepth(0.8)
+        gfx.lineStyle(3, 0xff3333, 0.6)
+        gfx.strokeRoundedRect(rx - 2, ry - 2, rw + 4, rh + 4, 14)
+        const tween = this.tweens.add({
+          targets: gfx,
+          alpha: { from: 0.6, to: 0.15 },
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        })
+        this.roomWarning.set(room.id, { gfx, tween })
+      } else if (activeCount < 5 && this.roomWarning.has(room.id)) {
+        const w = this.roomWarning.get(room.id)!
+        w.tween.stop()
+        w.gfx.destroy()
+        this.roomWarning.delete(room.id)
+      }
+    }
+  }
+
   // ── showTooltip ──────────────────────────────────────────────────────────
 
   private showTooltip(x: number, y: number, text: string): void {
@@ -695,6 +770,7 @@ export class NerveCenterScene extends Phaser.Scene {
     // Save final positions before cleanup
     this.saveAgentPositions()
     if (this.saveTimer) { clearInterval(this.saveTimer); this.saveTimer = null }
+    if (this.ambientTimer) { clearInterval(this.ambientTimer); this.ambientTimer = null }
 
     for (const cleanup of this.eventCleanups) cleanup()
     this.eventCleanups = []
@@ -704,5 +780,14 @@ export class NerveCenterScene extends Phaser.Scene {
     this.clearTooltip()
     if (this.promptText) { this.promptText.destroy(); this.promptText = null }
     if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null }
+    if (this.ambientOverlay) { this.ambientOverlay.destroy(); this.ambientOverlay = null }
+
+    // Clean up dynamic furniture
+    for (const gfx of this.roomDesks.values()) gfx.destroy()
+    this.roomDesks.clear()
+    for (const gfx of this.roomPapers.values()) gfx.destroy()
+    this.roomPapers.clear()
+    for (const { gfx, tween } of this.roomWarning.values()) { tween.stop(); gfx.destroy() }
+    this.roomWarning.clear()
   }
 }
