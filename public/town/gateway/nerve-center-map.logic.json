@@ -1,0 +1,149 @@
+{
+  "meta": {
+    "version": "3.0.0",
+    "schema": "octavius/nerve-center.v3",
+    "canvas": { "width": 1280, "height": 720 }
+  },
+  "rooms": [
+    {
+      "id": "vitality-lab",
+      "label": "Vitality Lab",
+      "color": "#34d399",
+      "bounds": [10, 20, 290, 300],
+      "seats": [
+        { "id": "seat-0", "agentId": "gen-lifeforce", "x": 155, "y": 170 }
+      ]
+    },
+    {
+      "id": "task-forge",
+      "label": "Task Forge",
+      "color": "#60a5fa",
+      "bounds": [310, 20, 370, 300],
+      "seats": [
+        { "id": "seat-1", "agentId": "gen-industry", "x": 400, "y": 120 },
+        { "id": "specialist-architect", "agentId": "specialist-architect", "x": 500, "y": 120 },
+        { "id": "specialist-coder", "agentId": "specialist-coder", "x": 600, "y": 120 },
+        { "id": "specialist-engineering", "agentId": "specialist-engineering", "x": 550, "y": 220 }
+      ]
+    },
+    {
+      "id": "writing-room",
+      "label": "Writing Room",
+      "color": "#a78bfa",
+      "bounds": [690, 20, 290, 300],
+      "seats": [
+        { "id": "specialist-writing", "agentId": "specialist-writing", "x": 780, "y": 120 },
+        { "id": "specialist-marketing", "agentId": "specialist-marketing", "x": 880, "y": 120 }
+      ]
+    },
+    {
+      "id": "research-lab",
+      "label": "Research Lab",
+      "color": "#818cf8",
+      "bounds": [990, 20, 280, 300],
+      "seats": [
+        { "id": "specialist-research", "agentId": "specialist-research", "x": 1130, "y": 170 }
+      ]
+    },
+    {
+      "id": "commons",
+      "label": "Commons",
+      "color": "#f87171",
+      "bounds": [10, 400, 190, 300],
+      "seats": [
+        { "id": "seat-2", "agentId": "gen-fellowship", "x": 105, "y": 550 }
+      ]
+    },
+    {
+      "id": "media-studio",
+      "label": "Media Studio",
+      "color": "#f472b6",
+      "bounds": [210, 400, 220, 300],
+      "seats": [
+        { "id": "specialist-video", "agentId": "specialist-video", "x": 280, "y": 500 },
+        { "id": "specialist-image", "agentId": "specialist-image", "x": 370, "y": 500 }
+      ]
+    },
+    {
+      "id": "command-hub",
+      "label": "Command Hub",
+      "color": "#ff5c5c",
+      "bounds": [440, 400, 320, 300],
+      "seats": []
+    },
+    {
+      "id": "automations",
+      "label": "Automations Bay",
+      "color": "#fb923c",
+      "bounds": [770, 400, 180, 300],
+      "seats": [
+        { "id": "specialist-n8n", "agentId": "specialist-n8n", "x": 860, "y": 550 }
+      ]
+    },
+    {
+      "id": "soul-workshop",
+      "label": "Soul Workshop",
+      "color": "#c084fc",
+      "bounds": [960, 400, 190, 300],
+      "seats": [
+        { "id": "seat-3", "agentId": "gen-essence", "x": 1055, "y": 550 }
+      ]
+    },
+    {
+      "id": "break-room",
+      "label": "Break Room",
+      "color": "#a3a3a3",
+      "bounds": [1160, 400, 110, 300],
+      "seats": []
+    }
+  ],
+  "walkGraph": {
+    "nodes": {
+      "vitality-center": { "x": 155, "y": 170, "roomId": "vitality-lab" },
+      "task-forge-center": { "x": 495, "y": 170, "roomId": "task-forge" },
+      "writing-center": { "x": 835, "y": 170, "roomId": "writing-room" },
+      "research-center": { "x": 1130, "y": 170, "roomId": "research-lab" },
+      "corridor-top-1": { "x": 300, "y": 350 },
+      "corridor-top-2": { "x": 500, "y": 350 },
+      "corridor-top-3": { "x": 840, "y": 350 },
+      "corridor-top-4": { "x": 1130, "y": 350 },
+      "commons-center": { "x": 105, "y": 550, "roomId": "commons" },
+      "media-center": { "x": 320, "y": 550, "roomId": "media-studio" },
+      "hub-center": { "x": 600, "y": 550, "roomId": "command-hub" },
+      "auto-center": { "x": 860, "y": 550, "roomId": "automations" },
+      "soul-center": { "x": 1055, "y": 550, "roomId": "soul-workshop" },
+      "break-center": { "x": 1215, "y": 550, "roomId": "break-room" },
+      "corridor-bot-1": { "x": 105, "y": 370 },
+      "corridor-bot-2": { "x": 320, "y": 370 },
+      "corridor-bot-3": { "x": 600, "y": 370 },
+      "corridor-bot-4": { "x": 860, "y": 370 },
+      "corridor-bot-5": { "x": 1055, "y": 370 },
+      "corridor-bot-6": { "x": 1215, "y": 370 }
+    },
+    "edges": [
+      ["vitality-center", "corridor-top-1"],
+      ["task-forge-center", "corridor-top-2"],
+      ["writing-center", "corridor-top-3"],
+      ["research-center", "corridor-top-4"],
+      ["corridor-top-1", "corridor-top-2"],
+      ["corridor-top-2", "corridor-top-3"],
+      ["corridor-top-3", "corridor-top-4"],
+      ["corridor-top-1", "corridor-bot-1"],
+      ["corridor-top-2", "corridor-bot-2"],
+      ["corridor-top-2", "corridor-bot-3"],
+      ["corridor-top-3", "corridor-bot-4"],
+      ["corridor-top-4", "corridor-bot-5"],
+      ["corridor-bot-1", "commons-center"],
+      ["corridor-bot-1", "corridor-bot-2"],
+      ["corridor-bot-2", "media-center"],
+      ["corridor-bot-2", "corridor-bot-3"],
+      ["corridor-bot-3", "hub-center"],
+      ["corridor-bot-3", "corridor-bot-4"],
+      ["corridor-bot-4", "auto-center"],
+      ["corridor-bot-4", "corridor-bot-5"],
+      ["corridor-bot-5", "soul-center"],
+      ["corridor-bot-5", "corridor-bot-6"],
+      ["corridor-bot-6", "break-center"]
+    ]
+  }
+}
