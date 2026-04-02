@@ -480,7 +480,7 @@ export class NerveCenterScene extends Phaser.Scene {
       }),
     )
 
-    // FleetStore subscription — sync specialist visibility
+    // FleetStore subscription — sync specialist visibility + task bubbles
     const store = getFleetStore()
     const unsubStore = store.subscribe(() => {
       const snapshot = store.getSnapshot()
@@ -492,6 +492,11 @@ export class NerveCenterScene extends Phaser.Scene {
         const ss = SPECIALIST_SPRITES.find(s => s.agentId === fleetAgent.id)
         if (ss) {
           agent.setVisible(fleetAgent.status !== 'empty')
+        }
+
+        // Show current task text as speech bubble (Tier C)
+        if (fleetAgent.currentTask && agent.sprite.visible && !agent.hasBubble()) {
+          agent.showBubble(fleetAgent.currentTask)
         }
       }
     })

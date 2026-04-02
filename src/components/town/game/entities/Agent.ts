@@ -160,6 +160,7 @@ export class Agent {
   private glowTween: Phaser.Tweens.Tween | null = null
   private emoteSprite: Phaser.GameObjects.Sprite | null = null
   private bubbleText: Phaser.GameObjects.Text | null = null
+  private bubbleBg: Phaser.GameObjects.Graphics | null = null
   private bubbleTimer: ReturnType<typeof setTimeout> | null = null
 
   // Timers
@@ -312,6 +313,7 @@ export class Agent {
     }
     if (this.bubbleText) {
       this.bubbleText.setPosition(this.sprite.x, this.sprite.y - FRAME_HEIGHT * BUBBLE_Y_OFFSET)
+      this.updateBubbleBg()
     }
     if (this.nameLabel) {
       this.nameLabel.setPosition(this.sprite.x, this.sprite.y + FRAME_HEIGHT * 0.15)
@@ -371,6 +373,7 @@ export class Agent {
     if (this.glowCircle) this.glowCircle.setVisible(visible)
     if (this.emoteSprite) this.emoteSprite.setVisible(visible)
     if (this.bubbleText) this.bubbleText.setVisible(visible)
+    if (this.bubbleBg) this.bubbleBg.setVisible(visible)
     if (!visible) {
       this.cancelWander()
       this.cancelIdleTimeout()
@@ -395,6 +398,7 @@ export class Agent {
     this.hideGlow()
     if (this.nameLabel) { this.nameLabel.destroy(); this.nameLabel = null }
     if (this.glowCircle) { this.glowCircle.destroy(); this.glowCircle = null }
+    if (this.bubbleBg) { this.bubbleBg.destroy(); this.bubbleBg = null }
     this.sprite.destroy()
   }
 
@@ -490,26 +494,51 @@ export class Agent {
 
   // ── Private: bubble ──
 
-  private showBubble(text: string, ttl: number): void {
+  showBubble(text: string, ttl = 5000): void {
     this.clearBubble()
+    const truncated = text.length > 40 ? text.slice(0, 37) + '...' : text
+
     this.bubbleText = this.scene.add.text(
       this.sprite.x,
       this.sprite.y - FRAME_HEIGHT * BUBBLE_Y_OFFSET,
-      text,
+      truncated,
       {
         fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#222',
-        backgroundColor: '#fff',
-        padding: { x: 6, y: 3 },
-        wordWrap: { width: 140 },
+        fontSize: '9px',
+        color: '#e2e8f0',
+        padding: { x: 6, y: 4 },
+        wordWrap: { width: 120 },
       },
-    ).setOrigin(0.5, 1).setDepth(20)
+    ).setOrigin(0.5, 1).setDepth(21)
+
+    this.bubbleBg = this.scene.add.graphics().setDepth(20)
+    this.updateBubbleBg()
+
     this.bubbleTimer = setTimeout(() => this.clearBubble(), ttl)
+  }
+
+  /** Whether a speech bubble is currently visible. */
+  hasBubble(): boolean {
+    return this.bubbleText !== null
+  }
+
+  private updateBubbleBg(): void {
+    if (!this.bubbleBg || !this.bubbleText) return
+    this.bubbleBg.clear()
+    const b = this.bubbleText.getBounds()
+    const pad = 4
+    // Rounded background
+    this.bubbleBg.fillStyle(0x0f172a, 0.92)
+    this.bubbleBg.fillRoundedRect(b.x - pad, b.y - pad, b.width + pad * 2, b.height + pad * 2, 4)
+    // Pointer triangle
+    const cx = b.x + b.width / 2
+    const bottom = b.y + b.height + pad
+    this.bubbleBg.fillTriangle(cx - 4, bottom, cx + 4, bottom, cx, bottom + 6)
   }
 
   private clearBubble(): void {
     if (this.bubbleTimer) { clearTimeout(this.bubbleTimer); this.bubbleTimer = null }
+    if (this.bubbleBg) { this.bubbleBg.destroy(); this.bubbleBg = null }
     if (this.bubbleText) { this.bubbleText.destroy(); this.bubbleText = null }
   }
 
