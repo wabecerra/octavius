@@ -776,8 +776,8 @@ export class NerveCenterScene extends Phaser.Scene {
     console.log(`[NerveCenterScene] Restored ${lookup.size} agent positions from BotStateStore`)
   }
 
-  private saveAgentPositions(): void {
-    const states: BotState[] = this.agents
+  private collectAgentStates(): BotState[] {
+    return this.agents
       .filter(a => a.sprite.visible)
       .map(a => ({
         seatId: a.agentId,
@@ -791,14 +791,21 @@ export class NerveCenterScene extends Phaser.Scene {
         workState: a.workState,
         lastEventId: null,
       }))
-    this.botStore.save(states)
+  }
+
+  private saveAgentPositions(): void {
+    this.botStore.save(this.collectAgentStates())
+  }
+
+  private flushAgentPositions(): void {
+    this.botStore.flush(this.collectAgentStates())
   }
 
   // ── shutdown ─────────────────────────────────────────────────────────────
 
   private shutdown(): void {
-    // Save final positions before cleanup
-    this.saveAgentPositions()
+    // Flush final positions immediately (not debounced) before scene destruction
+    this.flushAgentPositions()
     if (this.saveTimer) { clearInterval(this.saveTimer); this.saveTimer = null }
     if (this.ambientTimer) { clearInterval(this.ambientTimer); this.ambientTimer = null }
 

@@ -20,10 +20,10 @@
       "color": "#60a5fa",
       "bounds": [310, 20, 370, 300],
       "seats": [
-        { "id": "seat-1", "agentId": "gen-industry", "x": 400, "y": 120 },
-        { "id": "specialist-architect", "agentId": "specialist-architect", "x": 500, "y": 120 },
-        { "id": "specialist-coder", "agentId": "specialist-coder", "x": 600, "y": 120 },
-        { "id": "specialist-engineering", "agentId": "specialist-engineering", "x": 550, "y": 220 }
+        { "id": "seat-1", "agentId": "gen-industry", "x": 495, "y": 170 },
+        { "id": "specialist-architect", "agentId": "specialist-architect", "x": 400, "y": 120 },
+        { "id": "specialist-coder", "agentId": "specialist-coder", "x": 590, "y": 120 },
+        { "id": "specialist-engineering", "agentId": "specialist-engineering", "x": 495, "y": 250 }
       ]
     },
     {
@@ -32,8 +32,8 @@
       "color": "#a78bfa",
       "bounds": [690, 20, 290, 300],
       "seats": [
-        { "id": "specialist-writing", "agentId": "specialist-writing", "x": 780, "y": 120 },
-        { "id": "specialist-marketing", "agentId": "specialist-marketing", "x": 880, "y": 120 }
+        { "id": "specialist-writing", "agentId": "specialist-writing", "x": 790, "y": 150 },
+        { "id": "specialist-marketing", "agentId": "specialist-marketing", "x": 890, "y": 200 }
       ]
     },
     {
@@ -60,8 +60,8 @@
       "color": "#f472b6",
       "bounds": [210, 400, 220, 300],
       "seats": [
-        { "id": "specialist-video", "agentId": "specialist-video", "x": 280, "y": 500 },
-        { "id": "specialist-image", "agentId": "specialist-image", "x": 370, "y": 500 }
+        { "id": "specialist-video", "agentId": "specialist-video", "x": 280, "y": 530 },
+        { "id": "specialist-image", "agentId": "specialist-image", "x": 370, "y": 570 }
       ]
     },
     {

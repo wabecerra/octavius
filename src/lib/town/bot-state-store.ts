@@ -40,13 +40,23 @@ export class BotStateStore {
     if (this.timer) clearTimeout(this.timer)
     this.timer = setTimeout(() => {
       this.timer = null
-      if (typeof window === 'undefined') return
-      try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(states))
-      } catch {
-        /* quota exceeded — silently drop */
-      }
+      this.writeImmediate(states)
     }, DEBOUNCE_MS)
+  }
+
+  /** Immediate write — used on shutdown to ensure state is saved before scene destruction. */
+  flush(states: BotState[]): void {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null }
+    this.writeImmediate(states)
+  }
+
+  private writeImmediate(states: BotState[]): void {
+    if (typeof window === 'undefined') return
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(states))
+    } catch {
+      /* quota exceeded — silently drop */
+    }
   }
 
   /** Read persisted bot states. Returns empty array when nothing stored. */
