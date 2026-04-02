@@ -24,6 +24,7 @@ import { getFleetStore } from '@/lib/town/fleet-store'
 import { EVENT_TO_ROOM, EVENT_TO_WORK_STATE } from '@/lib/gateway-view/constants'
 import { ZOOM_MIN, ZOOM_MAX, ZOOM_SENSITIVITY, CAMERA_LERP, INTERACT_DISTANCE, PRESS_E_STYLE } from '@/lib/town/constants'
 import type { TelemetryEvent } from '@/lib/gateway-view/types'
+import { BotStateStore, type BotState } from '@/lib/town/bot-state-store'
 
 // ---------------------------------------------------------------------------
 // Manifest shape (nerve-center-map.logic.json v3)
@@ -88,6 +89,8 @@ export class NerveCenterScene extends Phaser.Scene {
   private tooltip: Phaser.GameObjects.Text | null = null
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null
   private eventCleanups: Array<() => void> = []
+  private botStore = new BotStateStore()
+  private saveTimer: ReturnType<typeof setInterval> | null = null
 
   constructor() {
     super({ key: 'NerveCenterScene' })
@@ -161,7 +164,13 @@ export class NerveCenterScene extends Phaser.Scene {
     // 4. Spawn agents
     this.spawnAgents()
 
-    // 4b. Create player character at command-hub center
+    // 4a. Restore agent positions from BotStateStore
+    this.restoreAgentPositions()
+
+    // 4b. Start periodic position save (every 2s)
+    this.saveTimer = setInterval(() => this.saveAgentPositions(), 2000)
+
+    // 4c. Create player character at command-hub center
     const commandHub = this.manifest.rooms.find(r => r.id === 'command-hub')
     const playerX = commandHub ? commandHub.bounds[0] + commandHub.bounds[2] / 2 : 640
     const playerY = commandHub ? commandHub.bounds[1] + commandHub.bounds[3] / 2 : 400
@@ -639,7 +648,49 @@ export class NerveCenterScene extends Phaser.Scene {
 
   // ── shutdown ─────────────────────────────────────────────────────────────
 
+  // ── BotStateStore persistence ──
+
+  private restoreAgentPositions(): void {
+    const saved = this.botStore.load()
+    if (saved.length === 0) return
+
+    const lookup = new Map(saved.map(s => [s.seatId, s]))
+    for (const agent of this.agents) {
+      const state = lookup.get(agent.agentId)
+      if (!state) continue
+      agent.sprite.setPosition(state.x, state.y)
+      if (state.currentRoomId) agent.currentRoomId = state.currentRoomId
+      if (state.status && state.status !== 'empty') agent.status = state.status
+      if (state.workState && state.workState !== 'idle') agent.setWorkState(state.workState)
+    }
+    console.log(`[NerveCenterScene] Restored ${lookup.size} agent positions from BotStateStore`)
+  }
+
+  private saveAgentPositions(): void {
+    const states: BotState[] = this.agents
+      .filter(a => a.sprite.visible)
+      .map(a => ({
+        seatId: a.agentId,
+        x: a.sprite.x,
+        y: a.sprite.y,
+        facing: 'down' as const,
+        status: a.status,
+        currentRoomId: a.currentRoomId,
+        path: [],
+        pathIdx: 0,
+        workState: a.workState,
+        lastEventId: null,
+      }))
+    this.botStore.save(states)
+  }
+
+  // ── shutdown ─────────────────────────────────────────────────────────────
+
   private shutdown(): void {
+    // Save final positions before cleanup
+    this.saveAgentPositions()
+    if (this.saveTimer) { clearInterval(this.saveTimer); this.saveTimer = null }
+
     for (const cleanup of this.eventCleanups) cleanup()
     this.eventCleanups = []
     for (const agent of this.agents) agent.destroy()
