@@ -433,10 +433,15 @@ export function NerveCenterView() {
       <style jsx>{`
         .nc-root {
           position: relative;
-          width: 100%;
+          width: calc(100% - 400px);
           height: calc(100vh - 120px);
           overflow: hidden;
           font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        @media (max-width: 768px) {
+          .nc-root {
+            width: 100%;
+          }
         }
         .nc-canvas {
           position: absolute;
