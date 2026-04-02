@@ -8,6 +8,7 @@ import type { TelemetryEvent, WorkState } from './types'
 export interface GatewayEventMap {
   'telemetry-event': [event: TelemetryEvent]
   'room-clicked': [roomId: string]
+  'room-context-menu': [roomId: string, worldX: number, worldY: number]
   'room-modal-open': [roomId: string]
   'room-modal-close': []
   'actor-arrived': [roomId: string, workState: WorkState]

@@ -12,7 +12,9 @@
 
 import * as Phaser from 'phaser'
 import { Agent, type AgentConfig, type WalkGraphData } from '../entities/Agent'
+import { Player } from '../entities/Player'
 import { FRAME_WIDTH, FRAME_HEIGHT, WORKER_SPRITES, SPECIALIST_SPRITES } from '../config/animations'
+import { SPRITE_KEY, SPRITE_PATH } from '../config/animations'
 import { EMOTE_SHEET_KEY, EMOTE_SHEET_PATH, EMOTE_FRAME_SIZE } from '../config/emotes'
 import { buildSpriteFrames } from '../utils/MapHelpers'
 import { translateRoomId, AGENT_HOME_ROOM } from './room-id-map'
@@ -20,7 +22,7 @@ import { townEvents, type SeatStatus } from '@/lib/town/events'
 import { gatewayEvents } from '@/lib/gateway-view/events'
 import { getFleetStore } from '@/lib/town/fleet-store'
 import { EVENT_TO_ROOM, EVENT_TO_WORK_STATE } from '@/lib/gateway-view/constants'
-import { ZOOM_DEFAULT, ZOOM_MIN, ZOOM_MAX, ZOOM_SENSITIVITY, CAMERA_LERP } from '@/lib/town/constants'
+import { ZOOM_MIN, ZOOM_MAX, ZOOM_SENSITIVITY, CAMERA_LERP, INTERACT_DISTANCE, PRESS_E_STYLE } from '@/lib/town/constants'
 import type { TelemetryEvent } from '@/lib/gateway-view/types'
 
 // ---------------------------------------------------------------------------
@@ -72,7 +74,17 @@ export class NerveCenterScene extends Phaser.Scene {
   private agents: Agent[] = []
   private agentMap = new Map<string, Agent>()
 
-  private cameraTarget: { x: number; y: number } | null = null
+  private player!: Player
+  private eKey: Phaser.Input.Keyboard.Key | null = null
+  private interactionOpen = false
+  private promptText: Phaser.GameObjects.Text | null = null
+
+  // Drag state
+  private dragAgent: Agent | null = null
+  private dragGhost: Phaser.GameObjects.Graphics | null = null
+  private isDragging = false
+  private dragStartTime = 0
+
   private tooltip: Phaser.GameObjects.Text | null = null
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null
   private eventCleanups: Array<() => void> = []
@@ -93,6 +105,12 @@ export class NerveCenterScene extends Phaser.Scene {
     for (const ss of SPECIALIST_SPRITES) {
       this.load.image(ss.key, ss.sourcePath)
     }
+
+    // Boss (player) sprite
+    this.load.image(SPRITE_KEY, SPRITE_PATH)
+
+    // Boss arrow indicator
+    this.load.spritesheet('boss-arrow', '/town/sprites/arrow_down_48x48.png', { frameWidth: 48, frameHeight: 48 })
 
     // Emote spritesheet
     this.load.spritesheet(EMOTE_SHEET_KEY, EMOTE_SHEET_PATH, {
@@ -133,6 +151,9 @@ export class NerveCenterScene extends Phaser.Scene {
       buildSpriteFrames(this, ss.key)
     }
 
+    // 2b. Build boss sprite frames
+    buildSpriteFrames(this, SPRITE_KEY)
+
     // 3. Render rooms and corridors
     this.renderRooms()
     this.renderCorridors()
@@ -140,25 +161,40 @@ export class NerveCenterScene extends Phaser.Scene {
     // 4. Spawn agents
     this.spawnAgents()
 
+    // 4b. Create player character at command-hub center
+    const commandHub = this.manifest.rooms.find(r => r.id === 'command-hub')
+    const playerX = commandHub ? commandHub.bounds[0] + commandHub.bounds[2] / 2 : 640
+    const playerY = commandHub ? commandHub.bounds[1] + commandHub.bounds[3] / 2 : 400
+    this.player = new Player(this, playerX, playerY, 'down')
+    this.player.sprite.setDepth(10) // Above agents (depth 5)
+
+    // E-key setup
+    const kb = this.input.keyboard
+    if (kb) {
+      this.eKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.E, false)
+    }
+
+    // Interaction prompt text (hidden by default)
+    this.promptText = this.add.text(0, 0, 'Press E', PRESS_E_STYLE as Phaser.Types.GameObjects.Text.TextStyle)
+      .setOrigin(0.5, 1).setDepth(25).setVisible(false)
+
     // 5. Wire events
     this.wireEvents()
 
-    // 6. Camera setup — auto-fit world into viewport
+    // 6. Camera setup — auto-fit world into viewport, follow player
     const canvasW = this.manifest.meta.canvas.width
     const canvasH = this.manifest.meta.canvas.height
 
     const cam = this.cameras.main
-    // Fit the 1280x720 world into the actual viewport
     const fitZoom = Math.min(cam.width / canvasW, cam.height / canvasH)
     cam.setZoom(fitZoom)
-    cam.centerOn(canvasW / 2, canvasH / 2)
     cam.setBounds(0, 0, canvasW, canvasH)
     this.physics.world.setBounds(0, 0, canvasW, canvasH)
+    cam.startFollow(this.player.sprite, true, CAMERA_LERP, CAMERA_LERP)
 
     // Re-fit on resize
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       cam.setZoom(Math.min(gameSize.width / canvasW, gameSize.height / canvasH))
-      cam.centerOn(canvasW / 2, canvasH / 2)
     })
 
     // Mouse wheel zoom
@@ -166,11 +202,58 @@ export class NerveCenterScene extends Phaser.Scene {
       cam.setZoom(Phaser.Math.Clamp(cam.zoom - dz * ZOOM_SENSITIVITY, ZOOM_MIN, ZOOM_MAX))
     })
 
-    // 7. Click detection
+    // 7. Click + drag detection
+    this.game.canvas.addEventListener('contextmenu', (e: Event) => e.preventDefault())
+
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const worldX = pointer.worldX
-      const worldY = pointer.worldY
-      this.handleClick(worldX, worldY)
+      if (pointer.rightButtonDown()) {
+        this.handleRightClick(pointer.worldX, pointer.worldY)
+        return
+      }
+      // Check if clicking on an agent for drag
+      for (const agent of this.agents) {
+        if (!agent.sprite.visible) continue
+        const dx = Math.abs(pointer.worldX - agent.sprite.x)
+        const dy = Math.abs(pointer.worldY - agent.sprite.y)
+        if (dx < FRAME_WIDTH / 2 && dy < FRAME_HEIGHT / 2) {
+          this.dragAgent = agent
+          this.dragStartTime = Date.now()
+          return
+        }
+      }
+      // No agent hit — check rooms for tooltip
+      this.handleRoomClick(pointer.worldX, pointer.worldY)
+    })
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.dragAgent && !this.isDragging && Date.now() - this.dragStartTime > 200) {
+        // Start dragging after 200ms hold
+        this.isDragging = true
+        this.dragGhost = this.add.graphics()
+        this.dragGhost.setDepth(50)
+        this.dragGhost.fillStyle(0xffffff, 0.3)
+        this.dragGhost.fillCircle(0, 0, 16)
+        this.dragGhost.lineStyle(2, 0xffd700, 0.8)
+        this.dragGhost.strokeCircle(0, 0, 16)
+      }
+    })
+
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (this.isDragging && this.dragAgent) {
+        this.handleDrop(pointer.worldX, pointer.worldY)
+      } else if (this.dragAgent) {
+        // Short click on agent — show tooltip
+        const agent = this.dragAgent
+        const store = getFleetStore()
+        const fleetAgent = store.getSnapshot().agents.find(a => a.id === agent.agentId)
+        const taskLine = fleetAgent?.currentTask ? `\nTask: ${fleetAgent.currentTask}` : ''
+        this.showTooltip(agent.sprite.x, agent.sprite.y - FRAME_HEIGHT / 2 - 10,
+          `${agent.label} (${agent.agentId})\nStatus: ${agent.status} | State: ${agent.workState}${taskLine}`)
+        townEvents.emit('open-terminal', agent.agentId)
+      }
+      this.dragAgent = null
+      this.isDragging = false
+      if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null }
     })
 
     // 8. Signal ready
@@ -184,23 +267,23 @@ export class NerveCenterScene extends Phaser.Scene {
   // ── update ───────────────────────────────────────────────────────────────
 
   update(): void {
-    // Update each agent
+    // Player movement
+    if (!this.interactionOpen && !this.isDragging) {
+      this.player.update()
+    }
+
+    // Update agents
     for (const agent of this.agents) {
       agent.update()
     }
 
-    // Smooth camera follow toward camera target
-    if (this.cameraTarget) {
-      const cam = this.cameras.main
-      const cx = cam.scrollX + cam.width / 2
-      const cy = cam.scrollY + cam.height / 2
-      const dx = this.cameraTarget.x - cx
-      const dy = this.cameraTarget.y - cy
+    // E-key proximity check
+    this.checkProximity()
 
-      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-        cam.scrollX += dx * CAMERA_LERP
-        cam.scrollY += dy * CAMERA_LERP
-      }
+    // Drag update
+    if (this.isDragging && this.dragGhost) {
+      const pointer = this.input.activePointer
+      this.dragGhost.setPosition(pointer.worldX, pointer.worldY)
     }
   }
 
@@ -338,7 +421,6 @@ export class NerveCenterScene extends Phaser.Scene {
         if (!agent) return
         const homeRoom = AGENT_HOME_ROOM[agent.agentId]
         agent.assignTask(homeRoom ?? 'command-hub', message)
-        this.cameraTarget = { x: agent.sprite.x, y: agent.sprite.y }
       }),
     )
 
@@ -347,7 +429,6 @@ export class NerveCenterScene extends Phaser.Scene {
         const agent = this.resolveAgent(seatId)
         if (!agent) return
         agent.completeTask()
-        this.cameraTarget = { x: agent.sprite.x, y: agent.sprite.y }
       }),
     )
 
@@ -356,7 +437,6 @@ export class NerveCenterScene extends Phaser.Scene {
         const agent = this.resolveAgent(seatId)
         if (!agent) return
         agent.failTask()
-        this.cameraTarget = { x: agent.sprite.x, y: agent.sprite.y }
       }),
     )
 
@@ -407,6 +487,13 @@ export class NerveCenterScene extends Phaser.Scene {
       }
     })
     this.eventCleanups.push(unsubStore)
+
+    // Terminal closed
+    this.eventCleanups.push(
+      townEvents.on('terminal-closed', () => {
+        this.interactionOpen = false
+      }),
+    )
   }
 
   // ── resolveAgent ─────────────────────────────────────────────────────────
@@ -439,40 +526,85 @@ export class NerveCenterScene extends Phaser.Scene {
     return null
   }
 
-  // ── handleClick ──────────────────────────────────────────────────────────
+  // ── checkProximity ──────────────────────────────────────────────────────
 
-  private handleClick(worldX: number, worldY: number): void {
-    // Check agent sprites first
+  private checkProximity(): void {
+    if (this.interactionOpen) return
+
+    let nearest: Agent | null = null
+    let nearestDist = Infinity
+
     for (const agent of this.agents) {
       if (!agent.sprite.visible) continue
-      const dx = Math.abs(worldX - agent.sprite.x)
-      const dy = Math.abs(worldY - agent.sprite.y)
-      if (dx < FRAME_WIDTH / 2 && dy < FRAME_HEIGHT / 2) {
-        // Look up current task from FleetStore
-        const store = getFleetStore()
-        const fleetAgent = store.getSnapshot().agents.find(a => a.id === agent.agentId)
-        const taskLine = fleetAgent?.currentTask ? `\nTask: ${fleetAgent.currentTask}` : ''
-        this.showTooltip(agent.sprite.x, agent.sprite.y - FRAME_HEIGHT / 2 - 10,
-          `${agent.label} (${agent.agentId})\nStatus: ${agent.status} | State: ${agent.workState}${taskLine}`)
-        this.cameraTarget = { x: agent.sprite.x, y: agent.sprite.y }
-
-        // Emit open-terminal so React view can show TaskAssignModal
-        townEvents.emit('open-terminal', agent.agentId)
-        return
+      const dist = Phaser.Math.Distance.Between(
+        this.player.sprite.x, this.player.sprite.y,
+        agent.sprite.x, agent.sprite.y,
+      )
+      if (dist < INTERACT_DISTANCE && dist < nearestDist) {
+        nearest = agent
+        nearestDist = dist
       }
     }
 
-    // Check room bounds
+    if (nearest) {
+      this.promptText?.setPosition(nearest.sprite.x, nearest.sprite.y - FRAME_HEIGHT * 0.6)
+      this.promptText?.setVisible(true)
+
+      if (this.eKey && Phaser.Input.Keyboard.JustDown(this.eKey)) {
+        this.interactionOpen = true
+        this.promptText?.setVisible(false)
+        townEvents.emit('open-terminal', nearest.agentId)
+      }
+    } else {
+      this.promptText?.setVisible(false)
+    }
+  }
+
+  // ── handleDrop ────────────────────────────────────────────────────────
+
+  private handleDrop(worldX: number, worldY: number): void {
+    if (!this.dragAgent) return
+    // Find which room was dropped on
     for (const room of this.manifest.rooms) {
       const [rx, ry, rw, rh] = room.bounds
       if (worldX >= rx && worldX <= rx + rw && worldY >= ry && worldY <= ry + rh) {
-        // List agents currently in this room
+        // Reassign agent to this room
+        const agent = this.dragAgent
+        agent.assignTask(room.id)
+        AGENT_HOME_ROOM[agent.agentId] = room.id
+        this.showTooltip(worldX, worldY - 20, `${agent.label} → ${room.label}`)
+        return
+      }
+    }
+    // Dropped outside any room — cancel
+    this.showTooltip(worldX, worldY - 20, 'Drop cancelled')
+  }
+
+  // ── handleRoomClick ───────────────────────────────────────────────────
+
+  private handleRoomClick(worldX: number, worldY: number): void {
+    for (const room of this.manifest.rooms) {
+      const [rx, ry, rw, rh] = room.bounds
+      if (worldX >= rx && worldX <= rx + rw && worldY >= ry && worldY <= ry + rh) {
         const roomAgents = this.agents.filter(a => a.sprite.visible && a.currentRoomId === room.id)
         const agentLine = roomAgents.length > 0
           ? `\nAgents: ${roomAgents.map(a => a.label).join(', ')}`
           : '\nAgents: none'
         gatewayEvents.emit('room-clicked', room.id)
         this.showTooltip(rx + rw / 2, ry - 10, `${room.label}${agentLine}`)
+        return
+      }
+    }
+  }
+
+  // ── handleRightClick ──────────────────────────────────────────────────
+
+  private handleRightClick(worldX: number, worldY: number): void {
+    // Emit right-click event for React context menu
+    for (const room of this.manifest.rooms) {
+      const [rx, ry, rw, rh] = room.bounds
+      if (worldX >= rx && worldX <= rx + rw && worldY >= ry && worldY <= ry + rh) {
+        gatewayEvents.emit('room-context-menu', room.id, worldX, worldY)
         return
       }
     }
@@ -508,19 +640,13 @@ export class NerveCenterScene extends Phaser.Scene {
   // ── shutdown ─────────────────────────────────────────────────────────────
 
   private shutdown(): void {
-    // Clean up event listeners
-    for (const cleanup of this.eventCleanups) {
-      cleanup()
-    }
+    for (const cleanup of this.eventCleanups) cleanup()
     this.eventCleanups = []
-
-    // Destroy all agents
-    for (const agent of this.agents) {
-      agent.destroy()
-    }
+    for (const agent of this.agents) agent.destroy()
     this.agents = []
     this.agentMap.clear()
-
     this.clearTooltip()
+    if (this.promptText) { this.promptText.destroy(); this.promptText = null }
+    if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null }
   }
 }
