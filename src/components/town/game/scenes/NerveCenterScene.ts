@@ -143,18 +143,26 @@ export class NerveCenterScene extends Phaser.Scene {
     // 5. Wire events
     this.wireEvents()
 
-    // 6. Camera setup
+    // 6. Camera setup — auto-fit world into viewport
     const canvasW = this.manifest.meta.canvas.width
     const canvasH = this.manifest.meta.canvas.height
 
-    this.cameras.main.setZoom(ZOOM_DEFAULT)
-    this.cameras.main.centerOn(canvasW / 2, canvasH / 2)
-    this.cameras.main.setBounds(0, 0, canvasW, canvasH)
+    const cam = this.cameras.main
+    // Fit the 1280x720 world into the actual viewport
+    const fitZoom = Math.min(cam.width / canvasW, cam.height / canvasH)
+    cam.setZoom(fitZoom)
+    cam.centerOn(canvasW / 2, canvasH / 2)
+    cam.setBounds(0, 0, canvasW, canvasH)
     this.physics.world.setBounds(0, 0, canvasW, canvasH)
+
+    // Re-fit on resize
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      cam.setZoom(Math.min(gameSize.width / canvasW, gameSize.height / canvasH))
+      cam.centerOn(canvasW / 2, canvasH / 2)
+    })
 
     // Mouse wheel zoom
     this.input.on('wheel', (_pointer: unknown, _gos: unknown, _dx: number, _dy: number, dz: number) => {
-      const cam = this.cameras.main
       cam.setZoom(Phaser.Math.Clamp(cam.zoom - dz * ZOOM_SENSITIVITY, ZOOM_MIN, ZOOM_MAX))
     })
 
@@ -213,11 +221,11 @@ export class NerveCenterScene extends Phaser.Scene {
       const gfx = this.add.graphics()
 
       // Fill
-      gfx.fillStyle(colorHex, 0.08)
+      gfx.fillStyle(colorHex, 0.15)
       gfx.fillRoundedRect(x, y, w, h, 12)
 
       // Stroke
-      gfx.lineStyle(1.5, colorHex, 0.4)
+      gfx.lineStyle(2, colorHex, 0.6)
       gfx.strokeRoundedRect(x, y, w, h, 12)
 
       gfx.setDepth(1)
@@ -250,7 +258,7 @@ export class NerveCenterScene extends Phaser.Scene {
       const roomB = nodeB.roomId ?? null
       if (roomA && roomB && roomA === roomB) continue
 
-      gfx.lineStyle(2, 0x252a3a, 0.6)
+      gfx.lineStyle(2, 0x4a5568, 0.5)
       gfx.lineBetween(nodeA.x, nodeA.y, nodeB.x, nodeB.y)
     }
   }
@@ -311,7 +319,7 @@ export class NerveCenterScene extends Phaser.Scene {
       const agent = new Agent(this, config, this.manifest.walkGraph)
 
       // Specialists start hidden — shown when FleetStore reports active
-      agent.sprite.setVisible(false)
+      agent.setVisible(false)
 
       this.agents.push(agent)
       this.agentMap.set(ss.agentId, agent)
@@ -394,7 +402,7 @@ export class NerveCenterScene extends Phaser.Scene {
         // Only toggle visibility for specialists
         const ss = SPECIALIST_SPRITES.find(s => s.agentId === fleetAgent.id)
         if (ss) {
-          agent.sprite.setVisible(fleetAgent.status !== 'empty')
+          agent.setVisible(fleetAgent.status !== 'empty')
         }
       }
     })

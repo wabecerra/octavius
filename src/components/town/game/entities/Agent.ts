@@ -364,6 +364,19 @@ export class Agent {
     }
   }
 
+  /** Show or hide sprite + all overlays (name label, glow, emote, bubble). */
+  setVisible(visible: boolean): void {
+    this.sprite.setVisible(visible)
+    if (this.nameLabel) this.nameLabel.setVisible(visible)
+    if (this.glowCircle) this.glowCircle.setVisible(visible)
+    if (this.emoteSprite) this.emoteSprite.setVisible(visible)
+    if (this.bubbleText) this.bubbleText.setVisible(visible)
+    if (!visible) {
+      this.cancelWander()
+      this.cancelIdleTimeout()
+    }
+  }
+
   /** Navigate to break-room when idle too long (scene-local, no FleetStore change). */
   migrateToBreakRoom(): void {
     if (this.status !== 'empty') return
