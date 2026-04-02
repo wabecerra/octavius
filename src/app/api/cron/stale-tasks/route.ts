@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   const staleHours = Number(searchParams.get('staleHours') ?? 48)
   const action = searchParams.get('action') || 'revert-to-backlog'
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
   try {
     const res = await fetch(`${baseUrl}/api/dashboard/tasks/reconcile`, {

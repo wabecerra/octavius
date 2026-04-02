@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
+import { BEDROCK_AGENT_DEFAULTS } from '@/lib/models'
 
 // Force dynamic rendering (GET + PUT in same route)
 export const dynamic = 'force-dynamic'
@@ -11,26 +12,13 @@ export interface AgentModelConfig {
   updatedAt: string
 }
 
-const DEFAULT_CONFIGS: Array<{ agent_id: string; provider: string; model: string }> = [
-  { agent_id: 'gen-lifeforce', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'gen-industry', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'gen-fellowship', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'gen-essence', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'specialist-research', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'specialist-engineering', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'specialist-marketing', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'specialist-video', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'specialist-image', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-  { agent_id: 'specialist-writing', provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' },
-]
-
 function ensureDefaults(db: ReturnType<typeof getDatabase>) {
   const insert = db.prepare(
     `INSERT OR IGNORE INTO agent_model_config (agent_id, provider, model, updated_at)
      VALUES (?, ?, ?, ?)`,
   )
   const now = new Date().toISOString()
-  for (const d of DEFAULT_CONFIGS) {
+  for (const d of BEDROCK_AGENT_DEFAULTS) {
     insert.run(d.agent_id, d.provider, d.model, now)
   }
 }

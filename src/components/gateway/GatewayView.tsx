@@ -222,12 +222,12 @@ export function GatewayView() {
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: 12, padding: 20 }}>
         <h2 style={{ color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, margin: '0 0 16px' }}>System Architecture</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          <ServiceCard label="Next.js Server" port="3001" status="running" icon="🖥️" />
+          <ServiceCard label="Next.js Server" port="3000" status="running" icon="🖥️" />
           <ServiceCard label="OpenClaw Gateway" port="18789" status={connInfo.status === 'connected' ? 'running' : 'offline'} icon="🌐" />
           <ServiceCard label="SQLite Database" port="local" status="running" icon="🗄️" />
-          <ServiceCard label="Memory Service" port="3001" status="running" icon="🧠" sub="/api/memory" />
-          <ServiceCard label="Agent Dispatch" port="3001" status="running" icon="📡" sub="/api/agents/dispatch" />
-          <ServiceCard label="Chat Endpoint" port="3001" status="running" icon="💬" sub="/api/chat" />
+          <ServiceCard label="Memory Service" port="3000" status="running" icon="🧠" sub="/api/memory" />
+          <ServiceCard label="Agent Dispatch" port="3000" status="running" icon="📡" sub="/api/agents/dispatch" />
+          <ServiceCard label="Chat Endpoint" port="3000" status="running" icon="💬" sub="/api/chat" />
         </div>
       </div>
 

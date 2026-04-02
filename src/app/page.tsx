@@ -17,6 +17,7 @@ import { CostsView } from '@/components/views/CostsView'
 import { SettingsView } from '@/components/views/SettingsView'
 import { NerveCenterView } from '@/components/views/NerveCenterView'
 import { GatewayView } from '@/components/gateway/GatewayView'
+import { ChatView } from '@/components/views/ChatView'
 import { useTasks, useCheckins, useJournal, useConnections, useProfile, useFocusGoals, useSprint, useAuth } from '@/hooks'
 import { computeBalanceScore } from '@/lib/balance-score'
 import { shouldShowSprintReview } from '@/lib/weekly-review'
@@ -349,6 +350,15 @@ export default function Dashboard() {
         return <SettingsView />
       case 'gateway':
         return <GatewayView />
+      case 'chat':
+        return (
+          <ChatView
+            messages={chatMessages}
+            onSendMessage={handleSendMessage}
+            isLoading={chatLoading}
+            gatewayStatus={gateway.status}
+          />
+        )
       default:
         return null
     }
@@ -421,8 +431,8 @@ export default function Dashboard() {
         }}
       />
 
-      {/* Chat Panel — persistent across all views */}
-      <div className="fixed bottom-4 right-4 z-50">
+      {/* Chat Panel — floating overlay, hidden on mobile (use Chat tab instead) */}
+      <div className="fixed bottom-4 right-4 z-50 hidden-mobile">
         <ChatPanel
           messages={chatMessages}
           onSendMessage={handleSendMessage}

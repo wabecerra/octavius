@@ -13,6 +13,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { getDatabase } from './memory/db'
 import { getSpecialistTools, parseToolCalls } from './agents/specialist-tools'
+import { SPECIALIST_FALLBACK_MODELS, DEFAULT_AGENT_MODEL } from './models'
 
 // ─── Types ───
 
@@ -122,18 +123,10 @@ function getAgentConfig(agentId: string): { provider: string; model: string } {
     'SELECT provider, model FROM agent_model_config WHERE agent_id = ?',
   ).get(agentId) as { provider: string; model: string } | undefined
   if (row) return row
-  // Fallback defaults per agent role (openrouter)
-  const FALLBACK_MODELS: Record<string, string> = {
-    'specialist-architect': 'anthropic/claude-opus-4.6',
-    'specialist-coder': 'openai/gpt-5.3-codex-20260224',
-    'specialist-research': 'google/gemini-2.5-flash',
-    'specialist-video': 'google/gemini-3.1-flash-image-preview-20260226',
-    'specialist-image': 'google/gemini-3.1-flash-image-preview-20260226',
-    'specialist-n8n': 'anthropic/claude-sonnet-4.6',
-  }
+  // Fallback defaults from centralized registry
   return {
     provider: 'openrouter',
-    model: FALLBACK_MODELS[agentId] || 'qwen/qwen3.5-plus-02-15',
+    model: SPECIALIST_FALLBACK_MODELS[agentId] || DEFAULT_AGENT_MODEL,
   }
 }
 

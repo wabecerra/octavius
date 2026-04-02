@@ -17,6 +17,7 @@ export interface Task {
   completed: boolean
   createdAt: string
   updatedAt: string
+  awaitingApprovalCount?: number
 }
 
 interface TasksResponse { tasks: Task[]; total: number }

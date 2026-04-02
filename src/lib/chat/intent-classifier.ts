@@ -8,6 +8,7 @@
  * Reuses the existing LLM caller with fallback chain (OpenRouter → Bedrock → free).
  */
 import { callLLM } from '@/lib/llm-caller'
+import { getChatFallbackModel } from '@/lib/models'
 
 export interface TaskIntent {
   title: string
@@ -95,7 +96,7 @@ export async function classifyIntent(
   history?: Array<{ role: 'user' | 'assistant'; content: string }>,
   modelConfig?: { provider: string; model: string },
 ): Promise<IntentResult> {
-  const config = modelConfig || { provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' }
+  const config = modelConfig || getChatFallbackModel()
 
   const messages = [
     { role: 'system' as const, content: SYSTEM_PROMPT },

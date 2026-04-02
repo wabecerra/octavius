@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { AGENT_SEED_CONFIGS } from '@/lib/models'
 
 /** Default database file path — uses process.cwd() for stable resolution across Next.js routes. */
 const DEFAULT_DB_PATH = resolve(process.cwd(), '.data/memory.sqlite')
@@ -44,6 +45,8 @@ function createSchema(db: Database.Database): void {
   db.exec(SCHEMA_SQL)
   // --- Migrations for existing databases ---
   migrateTaskColumns(db)
+  migrateTaskCompletedSync(db)
+  seedDefaults(db)
 }
 
 /** Add quadrant + project columns to dashboard_tasks if they don't exist yet. */
@@ -57,6 +60,29 @@ function migrateTaskColumns(db: Database.Database): void {
     db.exec("ALTER TABLE dashboard_tasks ADD COLUMN project TEXT NOT NULL DEFAULT '' ")
   }
   db.exec("CREATE INDEX IF NOT EXISTS idx_tasks_quadrant ON dashboard_tasks(quadrant)")
+}
+
+/** Fix completed field for tasks whose status is 'done' but completed=0. */
+function migrateTaskCompletedSync(db: Database.Database): void {
+  db.prepare(
+    "UPDATE dashboard_tasks SET completed = 1 WHERE status = 'done' AND completed = 0"
+  ).run()
+}
+
+/** Seed default agent configs and cron jobs on fresh install. */
+function seedDefaults(db: Database.Database): void {
+  const now = new Date().toISOString()
+
+  // Seed agent model configs (openrouter default) — INSERT OR IGNORE so it only runs on fresh install
+  const agentSeeds = AGENT_SEED_CONFIGS
+
+  const insertAgent = db.prepare(
+    'INSERT OR IGNORE INTO agent_model_config (agent_id, provider, model, updated_at) VALUES (?, ?, ?, ?)'
+  )
+  for (const [agentId, provider, model] of agentSeeds) {
+    insertAgent.run(agentId, provider, model, now)
+  }
+
 }
 
 const SCHEMA_SQL = /* sql */ `
@@ -383,4 +409,132 @@ CREATE TABLE IF NOT EXISTS task_activity_log (
 
 CREATE INDEX IF NOT EXISTS idx_task_activity_task ON task_activity_log(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_activity_ts ON task_activity_log(timestamp);
+
+-- ============================================================
+-- Phase 3: Self-Evolution Layer — Execution Traces
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS execution_traces (
+  trace_id TEXT PRIMARY KEY,
+  session_key TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  agent_type TEXT NOT NULL,
+  permission_level INTEGER NOT NULL,
+  tool_scope TEXT NOT NULL DEFAULT '[]',
+  prompt_hash TEXT NOT NULL,
+  prompt_summary TEXT NOT NULL DEFAULT '',
+  task_id TEXT,
+  task_title TEXT,
+  tool_calls TEXT NOT NULL DEFAULT '[]',
+  llm_responses TEXT NOT NULL DEFAULT '[]',
+  outcome TEXT NOT NULL CHECK(outcome IN ('success','failure','timeout','aborted','partial')),
+  outcome_reason TEXT,
+  total_tokens INTEGER NOT NULL DEFAULT 0,
+  prompt_tokens INTEGER NOT NULL DEFAULT 0,
+  completion_tokens INTEGER NOT NULL DEFAULT 0,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  tool_call_count INTEGER NOT NULL DEFAULT 0,
+  compaction_count INTEGER NOT NULL DEFAULT 0,
+  hooks_aborted TEXT NOT NULL DEFAULT '[]',
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  model TEXT,
+  provider TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_traces_agent_type ON execution_traces(agent_type);
+CREATE INDEX IF NOT EXISTS idx_traces_outcome ON execution_traces(outcome);
+CREATE INDEX IF NOT EXISTS idx_traces_started ON execution_traces(started_at);
+
+-- ============================================================
+-- Phase 3: Self-Evolution Layer — Evolution Policies
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS evolution_policies (
+  policy_id TEXT PRIMARY KEY,
+  version INTEGER NOT NULL,
+  policy_type TEXT NOT NULL,
+  target TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  evidence TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL DEFAULT 'proposed',
+  proposed_at TEXT NOT NULL,
+  reviewed_at TEXT,
+  activated_at TEXT,
+  rolled_back_at TEXT,
+  impact_summary TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_policies_status ON evolution_policies(status);
+CREATE INDEX IF NOT EXISTS idx_policies_type ON evolution_policies(policy_type);
+
+-- ============================================================
+-- Phase 3: Self-Evolution Layer — Proposer Runs
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS proposer_runs (
+  run_id TEXT PRIMARY KEY,
+  trigger TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  traces_analyzed INTEGER NOT NULL DEFAULT 0,
+  proposals_generated INTEGER NOT NULL DEFAULT 0,
+  model TEXT,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  summary TEXT NOT NULL DEFAULT '',
+  error TEXT
+);
+
+-- ============================================================
+-- Provider API Keys — encrypted storage for LLM/service keys
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS provider_keys (
+  provider_id TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  encrypted_key TEXT NOT NULL DEFAULT '',
+  config_json TEXT NOT NULL DEFAULT '{}',
+  enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
+
+-- ============================================================
+-- Subtasks — child tasks for multi-step agent workflows
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS subtasks (
+  id TEXT PRIMARY KEY,
+  parent_task_id TEXT NOT NULL REFERENCES dashboard_tasks(id),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  step_order INTEGER NOT NULL DEFAULT 0,
+  agent_id TEXT,
+  requires_approval INTEGER NOT NULL DEFAULT 0,
+  approved_at TEXT,
+  output TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_subtasks_parent ON subtasks(parent_task_id);
+CREATE INDEX IF NOT EXISTS idx_subtasks_status ON subtasks(status);
+
+-- ============================================================
+-- Model Catalog — cached from OpenRouter /api/v1/models
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS model_catalog (
+  model_id TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  context_length INTEGER NOT NULL DEFAULT 0,
+  price_input_per_m REAL NOT NULL DEFAULT 0,
+  price_output_per_m REAL NOT NULL DEFAULT 0,
+  supports_tools INTEGER NOT NULL DEFAULT 0,
+  supports_vision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
 `

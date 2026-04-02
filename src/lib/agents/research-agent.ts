@@ -2,6 +2,7 @@ import type { AgentTask, ModelRouterConfig } from '@/types'
 import { executeTask, type FetchFn, type ExecuteTaskResult } from '../agent-adapter'
 import { deepResearch } from '@/lib/deep-research'
 import { syncAgentOutput } from './output-sync'
+import { RESEARCH_DEFAULT_MODEL } from '@/lib/models'
 
 /** Result from the research agent, extending base execution with search data */
 export interface ResearchTaskResult {
@@ -80,7 +81,7 @@ export async function executeResearchTask(
         maxBreadth: task.complexityScore >= 8 ? 4 : 3,
         tokenBudget: 500_000,
         maxSearches: 50,
-        model: config.tier2Model || 'qwen/qwen3.5-plus-20260216',
+        model: config.tier2Model || RESEARCH_DEFAULT_MODEL,
         searchProvider: (config.researchProvider || 'kimi') as 'kimi',
       })
 

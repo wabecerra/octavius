@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { nanoid } from 'nanoid'
+import { checkinToMemory } from '@/lib/integrations/dashboard-memory-bridge'
 
 /**
  * GET /api/dashboard/checkins — List check-ins
@@ -48,6 +49,9 @@ export async function POST(request: Request) {
   db.prepare(
     'INSERT INTO dashboard_checkins (id, timestamp, mood, energy, stress) VALUES (?, ?, ?, ?, ?)'
   ).run(id, timestamp, mood, energy, stress)
+
+  // Bridge to memory system (fire-and-forget)
+  checkinToMemory({ id, timestamp, mood, energy, stress })
 
   return NextResponse.json({ id, timestamp, mood, energy, stress }, { status: 201 })
 }

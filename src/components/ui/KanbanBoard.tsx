@@ -127,6 +127,11 @@ function SortableTaskCard({ task, isCarriedOver, activeAgentId, onEdit, onDelete
                 ⚡ {activeAgentId}
               </span>
             )}
+            {(task.awaitingApprovalCount ?? 0) > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium leading-tight bg-[color-mix(in_srgb,var(--color-warning)_15%,transparent)] text-[var(--color-warning)] border border-[color-mix(in_srgb,var(--color-warning)_30%,transparent)] animate-pulse">
+                ⏳ needs approval
+              </span>
+            )}
           </div>
           {task.dueDate && (
             <p className="text-xs text-[var(--text-tertiary)] mt-1">{task.dueDate}</p>

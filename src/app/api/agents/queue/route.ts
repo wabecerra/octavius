@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { getDatabase } from '@/lib/memory/db'
+import { getDefaultModelForRole } from '@/lib/models'
 
 /**
  * GET /api/agents/queue — Returns tasks ready for real agent spawning.
@@ -183,8 +184,8 @@ export async function GET(request: Request) {
       priority: task.priority,
       quadrant,
       agentId,
-      model: modelRow?.model || 'amazon-bedrock/global.anthropic.claude-opus-4-6-v1',
-      provider: modelRow?.provider || 'bedrock',
+      model: modelRow?.model || getDefaultModelForRole('reasoning'),
+      provider: modelRow?.provider || (process.env.OPENCLAW_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'bedrock'),
       spawnTask,
       hasKBContext: kbContext.length > 0,
       workspaceFilesLoaded: Object.keys(workspaceFiles),

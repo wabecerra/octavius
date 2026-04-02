@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { RESEARCH_DEFAULT_MODEL } from '@/lib/models'
 import { deepResearch, type ResearchConfig } from '@/lib/deep-research'
 import { registerResearch, researchTasks } from '@/lib/deep-research/store'
 import { syncAgentOutput } from '@/lib/agents/output-sync'
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     maxBreadth: userConfig?.maxBreadth ?? 4,
     tokenBudget: userConfig?.tokenBudget ?? 500_000,
     maxSearches: userConfig?.maxSearches ?? 50,
-    model: userConfig?.model ?? 'qwen/qwen3.5-plus-20260216',
+    model: userConfig?.model ?? RESEARCH_DEFAULT_MODEL,
     synthesisModel: userConfig?.synthesisModel,
     searchProvider: 'kimi',
     quadrant,

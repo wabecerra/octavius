@@ -36,12 +36,14 @@ const AGENT_ICONS: Record<string, string> = {
   'generalist-career': '💼',
   'generalist-relationships': '🤝',
   'generalist-soul': '🧘',
+  'specialist-architect': '🏗️',
+  'specialist-coder': '⌨️',
   'specialist-research': '🔍',
-  'specialist-engineering': '⚙️',
   'specialist-marketing': '📣',
   'specialist-video': '🎬',
   'specialist-image': '🖼️',
   'specialist-writing': '✍️',
+  'specialist-n8n': '🔧',
 }
 
 const STATUS_COLORS: Record<Agent['status'], string> = {
@@ -114,10 +116,10 @@ function SendTaskModal({
 
   const [routerConfig] = useState({
     localModelName: 'llama3.2',
-    tier1CloudModel: 'gpt-3.5-turbo',
-    tier2Model: 'gpt-4',
-    tier3Model: 'gpt-4o',
-    researchProvider: 'perplexity',
+    tier1CloudModel: 'qwen3-30b',
+    tier2Model: 'qwen3-235b',
+    tier3Model: 'claude-sonnet-4.6',
+    researchProvider: 'kimi',
     tierCostRates: { 1: 0.001, 2: 0.01, 3: 0.05 },
     dailyCostBudget: 2.0,
     localEndpoint: 'http://localhost:11434',
@@ -306,6 +308,7 @@ function AgentTaskList({ agentTasks, agents }: { agentTasks: AgentTask[], agents
 function AgentActivityFeed() {
   const [activities, setActivities] = useState<ActivityEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
 
   const fetchActivities = useCallback(async () => {
     try {
@@ -320,11 +323,21 @@ function AgentActivityFeed() {
 
   useEffect(() => { void fetchActivities() }, [fetchActivities])
 
+  const toggleExpanded = (id: number) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   const ACTION_ICONS: Record<string, string> = {
     started: '🚀',
     progressed: '⚡',
     completed: '✅',
     spawn_requested: '🔀',
+    spawn_failed: '❌',
   }
 
   function timeAgo(dateStr: string): string {
@@ -336,6 +349,23 @@ function AgentActivityFeed() {
     const hrs = Math.floor(mins / 60)
     if (hrs < 24) return `${hrs}h ago`
     return `${Math.floor(hrs / 24)}d ago`
+  }
+
+  function getActionDisplay(action: string, agentId: string): string {
+    if (action === 'spawn_requested') {
+      const specialistMatch = agentId.match(/specialist-(\w+)/)
+      return specialistMatch ? `Delegated to ${specialistMatch[1]}` : 'Delegated to specialist'
+    }
+    return action
+  }
+
+  function isSpecialist(agentId: string): boolean {
+    return agentId.startsWith('specialist-')
+  }
+
+  function getActionColor(action: string): string {
+    if (action === 'spawn_failed') return 'bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] text-[var(--color-error)]'
+    return 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]'
   }
 
   return (
@@ -360,25 +390,48 @@ function AgentActivityFeed() {
         <p className="text-sm text-[var(--text-tertiary)] text-center py-4">No agent activity yet</p>
       ) : (
         <div className="space-y-2 max-h-96 overflow-y-auto">
-          {activities.map((a) => (
-            <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-secondary,var(--border-primary))]">
-              <span className="text-sm mt-0.5">{ACTION_ICONS[a.action] || '🤖'}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-[var(--text-primary)]">{a.agentId}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]">
-                    {a.action}
-                  </span>
-                </div>
-                <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">{a.details}</p>
-                <div className="flex items-center gap-3 mt-1 text-[10px] text-[var(--text-disabled)]">
-                  <span>{timeAgo(a.timestamp)}</span>
-                  {a.model && <span className="font-mono truncate">{a.model.split('/').pop()?.split('.').pop()}</span>}
-                  {a.costUsd > 0 && <span>${a.costUsd.toFixed(4)}</span>}
+          {activities.map((a) => {
+            const isExpanded = expandedIds.has(a.id)
+            const shouldTruncate = a.details.length > 200
+            const displayDetails = isExpanded ? a.details : a.details.slice(0, 200)
+
+            return (
+              <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-secondary,var(--border-primary))]">
+                <span className="text-sm mt-0.5">{ACTION_ICONS[a.action] || '🤖'}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-[var(--text-primary)]">{a.agentId}</span>
+                    {isSpecialist(a.agentId) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--color-info)_10%,transparent)] text-[var(--color-info)]">
+                        Specialist
+                      </span>
+                    )}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${getActionColor(a.action)}`}>
+                      {getActionDisplay(a.action, a.agentId)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1 whitespace-pre-wrap break-words">
+                    {displayDetails}
+                    {!isExpanded && shouldTruncate && '...'}
+                  </p>
+                  {shouldTruncate && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(a.id)}
+                      className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover,var(--accent))] mt-1 transition-colors"
+                    >
+                      {isExpanded ? 'Show less' : 'Show more'}
+                    </button>
+                  )}
+                  <div className="flex items-center gap-3 mt-1 text-[10px] text-[var(--text-disabled)]">
+                    <span>{timeAgo(a.timestamp)}</span>
+                    {a.model && <span className="font-mono truncate">{a.model.split('/').pop()?.split('.').pop()}</span>}
+                    {a.costUsd > 0 && <span>${a.costUsd.toFixed(4)}</span>}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
@@ -393,6 +446,14 @@ export function AgentsView() {
     { id: 'gen-industry', name: 'Industry Agent', role: 'generalist-career', status: 'idle' },
     { id: 'gen-fellowship', name: 'Fellowship Agent', role: 'generalist-relationships', status: 'idle' },
     { id: 'gen-essence', name: 'Essence Agent', role: 'generalist-soul', status: 'idle' },
+    { id: 'specialist-architect', name: 'Architect', role: 'specialist-architect', status: 'idle' },
+    { id: 'specialist-coder', name: 'Coder', role: 'specialist-coder', status: 'idle' },
+    { id: 'specialist-research', name: 'Research Specialist', role: 'specialist-research', status: 'idle' },
+    { id: 'specialist-marketing', name: 'Marketing Specialist', role: 'specialist-marketing', status: 'idle' },
+    { id: 'specialist-video', name: 'Video Specialist', role: 'specialist-video', status: 'idle' },
+    { id: 'specialist-image', name: 'Image Specialist', role: 'specialist-image', status: 'idle' },
+    { id: 'specialist-writing', name: 'Writing Specialist', role: 'specialist-writing', status: 'idle' },
+    { id: 'specialist-n8n', name: 'N8N Automation', role: 'specialist-n8n', status: 'idle' },
   ])
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([])
   const [sendModalOpen, setSendModalOpen] = useState(false)

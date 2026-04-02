@@ -289,6 +289,165 @@ function ObsidianStatusSection() {
   )
 }
 
+// ─── Provider API Keys ───
+
+interface ProviderField { key: string; label: string; type: 'apikey' | 'text' | 'url' }
+interface ProviderInfo {
+  providerId: string
+  displayName: string
+  enabled: boolean
+  hasKey: boolean
+  config: Record<string, string>
+  fields: ProviderField[]
+  updatedAt: string
+}
+
+function ProviderKeysSection() {
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formValues, setFormValues] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+
+  const fetchProviders = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/settings/provider-keys')
+      if (res.ok) {
+        const data = await res.json()
+        setProviders(data.providers ?? [])
+      }
+    } catch { /* silent */ } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void fetchProviders() }, [fetchProviders])
+
+  const startEdit = (p: ProviderInfo) => {
+    setEditingId(p.providerId)
+    // Pre-fill with existing non-masked values
+    const vals: Record<string, string> = {}
+    for (const f of p.fields) {
+      vals[f.key] = f.type === 'apikey' ? '' : (p.config[f.key] || '')
+    }
+    setFormValues(vals)
+  }
+
+  const saveProvider = async (providerId: string, enabled: boolean) => {
+    setSaving(true)
+    try {
+      await fetch('/api/settings/provider-keys', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerId,
+          apiKey: formValues.apiKey || undefined,
+          config: formValues,
+          enabled,
+        }),
+      })
+      setEditingId(null)
+      void fetchProviders()
+    } catch { /* silent */ } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleProvider = async (p: ProviderInfo) => {
+    await fetch('/api/settings/provider-keys', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId: p.providerId, enabled: !p.enabled }),
+    })
+    void fetchProviders()
+  }
+
+  return (
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 transition-colors duration-150 shadow-sm">
+      <div>
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Provider API Keys</h3>
+        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+          Configure API keys for LLM providers, image generation, and automation services
+        </p>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-[var(--text-tertiary)] text-center py-3">Loading providers...</p>
+      ) : (
+        <div className="space-y-3">
+          {providers.map((p) => (
+            <div key={p.providerId} className="border border-[var(--border-secondary,var(--border-primary))] rounded-lg overflow-hidden">
+              {/* Provider header row */}
+              <div className="flex items-center justify-between p-3 bg-[var(--bg-primary,var(--bg-secondary))]">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => void toggleProvider(p)}
+                    className={`w-7 h-4 rounded-full transition-colors duration-200 relative flex-shrink-0 ${
+                      p.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${
+                      p.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                  <div>
+                    <span className="text-sm text-[var(--text-primary)] font-medium">{p.displayName}</span>
+                    {p.hasKey && (
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)]">
+                        Configured
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => editingId === p.providerId ? setEditingId(null) : startEdit(p)}
+                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+                >
+                  {editingId === p.providerId ? 'Cancel' : 'Configure'}
+                </button>
+              </div>
+
+              {/* Edit form (expanded) */}
+              {editingId === p.providerId && (
+                <div className="p-3 space-y-3 border-t border-[var(--border-secondary,var(--border-primary))]">
+                  {p.fields.map((field) => (
+                    <div key={field.key}>
+                      <label className="text-[10px] text-[var(--text-secondary)] mb-1 block">{field.label}</label>
+                      <input
+                        type={field.type === 'apikey' ? 'password' : 'text'}
+                        value={formValues[field.key] || ''}
+                        onChange={(e) => setFormValues({ ...formValues, [field.key]: e.target.value })}
+                        placeholder={field.type === 'apikey' ? (p.hasKey ? '(unchanged — enter new key to replace)' : 'Enter API key') : `Enter ${field.label.toLowerCase()}`}
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-xs font-mono placeholder:text-[var(--text-disabled)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] transition-colors duration-150"
+                      />
+                    </div>
+                  ))}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="px-3 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => void saveProvider(p.providerId, true)}
+                      disabled={saving}
+                      className="px-3 py-1.5 rounded-lg bg-[var(--accent-muted)] text-[var(--accent)] text-xs font-medium hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-40"
+                    >
+                      {saving ? 'Saving...' : 'Save & Enable'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Settings View ───
 
 export function SettingsView() {
@@ -487,6 +646,9 @@ export function SettingsView() {
           } catch { /* silent */ }
         }}
       />
+
+      {/* Provider API Keys */}
+      <ProviderKeysSection />
 
       {/* Scheduled Jobs */}
       <ScheduledJobsSection />

@@ -20,6 +20,7 @@ export function useProfile() {
       timezone: data?.timezone ?? '',
       coreValues: data?.coreValues ?? '',
       lifeVision: data?.lifeVision ?? '',
+      onboardingComplete: data?.onboardingComplete === 'true',
     },
     loading, error, refetch, updateProfile,
   }

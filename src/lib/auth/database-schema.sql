@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS devices (
   user_agent TEXT,
   ip_address TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT,
   UNIQUE(user_id, fingerprint_hash)
 );
 

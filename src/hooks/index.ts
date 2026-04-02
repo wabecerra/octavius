@@ -12,6 +12,8 @@ export { useSchedule } from './use-schedule'
 export { useSprint } from './use-sprint'
 export { useAuth } from './use-auth'
 export type { AuthUser, AuthState } from './use-auth'
+export { useActiveAgents } from './use-active-agents'
+export type { ActiveAgent, PendingSpecialist } from './use-active-agents'
 
 export type { Task, Quadrant } from './use-tasks'
 export type { CheckIn } from './use-checkins'

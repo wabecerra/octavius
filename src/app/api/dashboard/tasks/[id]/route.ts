@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
+import { taskCompletionToMemory } from '@/lib/integrations/dashboard-memory-bridge'
 
 /** GET /api/dashboard/tasks/[id] */
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -29,7 +30,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const now = new Date().toISOString()
   const sets: string[] = ['updated_at = ?']
   const p: unknown[] = [now]
-  if (updates.status) { sets.push('status = ?'); p.push(updates.status) }
+  if (updates.status) {
+    sets.push('status = ?'); p.push(updates.status)
+    // Auto-sync completed field with status
+    if (updates.completed === undefined) {
+      sets.push('completed = ?'); p.push(updates.status === 'done' ? 1 : 0)
+    }
+  }
   if (updates.priority) { sets.push('priority = ?'); p.push(updates.priority) }
   if (updates.completed !== undefined) { sets.push('completed = ?'); p.push(updates.completed ? 1 : 0) }
   if (updates.title) { sets.push('title = ?'); p.push(updates.title) }
@@ -41,6 +48,20 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   db.prepare(`UPDATE dashboard_tasks SET ${sets.join(', ')} WHERE id = ?`).run(...p)
   // Return updated task
   const row = db.prepare('SELECT * FROM dashboard_tasks WHERE id = ?').get(params.id) as Record<string, unknown>
+
+  // Bridge to memory system when task is completed (fire-and-forget)
+  if (updates.status === 'done' || updates.completed === true) {
+    taskCompletionToMemory({
+      id: row.id as string,
+      title: row.title as string,
+      description: row.description as string | undefined,
+      quadrant: row.quadrant as string | undefined,
+      status: row.status as string,
+      priority: row.priority as string | undefined,
+      completed: row.completed === 1,
+    })
+  }
+
   return NextResponse.json({
     id: row.id, title: row.title, description: row.description || '',
     priority: row.priority, status: row.status, dueDate: row.due_date,

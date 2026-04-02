@@ -1,5 +1,9 @@
 import { getGatewayBridge } from '@/lib/gateway/bridge'
 import type { AgentEvent } from '@/lib/gateway/bridge-events'
+import { buildEnvironmentSnapshot } from '@/lib/gateway/env-bootstrap'
+import { getPendingConfirmations, cleanExpired } from '@/lib/gateway/confirmation-gate'
+import { getPendingElevations, cleanExpiredElevations } from '@/lib/harness/permissions'
+import { getActiveSessions } from '@/lib/harness/session-manager'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +24,10 @@ export async function GET() {
 
       // Push bridge status
       send('bridge.status', { status: bridge.status })
+
+      // Push environment snapshot
+      const envSnapshot = buildEnvironmentSnapshot(bridge)
+      send('env.snapshot', envSnapshot)
 
       // Subscribe to agent events
       function onAgentEvent(event: AgentEvent) {
@@ -45,6 +53,29 @@ export async function GET() {
       const heartbeat = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(':heartbeat\n\n'))
+          // Clean expired confirmations/elevations and send pending ones
+          cleanExpired()
+          cleanExpiredElevations()
+          const pending = getPendingConfirmations()
+          if (pending.length > 0) {
+            send('confirmations.pending', pending)
+          }
+          const elevations = getPendingElevations()
+          if (elevations.length > 0) {
+            send('permission.elevation_needed', elevations)
+          }
+          // Send active harness sessions for UI status
+          const sessions = getActiveSessions()
+          if (sessions.length > 0) {
+            send('harness.sessions', sessions.map(s => ({
+              sessionKey: s.sessionKey,
+              agentId: s.agentId,
+              agentType: s.agentType,
+              permissionLevel: s.permissionLevel,
+              tokenUsed: s.tokenUsed,
+              tokenBudget: s.tokenBudget,
+            })))
+          }
         } catch {
           cleanup()
         }

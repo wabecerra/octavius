@@ -27,6 +27,7 @@ const SUBTASK_STATUS_STYLES: Record<string, string> = {
   pending: 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]',
   awaiting_approval: 'bg-[color-mix(in_srgb,var(--color-warning)_15%,transparent)] text-[var(--color-warning)]',
   approved: 'bg-[color-mix(in_srgb,var(--color-info)_15%,transparent)] text-[var(--color-info)]',
+  'in-progress': 'bg-[color-mix(in_srgb,var(--color-info)_15%,transparent)] text-[var(--color-info)] animate-pulse',
   completed: 'bg-[color-mix(in_srgb,var(--color-success)_15%,transparent)] text-[var(--color-success)]',
   failed: 'bg-[color-mix(in_srgb,var(--color-error)_15%,transparent)] text-[var(--color-error)]',
   skipped: 'bg-[var(--bg-tertiary)] text-[var(--text-disabled)] line-through',
@@ -291,6 +292,32 @@ function DeleteConfirmModal({
   )
 }
 
+// ─── Expandable Description ───
+
+const DESC_TRUNCATE_LEN = 200
+
+function ExpandableDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const needsTruncation = text.length > DESC_TRUNCATE_LEN
+
+  return (
+    <div className="border-t border-[var(--border-primary)] pt-3">
+      <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">
+        {expanded || !needsTruncation ? text : `${text.slice(0, DESC_TRUNCATE_LEN)}...`}
+      </p>
+      {needsTruncation && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-[var(--accent)] hover:text-[var(--text-primary)] mt-1 transition-colors duration-150"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Task Detail Modal (with subtask approval) ───
 
 function TaskDetailModal({
@@ -329,7 +356,7 @@ function TaskDetailModal({
     }
   }, [open, task, fetchSubtasks])
 
-  const handleAction = async (subtaskId: string, action: 'approve' | 'skip') => {
+  const handleAction = async (subtaskId: string, action: 'approve' | 'skip' | 'dispatch') => {
     setActionLoading(subtaskId)
     try {
       const res = await fetch('/api/dashboard/subtasks', {
@@ -362,18 +389,13 @@ function TaskDetailModal({
           </Dialog.Title>
           <Dialog.Description className="sr-only">Task details and subtask management</Dialog.Description>
 
-          {/* Task info */}
-          <div className="space-y-2">
-            {task.description && (
-              <p className="text-sm text-[var(--text-secondary)]">{task.description}</p>
-            )}
-            <div className="flex gap-2 text-xs">
-              <span className={`px-2 py-0.5 rounded border ${PRIORITY_COLORS[task.priority]}`}>{task.priority}</span>
-              <span className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{task.status}</span>
-            </div>
+          {/* Task meta */}
+          <div className="flex gap-2 text-xs">
+            <span className={`px-2 py-0.5 rounded border ${PRIORITY_COLORS[task.priority]}`}>{task.priority}</span>
+            <span className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{task.status}</span>
           </div>
 
-          {/* Subtasks */}
+          {/* Subtasks — shown FIRST so approval actions aren't buried */}
           <div className="border-t border-[var(--border-primary)] pt-4">
             <h4 className="text-sm font-medium text-[var(--text-primary)] mb-3">
               Subtasks
@@ -443,11 +465,38 @@ function TaskDetailModal({
                         </button>
                       </div>
                     )}
+
+                    {/* Dispatch actions for stuck pending subtasks */}
+                    {st.status === 'pending' && (
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={actionLoading === st.id}
+                          onClick={() => handleAction(st.id, 'dispatch')}
+                          className="px-3 py-1 rounded-lg text-xs font-medium bg-[color-mix(in_srgb,var(--color-info)_15%,transparent)] text-[var(--color-info)] hover:bg-[color-mix(in_srgb,var(--color-info)_25%,transparent)] transition-colors duration-150 disabled:opacity-50"
+                        >
+                          {actionLoading === st.id ? 'Dispatching...' : '▶ Dispatch'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionLoading === st.id}
+                          onClick={() => handleAction(st.id, 'skip')}
+                          className="px-3 py-1 rounded-lg text-xs font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors duration-150 disabled:opacity-50"
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Task description — shown after subtasks, truncated */}
+          {task.description && (
+            <ExpandableDescription text={task.description} />
+          )}
 
           <div className="flex justify-end pt-2">
             <Dialog.Close asChild>

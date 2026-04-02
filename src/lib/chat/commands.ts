@@ -11,6 +11,7 @@ export interface CommandResult {
 const KNOWN_COMMANDS = new Set([
   'reset', 'compact', 'recall', 'status', 'agents',
   'approve', 'reject', 'mode', 'stop', 'cost', 'history',
+  'permissions', 'scope', 'hooks', 'sessions', 'evolve', 'traces', 'policies',
 ])
 
 export function isSlashCommand(input: string): boolean {

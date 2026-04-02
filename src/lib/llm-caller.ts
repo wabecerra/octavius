@@ -45,13 +45,7 @@ function getBedrockClient(): BedrockRuntimeClient {
 }
 
 // ─── Model mapping for fallback (OpenRouter model → Bedrock equivalent) ───
-
-const OPENROUTER_TO_BEDROCK: Record<string, string> = {
-  'anthropic/claude-opus-4.6': 'global.anthropic.claude-opus-4-6-v1',
-  'anthropic/claude-sonnet-4.6': 'us.anthropic.claude-sonnet-4-6-v1:0',
-  'anthropic/claude-sonnet-4': 'us.anthropic.claude-sonnet-4-20250514-v1:0',
-  'anthropic/claude-haiku-4.5': 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
-}
+import { OPENROUTER_TO_BEDROCK } from './models'
 
 /**
  * Call an LLM — routes through the fallback chain.

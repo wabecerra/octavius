@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/memory/db'
 import { nanoid } from 'nanoid'
+import { journalToMemory } from '@/lib/integrations/dashboard-memory-bridge'
 
 /** GET /api/dashboard/journal — Query params: since, until (YYYY-MM-DD), limit */
 export async function GET(request: Request) {
@@ -36,5 +37,9 @@ export async function POST(request: Request) {
   const timestamp = body.timestamp || new Date().toISOString()
   const db = getDatabase()
   db.prepare('INSERT INTO dashboard_journal (id, text, timestamp) VALUES (?, ?, ?)').run(id, text, timestamp)
+
+  // Bridge to memory system (fire-and-forget)
+  journalToMemory({ id, text, timestamp })
+
   return NextResponse.json({ id, text, timestamp }, { status: 201 })
 }

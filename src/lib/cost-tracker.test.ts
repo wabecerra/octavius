@@ -111,7 +111,7 @@ const agentTaskArb = fc.record({
   tier: fc.constantFrom(1 as const, 2 as const, 3 as const),
   modelUsed: fc.constantFrom('llama3.2', 'gemini-flash', 'claude-sonnet-4-5', 'claude-opus-4-5'),
   status: fc.constant('complete' as const),
-  createdAt: fc.date().map((d) => d.toISOString()),
+  createdAt: fc.date({ min: new Date('2020-01-01'), max: new Date('2030-01-01') }).map((d) => d.toISOString()),
 })
 
 const tierRatesArb = fc.record({

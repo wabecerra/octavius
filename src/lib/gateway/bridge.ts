@@ -13,7 +13,6 @@ import {
   type FleetAgentState,
   AgentEventType,
   translateGatewayEvent,
-  sessionKeyToAgentId,
 } from './bridge-events'
 
 // Constants

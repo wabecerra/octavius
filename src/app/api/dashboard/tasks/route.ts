@@ -62,8 +62,26 @@ export async function GET(request: Request) {
     `SELECT COUNT(*) as count FROM dashboard_tasks WHERE ${whereClause}`
   ).get(...countParams) as { count: number }
 
+  // Batch-fetch awaiting_approval subtask counts for all returned tasks
+  const taskIds = rows.map(r => r.id as string)
+  const approvalCounts = new Map<string, number>()
+  if (taskIds.length > 0) {
+    const placeholders = taskIds.map(() => '?').join(',')
+    const approvalRows = db.prepare(
+      `SELECT parent_task_id, COUNT(*) as count FROM subtasks
+       WHERE parent_task_id IN (${placeholders}) AND status = 'awaiting_approval'
+       GROUP BY parent_task_id`
+    ).all(...taskIds) as Array<{ parent_task_id: string; count: number }>
+    for (const r of approvalRows) {
+      approvalCounts.set(r.parent_task_id, r.count)
+    }
+  }
+
   return NextResponse.json({
-    tasks: rows.map(rowToTask),
+    tasks: rows.map(r => ({
+      ...rowToTask(r),
+      awaitingApprovalCount: approvalCounts.get(r.id as string) ?? 0,
+    })),
     total: total.count,
   })
 }
@@ -120,7 +138,13 @@ export async function PATCH(request: Request) {
   const setClauses: string[] = ['updated_at = ?']
   const params: unknown[] = [now]
 
-  if (updates.status) { setClauses.push('status = ?'); params.push(updates.status) }
+  if (updates.status) {
+    setClauses.push('status = ?'); params.push(updates.status)
+    // Auto-sync completed field with status
+    if (updates.completed === undefined) {
+      setClauses.push('completed = ?'); params.push(updates.status === 'done' ? 1 : 0)
+    }
+  }
   if (updates.priority) { setClauses.push('priority = ?'); params.push(updates.priority) }
   if (updates.completed !== undefined) { setClauses.push('completed = ?'); params.push(updates.completed ? 1 : 0) }
   if (updates.title) { setClauses.push('title = ?'); params.push(updates.title) }

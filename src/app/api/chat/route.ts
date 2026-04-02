@@ -6,6 +6,9 @@ import { getDatabase } from '@/lib/memory/db'
 import { getGatewayBridge } from '@/lib/gateway/bridge'
 import { isSlashCommand, parseCommand } from '@/lib/chat/commands'
 import type { AgentEvent } from '@/lib/gateway/bridge-events'
+import { buildEnvironmentSnapshot, formatSnapshotForPrompt } from '@/lib/gateway/env-bootstrap'
+import { getContextCache, CACHE_TTL } from '@/lib/gateway/context-cache'
+import { getChatFallbackModel } from '@/lib/models'
 
 const execAsync = promisify(exec)
 const OPENCLAW_PATH = process.env.OPENCLAW_PATH || 'openclaw'
@@ -17,17 +20,19 @@ function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, '')
 }
 
-/** Get the default chat model config from agent_model_config or fallback */
+/** Get the default chat model config from agent_model_config or env-aware fallback */
 function getChatModelConfig(): { provider: string; model: string } {
   try {
     const db = getDatabase()
     const row = db.prepare(
       'SELECT provider, model FROM agent_model_config WHERE agent_id = ?',
     ).get('octavius-chat') as { provider: string; model: string } | undefined
-    return row || { provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' }
+    if (row) return row
   } catch {
-    return { provider: 'bedrock', model: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0' }
+    // DB unavailable
   }
+  // Env-aware fallback from centralized model registry
+  return getChatFallbackModel()
 }
 
 /**
@@ -55,10 +60,81 @@ export async function POST(request: Request) {
         if (cmd.name === 'status') {
           const fleet = bridge.getFleetSnapshot()
           const running = fleet.filter(a => a.status === 'running').length
-          response = `Bridge: ${bridge.status} | Agents: ${running} active | Queue: ${bridge.queueLength}`
+          const cacheStats = getContextCache().getStats()
+          response = `Bridge: ${bridge.status} | Agents: ${running} active | Queue: ${bridge.queueLength}\nCache: ${cacheStats.entries} entries, ${(cacheStats.hitRate * 100).toFixed(0)}% hit rate, ~${cacheStats.totalTokenEstimate} tokens cached`
         } else if (cmd.name === 'agents') {
           const fleet = bridge.getFleetSnapshot()
           response = fleet.map(a => `${a.id}: ${a.status}`).join('\n') || 'No agents tracked.'
+        } else if (cmd.name === 'approve') {
+          const { confirmOperation: confirm } = await import('@/lib/gateway/confirmation-gate')
+          const id = cmd.args[0]
+          if (!id) {
+            const { getPendingConfirmations } = await import('@/lib/gateway/confirmation-gate')
+            const pending = getPendingConfirmations()
+            response = pending.length > 0
+              ? pending.map(p => `${p.id.slice(0, 8)}... — ${p.description}`).join('\n')
+              : 'No pending confirmations.'
+          } else {
+            const result = confirm(id)
+            response = result.confirmed
+              ? `Confirmed: ${result.operation}`
+              : 'Confirmation expired or not found.'
+          }
+        } else if (cmd.name === 'reject') {
+          const { rejectConfirmation: reject } = await import('@/lib/gateway/confirmation-gate')
+          const id = cmd.args[0]
+          if (!id) {
+            response = 'Usage: /reject <confirmation-id>'
+          } else {
+            const removed = reject(id)
+            response = removed ? 'Confirmation rejected.' : 'Confirmation not found.'
+          }
+        } else if (cmd.name === 'permissions') {
+          const { AGENT_DEFAULT_PERMISSIONS } = await import('@/lib/harness/permissions')
+          const { PERMISSION_LABELS } = await import('@/lib/harness/types')
+          response = Object.entries(AGENT_DEFAULT_PERMISSIONS)
+            .map(([type, level]) => `${type}: **${PERMISSION_LABELS[level]}**`)
+            .join('\n')
+        } else if (cmd.name === 'scope') {
+          const { resolveToolScope } = await import('@/lib/harness/tool-scopes')
+          const agentType = cmd.args[0] || 'orchestrator'
+          const tools = resolveToolScope(agentType)
+          response = tools.length > 0
+            ? `**${agentType}** (${tools.length} tools):\n${tools.map(t => `  ${t}`).join('\n')}`
+            : `No scope defined for '${agentType}'.`
+        } else if (cmd.name === 'hooks') {
+          const { getHookPipeline } = await import('@/lib/harness/hooks')
+          const hooks = getHookPipeline().listHooks()
+          response = hooks.map(h => `[${h.phase}] ${h.name} (priority ${h.priority})`).join('\n')
+        } else if (cmd.name === 'sessions') {
+          const { getActiveSessions } = await import('@/lib/harness/session-manager')
+          const { PERMISSION_LABELS } = await import('@/lib/harness/types')
+          const sessions = getActiveSessions()
+          response = sessions.length > 0
+            ? sessions.map(s => `${s.agentId} [${PERMISSION_LABELS[s.permissionLevel]}] — ${s.tokenUsed}/${s.tokenBudget} tokens`).join('\n')
+            : 'No active harness sessions.'
+        } else if (cmd.name === 'evolve') {
+          const { runProposer } = await import('@/lib/harness/proposer')
+          const days = cmd.args[0] ? Number(cmd.args[0]) : 1
+          response = `Running proposer (analyzing last ${days} day${days > 1 ? 's' : ''})...`
+          // Fire-and-forget — result will appear in /api/harness/policies
+          runProposer('manual', { sinceDays: days }).then(run => {
+            console.log(`[proposer] Completed: ${run.proposalsGenerated} proposals, ${run.tracesAnalyzed} traces analyzed`)
+          }).catch(err => {
+            console.error('[proposer] Failed:', (err as Error).message)
+          })
+        } else if (cmd.name === 'traces') {
+          const { queryTraces } = await import('@/lib/harness/trace-store')
+          const { traces, total } = queryTraces({ limit: 10 })
+          response = total > 0
+            ? `${total} traces total. Recent:\n${traces.map(t => `${t.traceId.slice(0, 8)}... ${t.agentType} [${t.outcome}] ${t.taskTitle || 'N/A'}`).join('\n')}`
+            : 'No execution traces recorded yet.'
+        } else if (cmd.name === 'policies') {
+          const { listPolicies } = await import('@/lib/harness/policy-store')
+          const policies = listPolicies({ limit: 10 })
+          response = policies.length > 0
+            ? policies.map(p => `[${p.status}] ${p.policyType} → ${p.target}: ${p.reason.slice(0, 80)}`).join('\n')
+            : 'No evolution policies yet. Run /evolve to generate proposals.'
         }
         return NextResponse.json({
           response,
@@ -93,7 +169,16 @@ export async function POST(request: Request) {
             bridge.on('agent-event', onAgentEvent)
 
             try {
-              const result = await bridge.sendAgent({ message, sessionKey: 'agent:main' })
+              // Inject cached environment context so agent doesn't waste turns exploring
+              const cache = getContextCache()
+              const { content: envContext } = cache.getOrCompute(
+                'env-snapshot',
+                CACHE_TTL.ENVIRONMENT_SNAPSHOT,
+                () => formatSnapshotForPrompt(buildEnvironmentSnapshot(bridge)),
+              )
+              const enrichedMessage = `${envContext}\n\n---\n\n**User message:** ${message}`
+
+              const result = await bridge.sendAgent({ message: enrichedMessage, sessionKey: 'agent:main' })
               const payload = result.payload as Record<string, unknown>
               send('done', {
                 response: payload?.summary ?? '',

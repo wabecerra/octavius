@@ -79,10 +79,13 @@ export type AgentRole =
   | 'generalist-soul'
   | 'specialist-research'
   | 'specialist-engineering'
+  | 'specialist-architect'
+  | 'specialist-coder'
   | 'specialist-marketing'
   | 'specialist-video'
   | 'specialist-image'
   | 'specialist-writing'
+  | 'specialist-n8n'
 
 export type ModelTier = 1 | 2 | 3
 export type AgentTaskStatus = 'pending' | 'running' | 'complete' | 'failed' | 'cancelled'
@@ -124,8 +127,8 @@ export interface ModelRouterConfig {
   localEndpoint: string // default: 'http://localhost:11434'
   localModelName: string // e.g. 'llama3.2'
   tier1CloudModel: string // e.g. 'gemini-flash'
-  tier2Model: string // e.g. 'claude-sonnet-4-5'
-  tier3Model: string // e.g. 'claude-opus-4-5'
+  tier2Model: string // e.g. 'qwen3-235b' — see src/lib/models.ts for current defaults
+  tier3Model: string // e.g. 'claude-sonnet-4.6' — see src/lib/models.ts for current defaults
   researchProvider: string // e.g. 'kimi'
   dailyCostBudget: number // USD
   tierCostRates: { 1: number; 2: number; 3: number } // USD per 1k tokens (estimated)

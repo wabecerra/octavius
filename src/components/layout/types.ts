@@ -1,5 +1,5 @@
 // Navigation structure shared between Shell, Sidebar, and page.tsx
-export type ViewKey = 'dashboard' | 'lifeforce' | 'industry' | 'fellowship' | 'essence' | 'town' | 'agents' | 'memory' | 'costs' | 'settings' | 'gateway'
+export type ViewKey = 'dashboard' | 'lifeforce' | 'industry' | 'fellowship' | 'essence' | 'town' | 'agents' | 'memory' | 'costs' | 'settings' | 'gateway' | 'chat'
 
 export interface NavItem {
   key: ViewKey
@@ -20,6 +20,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'costs', label: 'LLM Costs', icon: '💸', group: 'system' },
   { key: 'settings', label: 'Settings', icon: '⚙', group: 'system' },
   { key: 'gateway', label: 'Gateway', icon: '🌐', group: 'system' },
+  { key: 'chat', label: 'Chat', icon: '💬', group: 'overview' },
 ]
 
 export const NAV_GROUPS = [
@@ -40,4 +41,5 @@ export const PAGE_TITLES: Record<ViewKey, string> = {
   costs: 'LLM Cost Intelligence',
   settings: 'System Configuration',
   gateway: 'Gateway — OpenClaw Integration',
+  chat: 'Octavius Chat',
 }

@@ -112,7 +112,7 @@ export async function POST(request: Request) {
   } else if (action === 'redispatch') {
     for (const task of targets) {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/agents/dispatch`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/agents/dispatch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

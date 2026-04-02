@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+
+/**
+ * Octavius CLI — lightweight command runner for device approval and utilities.
+ *
+ * Usage:
+ *   octavius approve-device <code>   Approve a pending device login
+ *   octavius help                     Show this help
+ */
+
+const BASE_URL = process.env.OCTAVIUS_URL || `http://localhost:${process.env.PORT || 3000}`
+
+async function approveDevice(code) {
+  if (!code) {
+    console.error('Usage: octavius approve-device <code>')
+    process.exit(1)
+  }
+
+  console.log(`Approving device with code: ${code}`)
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/auth/device/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approvalCode: code.toUpperCase() }),
+    })
+
+    const data = await res.json()
+
+    if (data.success) {
+      console.log('Device approved! The browser will auto-redirect shortly.')
+    } else {
+      console.error(`Failed: ${data.error || 'Unknown error'}`)
+      process.exit(1)
+    }
+  } catch (err) {
+    console.error(`Error: Could not reach Octavius at ${BASE_URL}`)
+    console.error(`Make sure the server is running. Set OCTAVIUS_URL if using a custom address.`)
+    process.exit(1)
+  }
+}
+
+// --- Main ---
+const [,, command, ...args] = process.argv
+
+switch (command) {
+  case 'approve-device':
+    approveDevice(args[0])
+    break
+  case 'help':
+  case '--help':
+  case '-h':
+  case undefined:
+    console.log(`
+Octavius CLI
+
+Commands:
+  approve-device <code>   Approve a pending device login
+  help                     Show this help
+
+Environment:
+  OCTAVIUS_URL   Server URL (default: http://localhost:3000)
+  PORT           Server port (default: 3000)
+`)
+    break
+  default:
+    console.error(`Unknown command: ${command}`)
+    console.error('Run "octavius help" for usage')
+    process.exit(1)
+}

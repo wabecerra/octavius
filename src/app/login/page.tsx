@@ -67,6 +67,33 @@ export default function LoginPage() {
     }
   };
 
+  // Poll for device approval — auto-login once approved
+  useEffect(() => {
+    if (!approvalData) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/auth/device/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approvalCode: approvalData.approvalCode }),
+        })
+        const data = await res.json()
+        if (data.success && data.sessionToken) {
+          clearInterval(interval)
+          localStorage.setItem('octavius_session', data.sessionToken)
+          localStorage.setItem('octavius_user', JSON.stringify({
+            userId: approvalData.userId,
+            email: email,
+          }))
+          router.push('/')
+        }
+      } catch {
+        // approval not yet granted — keep polling
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [approvalData, email, router])
+
   const copyCode = () => {
     if (approvalData) {
       navigator.clipboard.writeText(approvalData.approvalCode);

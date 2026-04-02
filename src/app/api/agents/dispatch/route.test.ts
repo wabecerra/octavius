@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/gateway/server-client', () => ({
-  getServerGatewayClient: vi.fn(),
-}))
 vi.mock('@/lib/memory/db', () => ({
   getDatabase: vi.fn(() => ({
     prepare: vi.fn(() => ({
@@ -23,22 +20,52 @@ vi.mock('@/lib/agents/output-sync', () => ({
 vi.mock('@/lib/llm-cost/tracker', () => ({
   logGatewayChat: vi.fn(),
 }))
+vi.mock('@/lib/gateway/bridge', () => ({
+  getGatewayBridge: vi.fn(),
+}))
+vi.mock('@/lib/gateway/env-bootstrap', () => ({
+  buildEnvironmentSnapshot: vi.fn(() => ({})),
+  formatSnapshotForPrompt: vi.fn(() => '## Env Snapshot'),
+}))
+vi.mock('@/lib/gateway/context-cache', () => ({
+  getContextCache: vi.fn(() => ({
+    getOrCompute: vi.fn((_key: string, _ttl: number, compute: () => string) => ({
+      content: compute(),
+      cached: false,
+    })),
+  })),
+  CACHE_TTL: { ENVIRONMENT_SNAPSHOT: 30000 },
+}))
+vi.mock('@/lib/harness/session-manager', () => ({
+  getOrCreateHarnessSession: vi.fn(() => ({
+    sessionKey: 'subagent:gen-industry',
+    agentId: 'gen-industry',
+    agentType: 'generalist',
+    permissionLevel: 1,
+    toolScope: [],
+    tokenBudget: 100000,
+    tokenUsed: 0,
+    compactionCount: 0,
+    createdAt: new Date().toISOString(),
+  })),
+  removeHarnessSession: vi.fn(),
+}))
 
 import { POST } from './route'
 
 describe('POST /api/agents/dispatch', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('routes through gateway when connected', async () => {
-    const { getServerGatewayClient } = await import('@/lib/gateway/server-client')
-    const mockRequest = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ session_id: 'sess-123' }),
-    })
-    vi.mocked(getServerGatewayClient).mockResolvedValue({
-      getStatus: () => 'connected',
-      request: mockRequest,
-    } as any)
+  it('routes through gateway when bridge connected', async () => {
+    const { getGatewayBridge } = await import('@/lib/gateway/bridge')
+    const mockBridge = {
+      status: 'CONNECTED',
+      sendAgent: vi.fn().mockResolvedValue({
+        payload: { summary: 'Task completed', sessionId: 'sess-123' },
+      }),
+      getFleetSnapshot: vi.fn(() => []),
+    }
+    vi.mocked(getGatewayBridge).mockReturnValue(mockBridge as any)
 
     const req = new Request('http://localhost:3000/api/agents/dispatch', {
       method: 'POST',
@@ -51,16 +78,14 @@ describe('POST /api/agents/dispatch', () => {
 
     expect(res.status).toBe(200)
     expect(data.source).toBe('gateway')
-    expect(data.sessionId).toBe('sess-123')
-    expect(mockRequest).toHaveBeenCalledWith(
-      '/api/sessions/spawn',
-      expect.objectContaining({ method: 'POST' }),
-    )
+    expect(mockBridge.sendAgent).toHaveBeenCalled()
   })
 
-  it('falls back to embedded spawner when gateway disconnected', async () => {
-    const { getServerGatewayClient } = await import('@/lib/gateway/server-client')
-    vi.mocked(getServerGatewayClient).mockResolvedValue(null)
+  it('falls back to embedded spawner when bridge not connected', async () => {
+    const { getGatewayBridge } = await import('@/lib/gateway/bridge')
+    vi.mocked(getGatewayBridge).mockReturnValue({
+      status: 'DISCONNECTED',
+    } as any)
 
     const { spawnAgent } = await import('@/lib/agent-spawner')
     vi.mocked(spawnAgent).mockResolvedValue({

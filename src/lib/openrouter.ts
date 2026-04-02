@@ -61,17 +61,9 @@ export interface OpenRouterResponse {
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 
-/** Tiered model defaults — cheapest first */
-export const MODELS = {
-  /** Near-free: Qwen3-235B MoE ~$0.07/$0.10 per M tokens */
-  cheap: 'qwen/qwen3-235b-a22b-2507',
-  /** Free router — completely free, low rate limits */
-  free: 'openrouter/free',
-  /** Auto router — NotDiamond picks the best model */
-  auto: 'openrouter/auto',
-  /** Qwen3 30B — ultra-cheap for simple tasks */
-  tiny: 'qwen/qwen3-30b-a3b-instruct-2507',
-} as const
+/** Tiered model defaults — from centralized registry */
+export { OPENROUTER_TIERED as MODELS } from './models'
+import { OPENROUTER_TIERED } from './models'
 
 function getApiKey(): string {
   const key = process.env.OPENROUTER_API_KEY
@@ -85,7 +77,7 @@ export async function chatCompletion(
   messages: OpenRouterMessage[],
   opts: OpenRouterOptions = {},
 ): Promise<OpenRouterResponse> {
-  const model = opts.model ?? MODELS.cheap
+  const model = opts.model ?? OPENROUTER_TIERED.cheap
   const body: Record<string, unknown> = {
     model,
     messages,

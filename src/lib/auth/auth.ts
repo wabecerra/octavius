@@ -139,6 +139,11 @@ export function initAuthDatabase(db: Database.Database): void {
     if (schemaPath) {
       const schema = fs.readFileSync(schemaPath, 'utf-8');
       db.exec(schema);
+      // Migration: add updated_at to devices if missing
+      const cols = db.prepare("PRAGMA table_info(devices)").all() as { name: string }[];
+      if (!cols.some(c => c.name === 'updated_at')) {
+        db.exec("ALTER TABLE devices ADD COLUMN updated_at TEXT");
+      }
       console.log('[Auth] ✅ Database schema initialized from:', schemaPath);
       authDbInitialized = true;
     } else {

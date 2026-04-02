@@ -38,3 +38,11 @@ next-env.d.ts
 
 # memory database
 .data/
+
+# dev tooling artifacts
+.claude/
+.playwright-cli/
+.playwright/
+.superpowers/
+test-results/
+docs/auth-state.json

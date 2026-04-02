@@ -9,6 +9,7 @@ import { createServer, type IncomingMessage } from 'http'
 import type { Duplex } from 'stream'
 import next from 'next'
 import { WebSocket, WebSocketServer, type RawData } from 'ws'
+import { startCronRunner } from './src/lib/cron-runner'
 
 const dev = process.env.NODE_ENV !== 'production'
 const port = parseInt(process.env.PORT ?? '3000', 10)
@@ -19,7 +20,8 @@ const GATEWAY_WS_URL = `ws://${gatewayHost}:${gatewayPort}/`
 const MAX_BUFFERED = 100
 const UPSTREAM_TIMEOUT_MS = 15_000
 
-const app = next({ dev })
+const hostname = process.env.HOST ?? '0.0.0.0'
+const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
 function log(level: string, ...args: unknown[]) {
@@ -130,8 +132,12 @@ app.prepare().then(() => {
 
   wss.on('error', (err) => log('ERROR', 'WSS error:', err.message))
 
-  server.listen(port, () => {
-    log('INFO', `Octavius ready on http://localhost:${port}`)
-    log('INFO', `WS proxy: ws://localhost:${port}/api/ws/gateway → ${GATEWAY_WS_URL}`)
+  server.listen(port, hostname, () => {
+    log('INFO', `Octavius ready on http://${hostname}:${port}`)
+    log('INFO', `WS proxy: ws://${hostname}:${port}/api/ws/gateway → ${GATEWAY_WS_URL}`)
+
+    // Start cron runner for scheduled jobs
+    startCronRunner()
+    log('INFO', 'Cron runner started')
   })
 })

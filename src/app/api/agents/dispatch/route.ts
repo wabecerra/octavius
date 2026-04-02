@@ -4,6 +4,17 @@ import { spawnAgent } from '@/lib/agent-spawner'
 import { getGatewayBridge } from '@/lib/gateway/bridge'
 import { syncAgentOutput } from '@/lib/agents/output-sync'
 import { logGatewayChat } from '@/lib/llm-cost/tracker'
+import { buildEnvironmentSnapshot, formatSnapshotForPrompt } from '@/lib/gateway/env-bootstrap'
+import { getContextCache, CACHE_TTL } from '@/lib/gateway/context-cache'
+import { getOrCreateHarnessSession, removeHarnessSession } from '@/lib/harness/session-manager'
+
+/** Map agent IDs (gen-industry, specialist-coder:task123) to scope keys */
+function agentIdToType(agentId: string): string {
+  if (agentId === 'orchestrator') return 'orchestrator'
+  if (agentId.startsWith('gen-')) return 'generalist'
+  if (agentId.startsWith('specialist-')) return agentId.split(':')[0] // specialist-coder:taskId -> specialist-coder
+  return 'generalist'
+}
 
 /**
  * POST /api/agents/dispatch — Dispatch a task to an agent.
@@ -54,15 +65,32 @@ export async function POST(request: Request) {
   const bridge = getGatewayBridge()
 
   if (bridge.status === 'CONNECTED') {
+    // Create harness session for permission/scope/token tracking (side-effect: registers session + begins trace)
+    const agentType = agentIdToType(resolvedAgentId)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const harnessSession = getOrCreateHarnessSession(
+      `subagent:${resolvedAgentId}`, resolvedAgentId, agentType,
+    )
+
     try {
+      // Inject cached environment context so agent has full awareness upfront
+      const cache = getContextCache()
+      const { content: envContext } = cache.getOrCompute(
+        'env-snapshot',
+        CACHE_TTL.ENVIRONMENT_SNAPSHOT,
+        () => formatSnapshotForPrompt(buildEnvironmentSnapshot(bridge, agentIdToType(resolvedAgentId))),
+      )
+      const enrichedMessage = `${envContext}\n\n---\n\n${message}`
+
       const res = await bridge.sendAgent({
-        message,
+        message: enrichedMessage,
         sessionKey: `subagent:${resolvedAgentId}`,
         timeout: 300_000,
       })
 
       const payload = res.payload as Record<string, unknown>
       console.log(`[dispatch] Bridge agent call complete for task=${taskId}`)
+      removeHarnessSession(`subagent:${resolvedAgentId}`)
 
       logGatewayChat({
         model: 'orchestrator',

@@ -9,6 +9,11 @@ export enum AgentEventType {
   COMPLETED = 'agent.completed',
   FAILED = 'agent.failed',
   APPROVAL_NEEDED = 'agent.approval_needed',
+  PERMISSION_NEEDED = 'harness.permission_needed',
+  PERMISSION_RESOLVED = 'harness.permission_resolved',
+  SCOPE_DENIED = 'harness.scope_denied',
+  SESSION_COMPACTED = 'harness.session_compacted',
+  HOOK_DENIED = 'harness.hook_denied',
 }
 
 export interface AgentEvent {

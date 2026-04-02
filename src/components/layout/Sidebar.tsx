@@ -26,6 +26,7 @@ export function Sidebar({ activeView, setActiveView, collapsed }: SidebarProps) 
                 type="button"
                 onClick={() => setActiveView(item.key)}
                 className={`nav-item ${activeView === item.key ? 'nav-item--active' : ''}`}
+                data-view={item.key}
                 whileHover={{ x: 4, transition: { duration: 0.15 } }}
                 whileTap={{ scale: 0.97 }}
               >

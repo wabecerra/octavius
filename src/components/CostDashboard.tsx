@@ -867,15 +867,15 @@ export function CostDashboard() {
               <div className="space-y-2">
                 {alerts.rules.map((rule) => (
                   <div key={rule.id} className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <button
                         onClick={() => toggleAlert(rule.id, !rule.enabled)}
-                        className={`w-10 h-5 rounded-full transition-colors duration-200 relative ${
+                        className={`w-7 h-4 rounded-full transition-colors duration-200 relative flex-shrink-0 ${
                           rule.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--bg-tertiary)]'
                         }`}
                       >
-                        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${
-                          rule.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${
+                          rule.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
                         }`} />
                       </button>
                       <div>
