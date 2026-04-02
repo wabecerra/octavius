@@ -769,6 +769,7 @@ export class NerveCenterScene extends Phaser.Scene {
       const state = lookup.get(agent.agentId)
       if (!state) continue
       agent.sprite.setPosition(state.x, state.y)
+      agent.currentBounceOffset = 0 // reset bounce so restored Y is the true base
       if (state.currentRoomId) agent.currentRoomId = state.currentRoomId
       if (state.status && state.status !== 'empty') agent.status = state.status
       if (state.workState && state.workState !== 'idle') agent.setWorkState(state.workState)
@@ -782,7 +783,7 @@ export class NerveCenterScene extends Phaser.Scene {
       .map(a => ({
         seatId: a.agentId,
         x: a.sprite.x,
-        y: a.sprite.y,
+        y: a.sprite.y - a.currentBounceOffset, // subtract mood bounce to save true base position
         facing: 'down' as const,
         status: a.status,
         currentRoomId: a.currentRoomId,

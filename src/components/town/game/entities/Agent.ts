@@ -179,7 +179,9 @@ export class Agent {
   private baseTint: number | undefined
   private moodFrameCounter = 0
   private bouncePhase = 0
-  private currentBounceOffset = 0
+
+  /** Current bounce Y-offset applied to sprite.y — subtract to get true base position. */
+  currentBounceOffset = 0
 
   constructor(scene: Phaser.Scene, config: AgentConfig, walkGraph: WalkGraphData, roomBounds?: RoomBoundsMap) {
     this.scene = scene
