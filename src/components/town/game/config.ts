@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser'
-import { NerveScene } from './scenes/NerveScene'
+import { NerveCenterScene } from './scenes/NerveCenterScene'
 import { GAME_WIDTH, GAME_HEIGHT } from '@/lib/town/constants'
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -9,7 +9,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   pixelArt: true,
   antialias: false,
   roundPixels: true,
-  scene: [NerveScene],
+  scene: [NerveCenterScene],
   scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 } } },
 }
