@@ -13,6 +13,7 @@ import {
   EMOTE_Y_OFFSET, BUBBLE_Y_OFFSET,
 } from '@/lib/town/constants'
 import { WORK_STATE_EMOTES, IDLE_TIMEOUT_MS } from '@/lib/gateway-view/constants'
+import { ROOM_BEHAVIORS, DEFAULT_BEHAVIOR } from '../config/room-behaviors'
 import type { WorkState } from '@/lib/gateway-view/types'
 import type { SeatStatus } from '@/lib/town/events'
 
@@ -167,6 +168,7 @@ export class Agent {
   private wanderTimer: ReturnType<typeof setTimeout> | null = null
   private idleTimer: ReturnType<typeof setTimeout> | null = null
   private taskReturnTimer: ReturnType<typeof setTimeout> | null = null
+  private idleEmoteCycleTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(scene: Phaser.Scene, config: AgentConfig, walkGraph: WalkGraphData) {
     this.scene = scene
@@ -386,6 +388,7 @@ export class Agent {
     this.cancelWander()
     this.currentRoomId = 'break-room'
     this.navigateToRoom('break-room')
+    this.startIdleEmoteCycle() // restart with break-room behavior
   }
 
   /** Cleanup all timers and game objects. */
@@ -393,6 +396,7 @@ export class Agent {
     this.cancelWander()
     this.cancelIdleTimeout()
     this.clearTaskReturnTimer()
+    this.stopIdleEmoteCycle()
     this.clearEmote()
     this.clearBubble()
     this.hideGlow()
@@ -422,15 +426,23 @@ export class Agent {
   private scheduleWander(): void {
     if (this.status === 'running') return
     this.cancelWander()
+
+    const behavior = ROOM_BEHAVIORS[this.currentRoomId ?? ''] ?? DEFAULT_BEHAVIOR
+
+    // Start room-specific idle emote cycling
+    this.startIdleEmoteCycle()
+
+    if (!behavior.wanderEnabled) return
+
     const delay = WANDER_MIN_DELAY + Math.random() * (WANDER_MAX_DELAY - WANDER_MIN_DELAY)
     this.wanderTimer = setTimeout(() => {
       if (this.status === 'running') return
-      // Random offset from current position: +/-30px x, +/-20px y
-      const offsetX = (Math.random() - 0.5) * 60
-      const offsetY = (Math.random() - 0.5) * 40
+      // Random offset scaled by room wander speed
+      const scale = behavior.wanderSpeed
+      const offsetX = (Math.random() - 0.5) * 60 * scale
+      const offsetY = (Math.random() - 0.5) * 40 * scale
       const targetX = this.sprite.x + offsetX
       const targetY = this.sprite.y + offsetY
-      // Use a simple single-step path (not full BFS) for wander
       this.path = [{ nodeId: '_wander', x: targetX, y: targetY }]
       this.pathIdx = 0
       this.scheduleWander()
@@ -441,6 +453,31 @@ export class Agent {
     if (this.wanderTimer) {
       clearTimeout(this.wanderTimer)
       this.wanderTimer = null
+    }
+    this.stopIdleEmoteCycle()
+  }
+
+  private startIdleEmoteCycle(): void {
+    this.stopIdleEmoteCycle()
+    const behavior = ROOM_BEHAVIORS[this.currentRoomId ?? ''] ?? DEFAULT_BEHAVIOR
+    if (behavior.idleEmotes.length === 0) return
+
+    this.idleEmoteCycleTimer = setInterval(() => {
+      if (this.status !== 'empty') return
+      const emote = behavior.idleEmotes[Math.floor(Math.random() * behavior.idleEmotes.length)]
+      this.showEmote(emote)
+      // 30% chance to show an idle chat bubble
+      if (behavior.idleBubbles.length > 0 && Math.random() < 0.3) {
+        const bubble = behavior.idleBubbles[Math.floor(Math.random() * behavior.idleBubbles.length)]
+        this.showBubble(bubble, 3000)
+      }
+    }, behavior.emoteCycleMs)
+  }
+
+  private stopIdleEmoteCycle(): void {
+    if (this.idleEmoteCycleTimer) {
+      clearInterval(this.idleEmoteCycleTimer)
+      this.idleEmoteCycleTimer = null
     }
   }
 
