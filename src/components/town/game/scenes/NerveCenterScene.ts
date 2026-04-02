@@ -11,7 +11,7 @@
  */
 
 import * as Phaser from 'phaser'
-import { Agent, type AgentConfig, type WalkGraphData } from '../entities/Agent'
+import { Agent, type AgentConfig, type WalkGraphData, type RoomBoundsMap } from '../entities/Agent'
 import { Player } from '../entities/Player'
 import { FRAME_WIDTH, FRAME_HEIGHT, WORKER_SPRITES, SPECIALIST_SPRITES } from '../config/animations'
 import { SPRITE_KEY, SPRITE_PATH } from '../config/animations'
@@ -93,7 +93,6 @@ export class NerveCenterScene extends Phaser.Scene {
   private saveTimer: ReturnType<typeof setInterval> | null = null
 
   // Dynamic furniture (Tier C)
-  private roomDesks = new Map<string, Phaser.GameObjects.Graphics>()
   private roomPapers = new Map<string, Phaser.GameObjects.Graphics>()
   private roomWarning = new Map<string, { gfx: Phaser.GameObjects.Graphics; tween: Phaser.Tweens.Tween }>()
 
@@ -343,18 +342,6 @@ export class NerveCenterScene extends Phaser.Scene {
         fontStyle: 'bold',
         color: room.color,
       }).setOrigin(0.5, 0.5).setDepth(2)
-
-      // Desks at seat positions (Tier C — dynamic furniture)
-      if (room.seats.length > 0) {
-        const deskGfx = this.add.graphics().setDepth(2)
-        for (const seat of room.seats) {
-          deskGfx.fillStyle(colorHex, 0.25)
-          deskGfx.fillRoundedRect(seat.x - 12, seat.y + 24, 24, 10, 2)
-          deskGfx.lineStyle(1, colorHex, 0.35)
-          deskGfx.strokeRoundedRect(seat.x - 12, seat.y + 24, 24, 10, 2)
-        }
-        this.roomDesks.set(room.id, deskGfx)
-      }
     }
   }
 
@@ -364,7 +351,7 @@ export class NerveCenterScene extends Phaser.Scene {
     const nodes = this.manifest.walkGraph.nodes
     const edges = this.manifest.walkGraph.edges
     const gfx = this.add.graphics()
-    gfx.setDepth(1)
+    gfx.setDepth(0.5)
 
     for (const [aId, bId] of edges) {
       const nodeA = nodes[aId]
@@ -376,7 +363,8 @@ export class NerveCenterScene extends Phaser.Scene {
       const roomB = nodeB.roomId ?? null
       if (roomA && roomB && roomA === roomB) continue
 
-      gfx.lineStyle(2, 0x4a5568, 0.5)
+      // Very subtle dotted path — barely visible
+      gfx.lineStyle(1, 0x2a2f3a, 0.25)
       gfx.lineBetween(nodeA.x, nodeA.y, nodeB.x, nodeB.y)
     }
   }
@@ -386,7 +374,10 @@ export class NerveCenterScene extends Phaser.Scene {
   private spawnAgents(): void {
     // Build seat lookup: agentId → {x, y}
     const seatLookup = new Map<string, { x: number; y: number }>()
+    // Build room bounds lookup for wander clamping
+    const roomBoundsMap = new Map<string, [number, number, number, number]>()
     for (const room of this.manifest.rooms) {
+      roomBoundsMap.set(room.id, room.bounds)
       for (const seat of room.seats) {
         seatLookup.set(seat.agentId, { x: seat.x, y: seat.y })
       }
@@ -412,7 +403,7 @@ export class NerveCenterScene extends Phaser.Scene {
         isSpecialist: false,
       }
 
-      const agent = new Agent(this, config, this.manifest.walkGraph)
+      const agent = new Agent(this, config, this.manifest.walkGraph, roomBoundsMap)
       this.agents.push(agent)
       this.agentMap.set(agentId, agent)
     }
@@ -434,7 +425,7 @@ export class NerveCenterScene extends Phaser.Scene {
         isSpecialist: true,
       }
 
-      const agent = new Agent(this, config, this.manifest.walkGraph)
+      const agent = new Agent(this, config, this.manifest.walkGraph, roomBoundsMap)
 
       // Specialists start hidden — shown when FleetStore reports active
       agent.setVisible(false)
@@ -822,8 +813,6 @@ export class NerveCenterScene extends Phaser.Scene {
     if (this.ambientOverlay) { this.ambientOverlay.destroy(); this.ambientOverlay = null }
 
     // Clean up dynamic furniture
-    for (const gfx of this.roomDesks.values()) gfx.destroy()
-    this.roomDesks.clear()
     for (const gfx of this.roomPapers.values()) gfx.destroy()
     this.roomPapers.clear()
     for (const { gfx, tween } of this.roomWarning.values()) { tween.stop(); gfx.destroy() }

@@ -122,6 +122,8 @@ export function roomNode(graph: WalkGraphData, roomId: string): string | null {
 // AgentConfig
 // ---------------------------------------------------------------------------
 
+export type RoomBoundsMap = Map<string, [number, number, number, number]>
+
 export interface AgentConfig {
   agentId: string
   spriteKey: string
@@ -150,6 +152,7 @@ export class Agent {
   private spriteKey: string
   private config: AgentConfig
   private walkGraph: WalkGraphData
+  private roomBounds: RoomBoundsMap
   private facing: Direction
 
   // Path following
@@ -178,10 +181,11 @@ export class Agent {
   private bouncePhase = 0
   private currentBounceOffset = 0
 
-  constructor(scene: Phaser.Scene, config: AgentConfig, walkGraph: WalkGraphData) {
+  constructor(scene: Phaser.Scene, config: AgentConfig, walkGraph: WalkGraphData, roomBounds?: RoomBoundsMap) {
     this.scene = scene
     this.config = config
     this.walkGraph = walkGraph
+    this.roomBounds = roomBounds ?? new Map()
     this.agentId = config.agentId
     this.label = config.label
     this.spriteKey = config.spriteKey
@@ -510,12 +514,22 @@ export class Agent {
     const delay = WANDER_MIN_DELAY + Math.random() * (WANDER_MAX_DELAY - WANDER_MIN_DELAY)
     this.wanderTimer = setTimeout(() => {
       if (this.status === 'running') return
-      // Random offset scaled by room wander speed
+      // Random offset scaled by room wander speed, clamped to room bounds
       const scale = behavior.wanderSpeed
       const offsetX = (Math.random() - 0.5) * 60 * scale
       const offsetY = (Math.random() - 0.5) * 40 * scale
-      const targetX = this.sprite.x + offsetX
-      const targetY = this.sprite.y + offsetY
+      let targetX = this.sprite.x + offsetX
+      let targetY = this.sprite.y + offsetY
+
+      // Clamp to current room bounds with 16px padding
+      const bounds = this.currentRoomId ? this.roomBounds.get(this.currentRoomId) : null
+      if (bounds) {
+        const [rx, ry, rw, rh] = bounds
+        const pad = 16
+        targetX = Math.max(rx + pad, Math.min(rx + rw - pad, targetX))
+        targetY = Math.max(ry + pad + 24, Math.min(ry + rh - pad, targetY)) // +24 to stay below label
+      }
+
       this.path = [{ nodeId: '_wander', x: targetX, y: targetY }]
       this.pathIdx = 0
       this.scheduleWander()
