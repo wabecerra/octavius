@@ -142,6 +142,7 @@ export class Agent {
   label: string
   status: SeatStatus = 'empty'
   workState: WorkState = 'idle'
+  currentRoomId: string | null = null
 
   private scene: Phaser.Scene
   private spriteKey: string
@@ -220,6 +221,9 @@ export class Agent {
     this.glowCircle = scene.add.circle(config.startX, config.startY + 20, 18, 0xffffff, 0)
     this.glowCircle.setDepth(1)
 
+    // Track starting room
+    this.currentRoomId = config.homeRoomId
+
     // Start wandering
     this.scheduleWander()
   }
@@ -235,7 +239,8 @@ export class Agent {
     this.clearEmote()
     this.clearBubble()
 
-    // Show pulsing glow
+    // Show assigned emote + pulsing glow
+    this.showEmote('emote:device')
     this.showGlow()
 
     // Show task snippet bubble if provided
@@ -244,6 +249,7 @@ export class Agent {
     }
 
     // Navigate to the target room
+    this.currentRoomId = targetRoomId
     this.navigateToRoom(targetRoomId)
   }
 
@@ -260,6 +266,7 @@ export class Agent {
       this.status = 'empty'
       this.clearEmote()
       this.clearBubble()
+      this.currentRoomId = this.config.homeRoomId
       this.navigateToRoom(this.config.homeRoomId)
       this.scheduleWander()
       this.scheduleIdleTimeout()
@@ -279,6 +286,7 @@ export class Agent {
       this.status = 'empty'
       this.clearEmote()
       this.clearBubble()
+      this.currentRoomId = this.config.homeRoomId
       this.navigateToRoom(this.config.homeRoomId)
       this.scheduleWander()
       this.scheduleIdleTimeout()
@@ -360,6 +368,7 @@ export class Agent {
   migrateToBreakRoom(): void {
     if (this.status !== 'empty') return
     this.cancelWander()
+    this.currentRoomId = 'break-room'
     this.navigateToRoom('break-room')
   }
 

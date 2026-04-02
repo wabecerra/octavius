@@ -166,6 +166,13 @@ export function NerveCenterView() {
     return () => clearInterval(iv)
   }, [])
 
+  // Bridge: scene emits open-terminal → React shows TaskAssignModal
+  useEffect(() => {
+    return townEvents.on('open-terminal', (seatId?: string) => {
+      if (seatId) setTaskModalAgent(seatId)
+    })
+  }, [])
+
   const openTerminal = useCallback((agentId: string) => {
     setTaskModalAgent(agentId)
   }, [])

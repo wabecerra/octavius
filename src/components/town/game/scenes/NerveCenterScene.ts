@@ -16,7 +16,7 @@ import { FRAME_WIDTH, FRAME_HEIGHT, WORKER_SPRITES, SPECIALIST_SPRITES } from '.
 import { EMOTE_SHEET_KEY, EMOTE_SHEET_PATH, EMOTE_FRAME_SIZE } from '../config/emotes'
 import { buildSpriteFrames } from '../utils/MapHelpers'
 import { translateRoomId, AGENT_HOME_ROOM } from './room-id-map'
-import { townEvents } from '@/lib/town/events'
+import { townEvents, type SeatStatus } from '@/lib/town/events'
 import { gatewayEvents } from '@/lib/gateway-view/events'
 import { getFleetStore } from '@/lib/town/fleet-store'
 import { EVENT_TO_ROOM, EVENT_TO_WORK_STATE } from '@/lib/gateway-view/constants'
@@ -352,6 +352,14 @@ export class NerveCenterScene extends Phaser.Scene {
       }),
     )
 
+    // Agent status updates
+    this.eventCleanups.push(
+      townEvents.on('agent-status', (seatId: string, status: SeatStatus) => {
+        const agent = this.resolveAgent(seatId)
+        if (agent) agent.status = status
+      }),
+    )
+
     // Telemetry routing
     this.eventCleanups.push(
       gatewayEvents.on('telemetry-event', (event: TelemetryEvent) => {
@@ -432,9 +440,16 @@ export class NerveCenterScene extends Phaser.Scene {
       const dx = Math.abs(worldX - agent.sprite.x)
       const dy = Math.abs(worldY - agent.sprite.y)
       if (dx < FRAME_WIDTH / 2 && dy < FRAME_HEIGHT / 2) {
+        // Look up current task from FleetStore
+        const store = getFleetStore()
+        const fleetAgent = store.getSnapshot().agents.find(a => a.id === agent.agentId)
+        const taskLine = fleetAgent?.currentTask ? `\nTask: ${fleetAgent.currentTask}` : ''
         this.showTooltip(agent.sprite.x, agent.sprite.y - FRAME_HEIGHT / 2 - 10,
-          `${agent.label} (${agent.agentId})\nStatus: ${agent.status} | State: ${agent.workState}`)
+          `${agent.label} (${agent.agentId})\nStatus: ${agent.status} | State: ${agent.workState}${taskLine}`)
         this.cameraTarget = { x: agent.sprite.x, y: agent.sprite.y }
+
+        // Emit open-terminal so React view can show TaskAssignModal
+        townEvents.emit('open-terminal', agent.agentId)
         return
       }
     }
@@ -443,8 +458,13 @@ export class NerveCenterScene extends Phaser.Scene {
     for (const room of this.manifest.rooms) {
       const [rx, ry, rw, rh] = room.bounds
       if (worldX >= rx && worldX <= rx + rw && worldY >= ry && worldY <= ry + rh) {
+        // List agents currently in this room
+        const roomAgents = this.agents.filter(a => a.sprite.visible && a.currentRoomId === room.id)
+        const agentLine = roomAgents.length > 0
+          ? `\nAgents: ${roomAgents.map(a => a.label).join(', ')}`
+          : '\nAgents: none'
         gatewayEvents.emit('room-clicked', room.id)
-        this.showTooltip(rx + rw / 2, ry - 10, room.label)
+        this.showTooltip(rx + rw / 2, ry - 10, `${room.label}${agentLine}`)
         return
       }
     }
