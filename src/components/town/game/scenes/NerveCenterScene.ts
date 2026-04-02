@@ -170,6 +170,11 @@ export class NerveCenterScene extends Phaser.Scene {
     this.renderRooms()
     this.renderCorridors()
 
+    // 3b. Day/night ambient tinting (Tier C)
+    this.ambientOverlay = this.add.graphics().setDepth(0.5)
+    this.updateAmbientTint()
+    this.ambientTimer = setInterval(() => this.updateAmbientTint(), 60000)
+
     // 4. Spawn agents
     this.spawnAgents()
 
@@ -645,6 +650,32 @@ export class NerveCenterScene extends Phaser.Scene {
         gatewayEvents.emit('room-context-menu', room.id, worldX, worldY)
         return
       }
+    }
+  }
+
+  // ── updateAmbientTint (Tier C — day/night) ──────────────────────────────
+
+  private updateAmbientTint(): void {
+    if (!this.ambientOverlay) return
+    const hour = new Date().getHours()
+    let color: number
+    let alpha: number
+
+    if (hour >= 6 && hour < 10) {
+      color = 0xffd700; alpha = 0.04  // morning gold
+    } else if (hour >= 10 && hour < 16) {
+      color = 0xffffff; alpha = 0     // midday — no tint
+    } else if (hour >= 16 && hour < 20) {
+      color = 0xff8c00; alpha = 0.05  // evening amber
+    } else {
+      color = 0x4466aa; alpha = 0.08  // night blue
+    }
+
+    this.ambientOverlay.clear()
+    if (alpha > 0) {
+      const { width, height } = this.manifest.meta.canvas
+      this.ambientOverlay.fillStyle(color, alpha)
+      this.ambientOverlay.fillRect(0, 0, width, height)
     }
   }
 
