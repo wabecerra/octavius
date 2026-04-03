@@ -19,30 +19,74 @@ An orchestrator agent (`octavius-orchestrator`) routes your messages to the righ
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 22+ (`node -v` to check)
+- npm 10+ (ships with Node 22)
+- Git (only needed for contributor install)
 
-### 1. Clone and install
+### Step-by-step install
+
+Follow these steps **exactly in order**. Do NOT skip steps, modify config files, or create stub files — everything is already included in the repo.
 
 ```bash
+# Step 1: Get the code (pick ONE option)
+
+# Option A — quick install (no git history, fastest):
+npx tiged wabecerra/octavius my-octavius
+cd my-octavius
+
+# Option B — git clone (for contributors):
 git clone https://github.com/wabecerra/octavius.git
 cd octavius
+
+# Step 2: Install dependencies
+npm install
+
+# Step 3: Run the setup script (creates .env.local, .data/ dir, detects gateway)
 npm run setup
-```
 
-The setup script will:
-- Create `.env.local` with sensible defaults
-- Set up the SQLite data directory
-- Detect if an OpenClaw gateway is running
-- Install lossless-claw plugin if a gateway is detected
-- Install dependencies if needed
+# Step 4: Verify everything is correct
+npm run doctor
 
-### 2. Start the dashboard
-
-```bash
+# Step 5: Start the dev server
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000 — you should see the login page.
+
+### What `npm run setup` does
+
+- Checks Node.js version (fails if < 22)
+- Checks if port 3000 is available
+- Creates `.env.local` with sensible defaults
+- Creates `.data/` directory for SQLite database
+- Runs `npm install` if node_modules is missing
+- Detects OpenClaw gateway on localhost:18789
+- Installs lossless-claw plugin if gateway is found
+- Validates PostCSS/Tailwind configuration
+
+### What `npm run doctor` checks
+
+Run this if anything looks wrong. It checks 20+ items:
+- Node.js version, dependencies, lock file
+- `.env.local`, `.env.example`, `.data/` directory
+- PostCSS config, Tailwind config, `globals.css` directives, `layout.tsx` CSS import
+- Next.js config and version compatibility
+- Port 3000 availability
+- OpenClaw gateway connectivity
+
+### Important: do NOT do any of these
+
+These are common mistakes that break the app:
+
+- **Do NOT create component stubs** — all components (`OnboardingWizard`, `TaskBoardSection`, etc.) already exist
+- **Do NOT remove `@tailwind` directives** from `globals.css` — they are required
+- **Do NOT comment out** `import './globals.css'` in `layout.tsx` — this loads all styling
+- **Do NOT convert** `postcss.config.mjs` to `.js` — the ESM format works with Next.js 14
+- **Do NOT upgrade Next.js** to v15/v16 — the project is pinned to 14.2.35 intentionally
+- **Do NOT modify** `next.config.mjs` to add Turbopack — not needed on v14
+- **Do NOT delete** or recreate hooks — `useActiveAgents` and all other hooks are exported from `src/hooks/index.ts`
+
+If you see a `Module not found` error after a fresh clone, the fix is almost always `npm install`, not creating missing files.
 
 #### Running in the background (recommended)
 
@@ -211,6 +255,26 @@ Optionally, connect the dashboard UI to the gateway:
 - Synced/unsynced/phantom node color coding
 - Configurable sync direction (bidirectional, push-only, pull-only)
 - Works with the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin
+
+## Troubleshooting
+
+Run the built-in diagnostic tool:
+
+```bash
+npm run doctor
+```
+
+This checks Node version, dependencies, PostCSS/Tailwind config, environment files, port availability, and gateway connectivity.
+
+### Common issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| CSS not loading / unstyled page | PostCSS not processing `@tailwind` directives | Run `npm run doctor` — check CSS Pipeline section |
+| `EADDRINUSE: address already in use 0.0.0.0:3000` | Previous dev server still running | `lsof -ti:3000 \| xargs kill` or use `npm run dev -- -p 3001` |
+| Endless "Loading Octavius..." spinner | JS bundle loaded but hydration failed | Check browser console for errors; run `npm run doctor` |
+| `Module not found` errors after fresh clone | Dependencies not installed | `npm install && npm run setup` |
+| Tailwind classes not applying | Missing PostCSS config or globals.css import | Verify `postcss.config.mjs` exists with `tailwindcss` plugin |
 
 ## Architecture
 

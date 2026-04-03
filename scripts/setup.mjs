@@ -20,6 +20,40 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
 console.log('\n🧠 Octavius — Setup\n')
 
+// Step 0: Pre-flight checks
+const nodeVersion = process.versions.node.split('.').map(Number)
+if (nodeVersion[0] < 22) {
+  console.error(`✗ Node.js 22+ required (you have ${process.version})`)
+  console.error('  Install via: https://nodejs.org/ or nvm install 22')
+  process.exit(1)
+}
+console.log(`✓ Node.js ${process.version}`)
+
+// Check if port 3000 is available
+try {
+  const net = await import('node:net')
+  const portFree = await new Promise((resolve) => {
+    const server = net.default.createServer()
+    server.once('error', (err) => {
+      resolve(err.code !== 'EADDRINUSE')
+    })
+    server.once('listening', () => {
+      server.close()
+      resolve(true)
+    })
+    server.listen(3000, '0.0.0.0')
+  })
+  if (!portFree) {
+    console.log('⚠ Port 3000 is in use — you may need to stop the other process or use a different port:')
+    console.log('  npm run dev -- -p 3001')
+    console.log('  Or kill the existing process: lsof -ti:3000 | xargs kill')
+  } else {
+    console.log('✓ Port 3000 is available')
+  }
+} catch {
+  // Non-fatal — just skip the check
+}
+
 // Step 1: Generate .env.local
 const envPath = join(ROOT, '.env.local')
 if (existsSync(envPath)) {
@@ -144,6 +178,25 @@ for (const p of openclawConfigPaths) {
 }
 if (!openclawConfigFound) {
   console.log('○ No OpenClaw config found (agents will work without gateway)')
+}
+
+// Step 6: Validate PostCSS config
+const postcssPath = join(ROOT, 'postcss.config.mjs')
+const postcssCjsPath = join(ROOT, 'postcss.config.js')
+if (existsSync(postcssPath) || existsSync(postcssCjsPath)) {
+  const configFile = existsSync(postcssPath) ? postcssPath : postcssCjsPath
+  const content = readFileSync(configFile, 'utf-8')
+  if (!content.includes('tailwindcss')) {
+    console.log('⚠ PostCSS config exists but missing tailwindcss plugin')
+  } else {
+    console.log(`✓ PostCSS config OK (${existsSync(postcssPath) ? 'ESM' : 'CJS'})`)
+  }
+  if (!content.includes('autoprefixer')) {
+    console.log('○ Tip: autoprefixer not found in PostCSS config (optional but recommended)')
+  }
+} else {
+  console.log('⚠ No PostCSS config found — Tailwind CSS may not work')
+  console.log('  Run: npm run doctor for diagnostics')
 }
 
 // Summary
