@@ -60,6 +60,34 @@ for (const dep of criticalDeps) {
   }
 }
 
+// Verify better-sqlite3 native module actually loads
+try {
+  const { createRequire } = await import('node:module')
+  const require = createRequire(join(ROOT, 'package.json'))
+  require('better-sqlite3')
+  ok('better-sqlite3 native module loads OK')
+} catch (err) {
+  fail(`better-sqlite3 native module broken: ${err.message}`)
+  console.log('    Fix: delete node_modules, install build tools, re-run npm install')
+  if (process.platform === 'linux') {
+    console.log('    Build tools: sudo apt-get install -y python3 make g++')
+  } else if (process.platform === 'darwin') {
+    console.log('    Build tools: xcode-select --install')
+  }
+}
+
+// Check .nvmrc
+const nvmrc = join(ROOT, '.nvmrc')
+if (existsSync(nvmrc)) {
+  const pinned = readFileSync(nvmrc, 'utf-8').trim()
+  ok(`.nvmrc present (pins Node ${pinned})`)
+  if (nodeVersion[0] > parseInt(pinned)) {
+    warn(`Running Node ${process.version} but .nvmrc pins ${pinned} — consider: nvm use`)
+  }
+} else {
+  warn('.nvmrc missing — add one to pin the Node version for contributors')
+}
+
 // --- Environment ---
 console.log('\nEnvironment:')
 const envLocal = join(ROOT, '.env.local')

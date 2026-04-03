@@ -4,15 +4,31 @@ Connects your OpenClaw AI agent to the [Octavius](https://github.com/wabecerra/o
 
 ## Install
 
+### 1. Set up Octavius (if you haven't already)
+
 ```bash
-# From the Octavius repo
-git clone https://github.com/wabecerra/octavius.git
-cd octavius
+npx create-octavius my-octavius
+cd my-octavius
+npm run dev
+```
+
+### 2. Install the OpenClaw plugin
+
+```bash
+# From the octavius directory
 openclaw plugins install ./extensions/openclaw-octavius
 openclaw gateway restart
 ```
 
 Zero config for local installs. The plugin auto-detects Octavius at `http://localhost:3000`.
+
+### Updating
+
+```bash
+npm run update
+```
+
+This pulls the latest Octavius release (including plugin updates), reinstalls dependencies, and verifies the build. Your data and config are preserved.
 
 ## The Meta Tool — `octavius_discover`
 

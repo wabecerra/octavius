@@ -21,6 +21,7 @@
     "node": ">=22"
   },
   "files": [
-    "index.mjs"
+    "index.mjs",
+    "README.md"
   ]
 }
