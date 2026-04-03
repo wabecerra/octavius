@@ -32,7 +32,7 @@ An orchestrator agent (`octavius-orchestrator`) routes your messages to the righ
 npx create-octavius my-octavius
 ```
 
-That's it. It clones the repo, installs dependencies, verifies native modules, creates config files, and tells you what to do next. Open http://localhost:3000, register an account, and you're in.
+That's it. It clones the repo, installs dependencies, verifies native modules, creates config files, and tells you what to do next.
 
 **Alternative** (if you prefer manual steps):
 
@@ -45,6 +45,35 @@ npm run dev
 `npm run setup` handles everything: installs dependencies, creates `.env.local`, creates the SQLite data directory, verifies `better-sqlite3` compiles, detects the OpenClaw gateway, and validates config files. If anything fails, it tells you exactly what to fix.
 
 If something looks wrong after setup, run `npm run doctor` — it checks 20+ items and prints actionable fixes.
+
+### First login — device approval
+
+Octavius uses device approval for security. Only someone with access to the server (the machine running Octavius) can approve new devices.
+
+**The full flow:**
+
+1. Open http://localhost:3000 (or your deployed URL) — you'll see the login page
+2. Click **"Create one"** to register a new account (email + password)
+3. You'll see a green success message — now **sign in** with those credentials
+4. The browser shows a **Device Approval Required** screen with a 6-character code (e.g. `8FE4E0`)
+5. On the server machine (where Octavius is running), run:
+
+```bash
+# From the octavius directory
+node bin/octavius approve-device <CODE>
+
+# Example:
+node bin/octavius approve-device 8FE4E0
+```
+
+6. The browser automatically detects the approval and redirects to the dashboard (it polls every 3 seconds)
+
+**Important notes:**
+- The approval code expires after **10 minutes** — if it expires, sign in again to get a new one
+- Once a device is approved, it stays trusted for **30 days**
+- The CLI must be run on the same machine where Octavius is running (it calls `http://localhost:3000` by default)
+- If Octavius runs on a different port or host, set `OCTAVIUS_URL`: `OCTAVIUS_URL=http://localhost:4000 node bin/octavius approve-device <CODE>`
+- You do NOT need to install the `octavius` CLI globally — just use `node bin/octavius` from the project directory
 
 ### Update
 
