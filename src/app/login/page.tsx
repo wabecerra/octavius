@@ -41,6 +41,17 @@ export default function LoginPage() {
       }
 
       if (isRegister) {
+        // Registration now returns a session token — go straight to dashboard
+        if (data.sessionToken) {
+          localStorage.setItem('octavius_session', data.sessionToken);
+          localStorage.setItem('octavius_user', JSON.stringify({
+            userId: data.userId,
+            email: data.email,
+          }));
+          router.push('/');
+          return;
+        }
+        // Fallback: flip to sign-in if no token returned
         setIsRegister(false);
         setError('');
         setPassword('');

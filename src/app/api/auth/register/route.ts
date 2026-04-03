@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/memory/db';
-import { initAuthDatabase, createUser } from '@/lib/auth/auth';
+import { initAuthDatabase, createUser, createDevice, trustDevice, createSession, createSessionRecord } from '@/lib/auth/auth';
 
 interface RegisterRequest {
   email: string;
@@ -52,10 +52,32 @@ export async function POST(request: Request) {
     // Create user (password is optional for passkey-only accounts)
     const user = createUser(db, email, password);
 
+    // Auto-trust the registering device and issue a session token so the user
+    // goes straight to the dashboard. Without this, device approval blocks
+    // first login on fresh deployments (chicken-and-egg: no approved device
+    // exists yet to run the CLI approval command).
+    const { headers } = request;
+    const userAgent = headers.get('user-agent') || 'Unknown';
+    const ip = headers.get('x-forwarded-for')?.split(',')[0] || 'Unknown';
+    const fingerprint = Buffer.from(`${userAgent}|${ip}`).toString('base64url');
+
+    const deviceId = createDevice(db, user.id, fingerprint, userAgent, ip, 'Registration Device');
+    trustDevice(db, deviceId, 30);
+
+    const sessionToken = await createSession({
+      userId: user.id,
+      deviceId,
+      email: user.email,
+    }, '30d');
+
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    createSessionRecord(db, user.id, deviceId, sessionToken, expiresAt);
+
     return NextResponse.json({
       userId: user.id,
       email: user.email,
-      message: 'Account created successfully. Please verify your email.',
+      sessionToken,
+      message: 'Account created successfully.',
     }, { status: 201 });
     
   } catch (err: unknown) {
