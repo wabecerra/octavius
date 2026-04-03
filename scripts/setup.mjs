@@ -91,18 +91,46 @@ if (!existsSync(dataDir)) {
   console.log('✓ .data/ directory exists')
 }
 
-// Step 3: Check node_modules
+// Step 3: Install dependencies
 const nodeModules = join(ROOT, 'node_modules')
-if (!existsSync(nodeModules)) {
+const needsInstall = !existsSync(nodeModules) || !existsSync(join(nodeModules, '.package-lock.json'))
+if (needsInstall) {
   console.log('⏳ Installing dependencies...')
   try {
-    execSync('npm install', { cwd: ROOT, stdio: 'inherit' })
+    execSync('npm install --include=dev', { cwd: ROOT, stdio: 'inherit' })
     console.log('✓ Dependencies installed')
   } catch {
-    console.error('✗ npm install failed — please run it manually')
+    // Retry with legacy peer deps (Node 24+ sometimes has resolution issues)
+    console.log('⏳ Retrying with --legacy-peer-deps...')
+    try {
+      execSync('npm install --include=dev --legacy-peer-deps', { cwd: ROOT, stdio: 'inherit' })
+      console.log('✓ Dependencies installed (with --legacy-peer-deps)')
+    } catch {
+      console.error('✗ npm install failed — check errors above')
+      process.exit(1)
+    }
   }
 } else {
   console.log('✓ Dependencies already installed')
+}
+
+// Step 3b: Verify better-sqlite3 native module loads
+try {
+  const { createRequire } = await import('node:module')
+  const require = createRequire(join(ROOT, 'package.json'))
+  require('better-sqlite3')
+  console.log('✓ better-sqlite3 native module OK')
+} catch (err) {
+  console.error('✗ better-sqlite3 failed to load — native compilation issue')
+  console.error(`  Error: ${err.message}`)
+  if (process.platform === 'linux') {
+    console.error('  You may need build tools: sudo apt-get install -y python3 make g++')
+    console.error('  Or on Amazon Linux:      sudo yum install -y python3 make gcc-c++')
+  } else if (process.platform === 'darwin') {
+    console.error('  You may need: xcode-select --install')
+  }
+  console.error('  After installing build tools, delete node_modules and re-run: npm run setup')
+  process.exit(1)
 }
 
 // Step 4: Detect OpenClaw gateway

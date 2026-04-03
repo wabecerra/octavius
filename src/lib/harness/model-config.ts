@@ -9,7 +9,7 @@
  */
 
 import { getDatabase } from '@/lib/memory/db'
-import { ROLE_DEFAULTS, type ModelRole, getDefaultModelForRole } from '@/lib/models'
+import { type ModelRole, getDefaultModelForRole } from '@/lib/models'
 
 export interface ModelConfig {
   provider: string

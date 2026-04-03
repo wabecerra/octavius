@@ -11,7 +11,7 @@
  */
 
 import * as Phaser from 'phaser'
-import { Agent, type AgentConfig, type WalkGraphData, type RoomBoundsMap } from '../entities/Agent'
+import { Agent, type AgentConfig, type WalkGraphData } from '../entities/Agent'
 import { Player } from '../entities/Player'
 import { FRAME_WIDTH, FRAME_HEIGHT, WORKER_SPRITES, SPECIALIST_SPRITES } from '../config/animations'
 import { SPRITE_KEY, SPRITE_PATH } from '../config/animations'
@@ -247,7 +247,7 @@ export class NerveCenterScene extends Phaser.Scene {
       this.handleRoomClick(pointer.worldX, pointer.worldY)
     })
 
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+    this.input.on('pointermove', (_pointer: Phaser.Input.Pointer) => {
       if (this.dragAgent && !this.isDragging && Date.now() - this.dragStartTime > 200) {
         // Start dragging after 200ms hold
         this.isDragging = true
@@ -682,7 +682,6 @@ export class NerveCenterScene extends Phaser.Scene {
         a => a.sprite.visible && a.currentRoomId === room.id && a.status === 'running',
       ).length
 
-      const colorHex = parseInt(room.color.replace('#', ''), 16)
       const [rx, ry, rw, rh] = room.bounds
 
       // Paper stacks for busy rooms (2+ active)

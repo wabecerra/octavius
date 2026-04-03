@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { townEvents, type SeatStatus } from '@/lib/town/events'
 import { useFleet, useFleetConfigSync, useFleetActivitySync } from '@/lib/town/use-fleet'
@@ -331,10 +331,6 @@ export function NerveCenterView() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
-
-  const openTerminal = useCallback((agentId: string) => {
-    setTaskModalAgent(agentId)
   }, [])
 
   const active = agents.filter(a => a.status === 'running').length

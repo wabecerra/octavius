@@ -93,6 +93,14 @@ export default function Dashboard() {
   // API hooks — scoped to active sprint
   const { profile, refetch: refetchProfile } = useProfile()
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+
+  // Loading timeout — show diagnostics if stuck (must be before early returns)
+  const [loadingTooLong, setLoadingTooLong] = useState(false)
+  useEffect(() => {
+    if (!authLoading && user) return // Already loaded
+    const timer = setTimeout(() => setLoadingTooLong(true), 20_000)
+    return () => clearTimeout(timer)
+  }, [authLoading, user])
   const { checkins } = useCheckins({ since: sprint.startDate, until: sprint.endDate })
   const { tasks } = useTasks({ since: sprint.startDate, until: sprint.endDate, includeOpen: true })
   const { goals } = useFocusGoals()
@@ -376,14 +384,6 @@ export default function Dashboard() {
       />
     )
   }
-
-  // Loading timeout — show diagnostics if stuck
-  const [loadingTooLong, setLoadingTooLong] = useState(false)
-  useEffect(() => {
-    if (!authLoading && user) return // Already loaded
-    const timer = setTimeout(() => setLoadingTooLong(true), 20_000)
-    return () => clearTimeout(timer)
-  }, [authLoading, user])
 
   // Show nothing while checking auth (prevents flash)
   if (authLoading || !user) {

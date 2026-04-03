@@ -19,64 +19,30 @@ An orchestrator agent (`octavius-orchestrator`) routes your messages to the righ
 
 ### Prerequisites
 
-- Node.js 22+ (`node -v` to check)
+- **Node.js 22** (`node -v` to check) — do NOT use Node 24, it has peer dependency issues with this project
 - npm 10+ (ships with Node 22)
-- Git (only needed for contributor install)
+- Build tools for native modules: `python3`, `make`, `g++` (most systems have these already)
+  - Ubuntu/Debian: `sudo apt-get install -y python3 make g++`
+  - Amazon Linux: `sudo yum install -y python3 make gcc-c++`
+  - macOS: `xcode-select --install`
 
-### Step-by-step install
-
-Follow these steps **exactly in order**. Do NOT skip steps, modify config files, or create stub files — everything is already included in the repo.
+### Install (3 commands)
 
 ```bash
-# Step 1: Get the code (pick ONE option)
-
-# Option A — quick install (no git history, fastest):
-npx tiged wabecerra/octavius my-octavius
-cd my-octavius
-
-# Option B — git clone (for contributors):
-git clone https://github.com/wabecerra/octavius.git
-cd octavius
-
-# Step 2: Install dependencies
-npm install
-
-# Step 3: Run the setup script (creates .env.local, .data/ dir, detects gateway)
+git clone https://github.com/wabecerra/octavius.git && cd octavius
 npm run setup
-
-# Step 4: Verify everything is correct
-npm run doctor
-
-# Step 5: Start the dev server
 npm run dev
 ```
 
-Open http://localhost:3000 — you should see the login page.
+That's it. Open http://localhost:3000 — you'll see the login page. Register a new account to get started.
 
-### What `npm run setup` does
+`npm run setup` handles everything: installs dependencies, creates `.env.local`, creates the SQLite data directory, verifies `better-sqlite3` compiles, detects the OpenClaw gateway, and validates config files. If anything fails, it tells you exactly what to fix.
 
-- Checks Node.js version (fails if < 22)
-- Checks if port 3000 is available
-- Creates `.env.local` with sensible defaults
-- Creates `.data/` directory for SQLite database
-- Runs `npm install` if node_modules is missing
-- Detects OpenClaw gateway on localhost:18789
-- Installs lossless-claw plugin if gateway is found
-- Validates PostCSS/Tailwind configuration
-
-### What `npm run doctor` checks
-
-Run this if anything looks wrong. It checks 20+ items:
-- Node.js version, dependencies, lock file
-- `.env.local`, `.env.example`, `.data/` directory
-- PostCSS config, Tailwind config, `globals.css` directives, `layout.tsx` CSS import
-- Next.js config and version compatibility
-- Port 3000 availability
-- OpenClaw gateway connectivity
+If something looks wrong after setup, run `npm run doctor` — it checks 20+ items and prints actionable fixes.
 
 ### Important: do NOT do any of these
 
-These are common mistakes that break the app:
+These are common mistakes made by AI coding assistants that break the app. **Everything is already configured correctly in the repo.**
 
 - **Do NOT create component stubs** — all components (`OnboardingWizard`, `TaskBoardSection`, etc.) already exist
 - **Do NOT remove `@tailwind` directives** from `globals.css` — they are required
@@ -84,9 +50,12 @@ These are common mistakes that break the app:
 - **Do NOT convert** `postcss.config.mjs` to `.js` — the ESM format works with Next.js 14
 - **Do NOT upgrade Next.js** to v15/v16 — the project is pinned to 14.2.35 intentionally
 - **Do NOT modify** `next.config.mjs` to add Turbopack — not needed on v14
-- **Do NOT delete** or recreate hooks — `useActiveAgents` and all other hooks are exported from `src/hooks/index.ts`
+- **Do NOT delete** or recreate hooks — all hooks are exported from `src/hooks/index.ts`
+- **Do NOT delete `package-lock.json`** — it ensures reproducible installs
+- **Do NOT use `--legacy-peer-deps`** manually — the setup script handles this automatically if needed
+- **Do NOT relax ESLint rules** — if the build fails on lint, fix the code, don't disable the rules
 
-If you see a `Module not found` error after a fresh clone, the fix is almost always `npm install`, not creating missing files.
+If you see a `Module not found` error after a fresh clone, the fix is `npm install`, not creating missing files.
 
 #### Running in the background (recommended)
 
