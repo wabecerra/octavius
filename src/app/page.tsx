@@ -377,6 +377,14 @@ export default function Dashboard() {
     )
   }
 
+  // Loading timeout — show diagnostics if stuck
+  const [loadingTooLong, setLoadingTooLong] = useState(false)
+  useEffect(() => {
+    if (!authLoading && user) return // Already loaded
+    const timer = setTimeout(() => setLoadingTooLong(true), 20_000)
+    return () => clearTimeout(timer)
+  }, [authLoading, user])
+
   // Show nothing while checking auth (prevents flash)
   if (authLoading || !user) {
     return (
@@ -392,6 +400,14 @@ export default function Dashboard() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: '0.5rem', animation: 'pulse 2s infinite' }}>⚡</div>
           <div style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>Loading Octavius...</div>
+          {loadingTooLong && (
+            <div style={{ marginTop: '1.5rem', fontSize: '0.7rem', color: '#f59e0b', maxWidth: '320px', lineHeight: 1.6 }}>
+              <div style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Taking longer than expected</div>
+              <div>Check the browser console for errors.</div>
+              <div style={{ marginTop: '0.25rem' }}>Common fixes: run <code style={{ background: '#1e2028', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>npm run doctor</code> in the project directory.</div>
+              <div style={{ marginTop: '0.25rem' }}>If the database is locked, restart the dev server.</div>
+            </div>
+          )}
         </div>
       </div>
     )

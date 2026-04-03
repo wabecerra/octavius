@@ -24,13 +24,20 @@ export function useApi<T>(url: string | null, opts?: { refreshInterval?: number 
   const fetchData = useCallback(async (silent = false) => {
     if (!url) { setState({ data: null, loading: false, error: null }); return }
     if (!silent) setState(s => ({ ...s, loading: true, error: null }))
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15_000)
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, { signal: controller.signal })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (mountedRef.current) setState({ data, loading: false, error: null })
     } catch (err) {
-      if (mountedRef.current && !silent) setState(s => ({ ...s, loading: false, error: err instanceof Error ? err.message : 'Fetch failed' }))
+      const message = err instanceof DOMException && err.name === 'AbortError'
+        ? 'Request timed out'
+        : err instanceof Error ? err.message : 'Fetch failed'
+      if (mountedRef.current && !silent) setState(s => ({ ...s, loading: false, error: message }))
+    } finally {
+      clearTimeout(timeout)
     }
   }, [url])
 
