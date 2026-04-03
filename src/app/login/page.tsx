@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [approvalData, setApprovalData] = useState<{approvalCode: string, userId: string} | null>(null);
 
   // If already logged in, redirect to dashboard
@@ -41,20 +42,11 @@ export default function LoginPage() {
       }
 
       if (isRegister) {
-        // Registration now returns a session token — go straight to dashboard
-        if (data.sessionToken) {
-          localStorage.setItem('octavius_session', data.sessionToken);
-          localStorage.setItem('octavius_user', JSON.stringify({
-            userId: data.userId,
-            email: data.email,
-          }));
-          router.push('/');
-          return;
-        }
-        // Fallback: flip to sign-in if no token returned
+        // Account created — switch to sign-in with success message
         setIsRegister(false);
         setError('');
         setPassword('');
+        setSuccessMessage(data.message || 'Account created! Sign in below.');
         return;
       }
 
@@ -166,6 +158,7 @@ export default function LoginPage() {
               />
             </div>
 
+            {successMessage && <div className="login-success">{successMessage}</div>}
             {error && <div className="login-error">{error}</div>}
 
             <button type="submit" disabled={loading} className="login-submit">
@@ -185,7 +178,7 @@ export default function LoginPage() {
           <div className="login-footer">
             <p className="login-toggle-text">
               {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <button onClick={() => { setIsRegister(!isRegister); setError('') }} className="login-toggle-btn">
+              <button onClick={() => { setIsRegister(!isRegister); setError(''); setSuccessMessage('') }} className="login-toggle-btn">
                 {isRegister ? 'Sign In' : 'Create one'}
               </button>
             </p>
@@ -264,6 +257,14 @@ export default function LoginPage() {
         }
         .login-input::placeholder {
           color: var(--text-tertiary, #8a91a0);
+        }
+        .login-success {
+          padding: 0.625rem 0.75rem;
+          background: rgba(52, 211, 153, 0.1);
+          border: 1px solid rgba(52, 211, 153, 0.2);
+          border-radius: 8px;
+          color: #34d399;
+          font-size: 0.8125rem;
         }
         .login-error {
           padding: 0.625rem 0.75rem;
