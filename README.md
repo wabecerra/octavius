@@ -26,7 +26,15 @@ An orchestrator agent (`octavius-orchestrator`) routes your messages to the righ
   - Amazon Linux: `sudo yum install -y python3 make gcc-c++`
   - macOS: `xcode-select --install`
 
-### Install (3 commands)
+### Install (one command)
+
+```bash
+npx create-octavius my-octavius
+```
+
+That's it. It clones the repo, installs dependencies, verifies native modules, creates config files, and tells you what to do next. Open http://localhost:3000, register an account, and you're in.
+
+**Alternative** (if you prefer manual steps):
 
 ```bash
 git clone https://github.com/wabecerra/octavius.git && cd octavius
@@ -34,11 +42,19 @@ npm run setup
 npm run dev
 ```
 
-That's it. Open http://localhost:3000 — you'll see the login page. Register a new account to get started.
-
 `npm run setup` handles everything: installs dependencies, creates `.env.local`, creates the SQLite data directory, verifies `better-sqlite3` compiles, detects the OpenClaw gateway, and validates config files. If anything fails, it tells you exactly what to fix.
 
 If something looks wrong after setup, run `npm run doctor` — it checks 20+ items and prints actionable fixes.
+
+### Update
+
+```bash
+npm run update
+```
+
+This pulls the latest release, reinstalls dependencies, re-runs setup (won't overwrite your `.env.local` or data), and verifies the build. If you have local changes, it warns you but doesn't block — your data in `.data/` is never touched.
+
+If you installed without git (zip download), re-install with `npx create-octavius` into a fresh directory and copy your `.data/` folder over.
 
 ### Important: do NOT do any of these
 

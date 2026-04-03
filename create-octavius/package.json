@@ -1,0 +1,26 @@
+{
+  "name": "create-octavius",
+  "version": "0.1.0",
+  "description": "Create a new Octavius instance — Personal Life Operating System",
+  "license": "MIT",
+  "bin": {
+    "create-octavius": "./index.mjs"
+  },
+  "keywords": [
+    "octavius",
+    "life-os",
+    "dashboard",
+    "ai-agents",
+    "create"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wabecerra/octavius"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "index.mjs"
+  ]
+}

@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "setup": "node scripts/setup.mjs",
     "doctor": "node scripts/doctor.mjs",
+    "update": "node scripts/update.mjs",
     "test:e2e": "playwright test",
     "test:all": "vitest run && playwright test"
   },
